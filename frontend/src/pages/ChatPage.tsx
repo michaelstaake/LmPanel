@@ -1227,33 +1227,16 @@ export default function ChatPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
             <input
               ref={inputRef}
               value={input}
               onChange={(event) => setInput(event.target.value)}
               disabled={isSending || isModelsUnavailable}
-              className="flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
+              className="min-w-0 flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
               placeholder={inputPlaceholder}
             />
-            {isSending ? (
-              <button
-                type="button"
-                onClick={() => abortControllerRef.current?.abort()}
-                className="rounded-xl bg-red-500 px-4 h-12 text-sm font-semibold text-white hover:bg-red-600"
-              >
-                Stop
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                className="flex-1 rounded-xl bg-amber px-4 h-12 text-sm font-semibold text-black disabled:opacity-50"
-              >
-                Send
-              </button>
-            )}
-            <div className="hidden sm:flex gap-2">
+            <div className="flex gap-2 sm:contents">
               <button
                 type="button"
                 onClick={() => {
@@ -1261,7 +1244,7 @@ export default function ChatPage() {
                   setUseWebSearch((current) => !current);
                 }}
                 disabled={isSending || isModelsUnavailable || !selectedModelSupportsWebSearch}
-                className={`flex h-12 w-12 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelSupportsWebSearch ? "border-black/20 bg-white" : useWebSearch ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelSupportsWebSearch ? "border-black/20 bg-white" : useWebSearch ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
                 title={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
                 aria-label={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
                 aria-pressed={useWebSearch}
@@ -1278,7 +1261,7 @@ export default function ChatPage() {
                   }
                 }}
                 disabled={isSending || isModelsUnavailable || (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks)}
-                className={`flex h-12 w-12 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-black/20 bg-white" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-black/20 bg-white" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
                 title={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
                 aria-label={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
                 aria-pressed={useThinking || selectedModelAlwaysThinks}
@@ -1290,55 +1273,34 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || isModelsUnavailable}
-                className="flex h-12 w-12 items-center justify-center rounded-xl border border-black/20 bg-white hover:bg-black/5 text-black disabled:opacity-50"
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-black/20 bg-white hover:bg-black/5 text-black disabled:opacity-50"
                 title="Attach files"
+                aria-label="Attach files"
               >
                 <i className="bi bi-paperclip text-[20px] leading-none" aria-hidden="true" />
               </button>
+              {isSending ? (
+                <button
+                  type="button"
+                  onClick={() => abortControllerRef.current?.abort()}
+                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:flex-none"
+                  aria-label="Stop"
+                >
+                  <i className="bi bi-stop-fill text-[18px] leading-none sm:hidden" aria-hidden="true" />
+                  <span className="hidden sm:inline">Stop</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
+                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex-none"
+                  aria-label="Send"
+                >
+                  <i className="bi bi-send-fill text-[18px] leading-none sm:hidden" aria-hidden="true" />
+                  <span className="hidden sm:inline">Send</span>
+                </button>
+              )}
             </div>
-          </div>
-          <div className="flex gap-2 sm:hidden">
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedModelSupportsWebSearch) return;
-                setUseWebSearch((current) => !current);
-              }}
-              disabled={isSending || isModelsUnavailable || !selectedModelSupportsWebSearch}
-              className={`flex h-12 w-12 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelSupportsWebSearch ? "border-black/20 bg-white" : useWebSearch ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
-              title={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
-              aria-label={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
-              aria-pressed={useWebSearch}
-              aria-disabled={!selectedModelSupportsWebSearch}
-            >
-              <i className="bi bi-globe text-[18px] leading-none" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks) return;
-                if (selectedModelAllowsThinkingPreference) {
-                  setUseThinking((current) => !current);
-                }
-              }}
-              disabled={isSending || isModelsUnavailable || (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks)}
-              className={`flex h-12 w-12 items-center justify-center rounded-xl border text-black transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-black/20 bg-white" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-black" : "border-black/20 bg-white hover:bg-black/5"}`}
-              title={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
-              aria-label={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
-              aria-pressed={useThinking || selectedModelAlwaysThinks}
-              aria-disabled={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks}
-            >
-              <i className="bi bi-stars text-[18px] leading-none" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSending || isModelsUnavailable}
-              className="flex h-12 w-12 items-center justify-center rounded-xl border border-black/20 bg-white hover:bg-black/5 text-black disabled:opacity-50"
-              title="Attach files"
-            >
-              <i className="bi bi-paperclip text-[20px] leading-none" aria-hidden="true" />
-            </button>
           </div>
           </form>
         ) : null}
