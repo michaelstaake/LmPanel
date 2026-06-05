@@ -1,8 +1,12 @@
 # LmPanel
 
-LmPanel turns your GPUs (or CPU) into a flexible, intuitive AI server. It features a clean web interface and a fully OpenAI-compatible API that's ready to integrate with your workflow - all running via Docker on Ubuntu 26.04. Pretty much any GGUF AI model will work - whether you want to run a small model on your laptop or want to run a massive model on a high end PC with multiple video cards, LmPanel makes it simple to get started self-hosting LLMs.
+A panel for self-hosting LLMs but with one less L in the name because that's easier to say. 
 
-It supports x86_64 CPUs, NVIDIA GPUs, AMD GPUs, and Intel Arc GPUs. You can have multiple cards and even mix multiple devices in the same setup. You can also pool multiple GPUs (within the same vendor) to run larger models. LmPanel is easy, private, and free.
+LmPanel turns your GPUs (or CPU) into a flexible, intuitive AI server. Built around llama-cpp, LmPanel features a clean web interface and a fully OpenAI-compatible API that's ready to integrate with your workflow - all running via Docker on Ubuntu 26.04. Pretty much any GGUF AI model will work - whether you want to run a small model on your laptop or want to run something more powerful on a high end PC with multiple video cards, LmPanel makes it simple to get started self-hosting LLMs.
+
+It supports x86_64 CPUs, NVIDIA GPUs, AMD GPUs, and Intel Arc GPUs. You can have multiple cards and even mix multiple devices in the same setup. You can also pool multiple GPUs (within the same vendor) to run larger models.
+
+LmPanel is easy, private, and free. Say goodbye to token costs and usage limitations! The only limitation with LmPanel is your hardware, but that's something you can control.
 
 ## System Requirements
 
@@ -10,12 +14,12 @@ It supports x86_64 CPUs, NVIDIA GPUs, AMD GPUs, and Intel Arc GPUs. You can have
 
 - **CPU**: x86_64
 - **NVIDIA GPU**: CUDA (`--profile nvidia`)
-- **AMD GPU**: Vulkan (`--profile vulkan`, recommended) or ROCm (`--profile rocm`, experimental — only if you are willing to troubleshoot known issues)
+- **AMD GPU**: Vulkan (`--profile vulkan`, recommended) or ROCm (`--profile rocm`, experimental - only if you are willing to troubleshoot issues)
 - **Intel Arc GPU**: Vulkan (`--profile vulkan`)
 
 ### Ubuntu 26.04
 
-If it works on other operating systems, cool, but supporting that is outside the scope of this project. Ensure the correct GPU drivers and necessary extras (e.g., NVIDIA Container Toolkit) for your hardware are installed.
+If it works on other operating systems, cool, but supporting that is outside the scope of this project.
 
 **If you are running Windows, that's OK - LmPanel works in WSL!** 
 
@@ -58,13 +62,13 @@ docker compose up -d --build
 docker compose --profile nvidia up -d --build
 ```
 
-#### CPU + Vulkan (Intel Arc, or AMD — recommended):
+#### CPU + Vulkan (Intel Arc, or AMD):
 
 ```bash
 docker compose --profile vulkan up -d --build
 ```
 
-#### CPU + ROCm (AMD discrete / AI Pro — experimental):
+#### CPU + ROCm (AMD - Experimental):
 
 ROCm support is available but currently buggy. Use Vulkan for AMD GPUs unless you specifically need ROCm and are willing to troubleshoot driver, offload, and pool issues.
 
@@ -72,25 +76,21 @@ ROCm support is available but currently buggy. Use Vulkan for AMD GPUs unless yo
 docker compose --profile rocm up -d --build
 ```
 
-On the host, install ROCm user-space (Ubuntu 26.04 ships an older ROCm; for Radeon AI PRO R9700 and other recent AMD GPUs use ROCm 7.2+ from AMD’s repo with `amdgpu-install -y --usecase=rocm --no-dkms`). Add your user to the `render` and `video` groups. The `inference-rocm` service runs **privileged** so HIP can open `/dev/kfd` inside Docker (without this, `rocminfo` may report `Unable to open /dev/kfd read-write` and llama-server loads with 0 GPU layers).
+#### Mixed Vendors:
 
-Optional build args for `inference-rocm`: `ROCM_DEV_IMAGE` (defaults to `rocm/dev-ubuntu-24.04:7.2.3-complete`, which includes hipBLAS), `AMDGPU_TARGETS` (defaults to `gfx1200;gfx1201` for RDNA4 / R9700 and RX 9070-class GPUs; change in `.env` for other AMD archs), and `GGML_HIP_RCCL=ON` for experimental tensor-parallel pools.
-
-If a model shows on a GPU in Status but VRAM stays near empty and tokens/sec is slow, llama.cpp likely loaded with **0 GPU layers** (CPU-only). LmPanel now passes `--fit off` by default (`LLAMA_FIT_TO_VRAM=false`) so large context lengths do not silently disable offload. Also check the model’s **GPU layers** setting (-1 = all), lower **context length** if VRAM is tight, and inspect `./logs/llama-<model_id>.log` for `offloaded N/N layers to GPU`.
-
-#### CPU + NVIDIA + Vulkan + ROCm (mixed vendors):
+If you would like to use devices from more than one vendor, no problem. Just add additional profiles. Here's an example with NVIDIA and Vulkan support:
 
 ```bash
-docker compose --profile nvidia --profile vulkan --profile rocm up -d --build
+docker compose --profile nvidia --profile vulkan up -d --build
 ```
 
-When the ROCm profile is running, AMD GPUs are listed only as `rocm` devices (Vulkan no longer duplicates them). Intel Arc stays on Vulkan; NVIDIA stays on CUDA.
+If both Vulkan and ROCm profiles are enabled, AMD GPUs are listed only as `rocm` devices and the Vulkan instances of those AMD GPUs will be ignored and unavailable.
 
-On startup (and whenever the Devices page refreshes), GPUs that are no longer reported by any running inference runtime are **removed from the database**, not left disabled. For example, switching from `--profile vulkan` to `--profile rocm` drops stale Vulkan rows; bringing the Vulkan profile back re-detects and re-adds them. Models pinned to removed devices revert to Auto assignment.
+#### Notes
 
-The initial build process may take a while depending on your environment and host performance, as we are building llama-cpp based on your chosen inference runtime.
+At every startup, LmPanel will auto-detect all applicable devices. If you change profiles or remove/replace a GPU with a different one, any old ones will be removed from the database automatically. Models that were assigned to a specific device will revert to Auto mode.
 
-Large models can also take several minutes to finish loading the first time they are activated during startup. If Docker marks the backend or inference containers unhealthy too early, increase `LLAMA_STARTUP_TIMEOUT_SECONDS` and the `STARTUP_HEALTHCHECK_*` values in `.env`.
+The initial build process or the build process when changing or adding profiles may take a while depending on your environment and host performance, as we are building llama-cpp based on your chosen inference runtime. This is normal. Subsequent builds should be much quicker, although occasionally updates may require a fresh build of llama-cpp.
 
 **4. Proceed to web interface**
 
@@ -119,12 +119,7 @@ docker compose down
 docker compose --profile nvidia down
 docker compose --profile vulkan down
 docker compose --profile rocm down
-docker compose --profile nvidia --profile vulkan --profile rocm down
 ```
-
-**Multi-GPU AMD pools (ROCm only):** if you run the ROCm profile, create a pool with vendor `rocm` and try split mode `layer` first. `tensor` mode is experimental; rebuild with `GGML_HIP_RCCL=ON` if you want to test it. PCIe bandwidth (e.g. PCIe 3.0) still limits cross-GPU performance. For most AMD setups, Vulkan is the more reliable path.
-
-If you see garbled/random output only on ROCm pools (while single-GPU ROCm is fine), keep `ROCM_POOL_PARALLEL=1` and `ROCM_POOL_CACHE_RAM_MB=0` (the defaults), keep `ROCM_POOL_FLASH_ATTN_ENABLED=false`, and keep `ROCM_POOL_ALLOW_TENSOR_SPLIT=false` unless you have validated your exact stack.
 
 ## Interacting with the AI Models
 
@@ -143,7 +138,7 @@ By default, an API key is required for chat completions. Model listing is public
 | `OPENAI_API_AUTH_REQUIRED` | `/v1/chat/completions` | `true` |
 | `OPENAI_MODELS_AUTH_REQUIRED` | `/v1/models` | `false` |
 
-Set `OPENAI_API_AUTH_REQUIRED=false` to allow anonymous chat completions (not recommended). Set `OPENAI_MODELS_AUTH_REQUIRED=true` if you want model listing to require the same JWT or API key as chat.
+Set `OPENAI_API_AUTH_REQUIRED=false` to allow anonymous chat completions (not recommended). Set `OPENAI_MODELS_AUTH_REQUIRED=true` if you want model listing to require authentication.
 
 LmPanel currently supports `/v1/models` and `/v1/chat/completions`.
 
@@ -156,32 +151,6 @@ curl -k https://localhost:8444/v1/chat/completions \
   -d '{
     "model": "your-model-alias",
     "messages": [{"role": "user", "content": "Hello"}],
-    "stream": false
-  }'
-```
-
-### Example Vision API Call
-
-```bash
-curl -k https://localhost:8444/v1/chat/completions \
-  -H "Authorization: Bearer API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "your-vision-model-alias",
-    "messages": [
-      {
-        "role": "user",
-        "content": [
-          {"type": "text", "text": "What is in this image?"},
-          {
-            "type": "image_url",
-            "image_url": {
-              "url": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..."
-            }
-          }
-        ]
-      }
-    ],
     "stream": false
   }'
 ```
@@ -247,34 +216,59 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Backend container is unhealthy after an update**:
   - Inspect `docker logs lmpanel-backend` for migration errors
-  - Version 1.0.0 requires a clean install — upgrades from Pawpile are not supported.
-
-- **Backend or inference container turns unhealthy while loading a large model**:
-  - Increase `LLAMA_STARTUP_TIMEOUT_SECONDS` in `.env`
-  - Increase one or more `STARTUP_HEALTHCHECK_*` values in `.env` so Docker waits longer before marking the service unhealthy
+  - LmPanel ersion 1.0.0 requires a clean install — upgrades from Pawpile (the project LmPanel is based on) are not supported.
 
 - **Docker Desktop**:
   - While Ubuntu Server 26.04 is the recommended OS, LmPanel runs great on  Ubuntu Desktop 26.04. However, if you have Docker Desktop installed, and attempt to run LmPanel using the Docker Desktop system context, it will not be able to use all the system resources like RAM and GPUs.
   - Run `docker context use default` to correct the system context.
 
 
-### Device Detection Issues
+### Device Issues
 
 - **Device not detected**:
   - Check vendor tooling is installed on the host system:
-    - Ubuntu 26.04: `nvidia-smi` (NVIDIA), `vulkaninfo` (Intel Arc / AMD — recommended), or `rocm-smi` (AMD with ROCm profile, experimental)
+    - Ubuntu 26.04: `nvidia-smi` (NVIDIA), `vulkaninfo` (Intel Arc / AMD - recommended), or `rocm-smi` (AMD - experimental)
   - Ensure the appropriate GPU Docker runtime is configured and accessible to the environment.
   - Restart the application after installing drivers on the host.
 
-- **Intel Arc (Vulkan) shows on the status page but memory is N/A or missing from AI Memory**:
-  - VRAM totals come from `vulkaninfo` inside the `lmpanel-inference-vulkan` container (not the backend container).
-  - Verify the inference container sees device-local heaps:
-    ```bash
-    docker exec lmpanel-inference-vulkan vulkaninfo 2>/dev/null | grep -E 'GPU[0-9]+:|memoryHeaps|DEVICE_LOCAL|size =|usage =' | head -80
-    docker exec lmpanel-inference-vulkan curl -s http://localhost:8100/runtime/status | jq '.devices[] | select(.hardware_id|startswith("vulkan")) | {hardware_id, memory_total_mb, memory_used_mb, memory_source}'
-    ```
-  - `memory_total_mb` should be roughly your card's VRAM (e.g. ~6144 for a 6 GB Arc A380). If it is 0, check that `/dev/dri` is passed through and the host has a working Intel GPU driver.
-  - **Used VRAM much lower than nvtop:** Intel Arc used memory comes from the kernel DRM/fdinfo path (`memory_source` `drm-xe` or `fdinfo`), not vulkaninfo alone. Rebuild `inference-vulkan` after updates. The compose profile adds `CAP_PERFMON` so the xe driver can report device-wide usage; without it, per-process fdinfo totals are still used when available.
+### Performance Issues
+
+First off, if you are using the CPU device, yes, it's probably going to be slow. CPU inference is included in all installs of LmPanel for testing and fallback purposes, but you'll probably want to use GPUs to actually run your inference workloads. CPUs simply aren't optimized for AI workloads.
+
+If CPU load is high even though your models should be running on the GPU, ensure the GPU layer settings for the models are set to 99. -1 should work, but in reality 99 delivers more consistent results.
+
+#### GPU stats
+
+Nvtop is a useful tool you run on your host to see GPU stats. You can install it with:
+
+```bash
+sudo apt install nvtop -y
+```
+
+Run an AI model and check the stats while it's working.
+
+If your GPU is maxed out on power usage and GPU load, you might just be at the limits of your chosen hardware. Note: As of the time of this writing, nvtop does not reliably show Intel Arc GPU load.
+
+However, if your GPU's power usage and/or GPU load is not nearly maxed out while under load, you may have a bottleneck elsewhere in the system or need to tweak your configuration.
+
+#### Check PCI-Express version and lanes.
+
+In Nvtop, this is displayed as PCIe GEN 3@16x (for example).
+
+Note: Some devices may fall back to a slower PCI-E speed at idle. This is normal, so ensure the GPU is under load before you start troubleshooting.
+
+If you're using a GPU individually, PCI-E speeds don't matter too much, but if you are using the GPU Pools feature, PCI-E speeds can make a big difference.
+
+The two things that matter for PCI-E speed is the version and the number of active lanes.
+- It's like a highway - if you are trying to move X amount of cars, you can either add more lanes or the cars can drive faster.
+- Each version of PCI-Express doubles the available bandwidth per lane.
+- Most GPUs should be on an x16 bus, although some GPUs run on x8.
+- Older platforms use older PCI-E versions.
+- Consumer platforms and/or cheaper motherboards may have plenty of physical x16 slots, but typically only the "primary" PCI-E slot will be actually wired at x16, and subsequent slots will be electrically limited to x8, x4, or x1. Sometimes you can see this if you look in the slot - the additional contacts may not be present, but this is not a reliable indicator as just because the contacts are there doesn't mean your platform and CPU can actually use all those lanes.
+
+#### Using AMD? Try ROCm
+
+Vulkan is the most reliable way to run AMD GPUs in LmPanel, and actually offers better performance than ROCm in some cases. However, in some cases, ROCm can offer better performance. Contribution related to ROCm implementation improvement and testing would be highly appreciated.
 
 ## Need Help?
 
@@ -285,6 +279,4 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 GPL-3.0 license
 
----
-
-LmPanel was formerly known as Pawpile.
+## Prior to 6/5/26, LmPanel was formerly known as Pawpile
