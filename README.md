@@ -270,6 +270,14 @@ The two things that matter for PCI-E speed is the version and the number of acti
 
 Vulkan is the most reliable way to run AMD GPUs in LmPanel, and actually offers better performance than ROCm in some cases. However, in some cases, ROCm can offer better performance. Contribution related to ROCm implementation improvement and testing would be highly appreciated.
 
+#### Tweak Model Settings
+
+Experiment with settings like flash attention and the other settings available in the UI.
+
+#### Tweak Pool Settings
+
+You can try different types of model distribution when using GPU Pools - layer and tensor.
+
 ## Need Help?
 
 [Documentation on GitHub Wiki](https://github.com/michaelstaake/LmPanel/wiki)
