@@ -1,4 +1,5 @@
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { apiDelete, apiGet, apiPost, apiPostForm, handleBackendUnavailableError, isBackendUnavailableResponse } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useModelsCatalog } from "../context/ModelsCatalogContext";
@@ -304,6 +305,8 @@ export default function ChatPage() {
   const { token, user } = useAuth();
   const { closeMobileNav, setMobileNavSection } = useMobileNav();
   const { showError } = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const {
     models,
     modelCardDetails,
@@ -324,6 +327,7 @@ export default function ChatPage() {
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const prevLocationRef = useRef(location.pathname);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -371,6 +375,16 @@ export default function ChatPage() {
       setActiveChatId(null);
     }
   }, [token]);
+
+  useEffect(() => {
+    const prev = prevLocationRef.current;
+    const current = location.pathname;
+    if (prev !== "/" && current === "/" && activeChatId !== null) {
+      startNewChat();
+      navigate("/new-chat", { replace: true });
+    }
+    prevLocationRef.current = current;
+  }, [location.pathname, activeChatId, navigate]);
 
   useEffect(() => {
     if (models.length === 0) {

@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
 import AuthPage from "./pages/AuthPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -81,10 +81,21 @@ function MainNavLink({
   to: string;
   end?: boolean;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (to === "/" && location.pathname === "/") {
+      e.preventDefault();
+      navigate("/new-chat");
+    }
+  };
+
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={handleClick}
       className={({ isActive }) => `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-ink text-white" : "bg-black/5"}`}
     >
       <i className={`${iconClassName} text-[14px] leading-none`} aria-hidden="true" />
@@ -297,6 +308,7 @@ export default function App() {
 
             <Routes>
               <Route path="/" element={<HomeRoute />} />
+              <Route path="/new-chat" element={<HomeRoute />} />
               <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
               <Route path="/configuration" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
               <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />

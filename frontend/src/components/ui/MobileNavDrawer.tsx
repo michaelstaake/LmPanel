@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import Modal from "./Modal";
 
 export type MobileNavItem = {
@@ -8,6 +8,30 @@ export type MobileNavItem = {
   iconClassName: string;
   end?: boolean;
 };
+
+function MobileNavItemComponent({ item, onClose }: { item: MobileNavItem; onClose: () => void }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (item.to === "/" && location.pathname === "/") {
+      e.preventDefault();
+      navigate("/new-chat");
+    }
+  };
+
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      onClick={handleClick}
+      className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? "bg-ink text-white" : "bg-black/5 text-ink hover:bg-black/10"}`}
+    >
+      <i className={`${item.iconClassName} text-[16px] leading-none`} aria-hidden="true" />
+      <span>{item.label}</span>
+    </NavLink>
+  );
+}
 
 type MobileNavDrawerProps = {
   open: boolean;
@@ -53,16 +77,7 @@ export default function MobileNavDrawer({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <nav className="space-y-2" aria-label="Primary navigation">
             {navItems.map((item) => (
-              <NavLink
-                key={`${item.to}-${item.label}`}
-                to={item.to}
-                end={item.end}
-                onClick={onClose}
-                className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition ${isActive ? "bg-ink text-white" : "bg-black/5 text-ink hover:bg-black/10"}`}
-              >
-                <i className={`${item.iconClassName} text-[16px] leading-none`} aria-hidden="true" />
-                <span>{item.label}</span>
-              </NavLink>
+              <MobileNavItemComponent key={`${item.to}-${item.label}`} item={item} onClose={onClose} />
             ))}
           </nav>
 
