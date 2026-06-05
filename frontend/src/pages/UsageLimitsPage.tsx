@@ -24,6 +24,7 @@ const DEFAULT_SETTINGS: AppSettingsRecord = {
   background_color: "#efe8d2",
   background_image_path: null,
   background_image_mode: "fill",
+  favicon_path: null,
   input_price_per_1m: 0,
   output_price_per_1m: 0,
   public_url: "",
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: AppSettingsRecord = {
   usage_limit_tools_24_hours: 0,
   usage_limit_tools_7_days: 0,
   usage_limit_tools_30_days: 0,
+  update_check_mode: "disabled",
 };
 
 function parseLimitValue(rawValue: string): number | null {

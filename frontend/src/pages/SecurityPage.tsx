@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { apiGet, apiPatch, checkForUpdates } from "../lib/api";
+import { apiGet, apiPatch, checkForUpdates, UpdateCheckRecord } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { AppSettingsRecord, UpdateCheckRecord } from "../lib/records";
+import { AppSettingsRecord } from "../lib/records";
 
 const DEFAULT_SITENAME = "LmPanel";
 
@@ -15,6 +15,7 @@ export default function SecurityPage() {
     background_color: "#efe8d2",
     background_image_path: null,
     background_image_mode: "fill",
+    favicon_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
     public_url: "",

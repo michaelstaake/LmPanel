@@ -70,6 +70,7 @@ export default function ConfigurationPage() {
     usage_limit_tools_24_hours: 0,
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
+    update_check_mode: "disabled",
   });
   const [localSitename, setLocalSitename] = useState(DEFAULT_SITENAME);
   const [localPublicUrl, setLocalPublicUrl] = useState("");
