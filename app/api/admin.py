@@ -33,9 +33,9 @@ GITHUB_REPO_NAME = "LmPanel"
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 app_config = get_settings()
 BACKGROUND_IMAGE_MAX_BYTES = 10 * 1024 * 1024
- BACKGROUND_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
- FAVICON_MAX_BYTES = 2 * 1024 * 1024
- FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+BACKGROUND_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+FAVICON_MAX_BYTES = 2 * 1024 * 1024
+FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 @router.get("/settings", response_model=AppSettingsResponse)
