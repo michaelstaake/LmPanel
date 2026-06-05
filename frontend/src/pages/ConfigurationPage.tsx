@@ -468,7 +468,7 @@ export default function ConfigurationPage() {
                 />
               </div>
             ) : (
-              <p className="text-sm text-black/65">No favicon uploaded. The default LmPanel icon will be used.</p>
+              <p className="text-sm text-black/65">No favicon uploaded.</p>
             )}
           </div>
           <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
