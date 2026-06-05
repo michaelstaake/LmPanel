@@ -1,0 +1,1099 @@
+import asyncio
+import codecs
+import json
+import logging
+import os
+import re
+import shlex
+import subprocess
+import threading
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import IO, Optional
+
+import httpx
+import psutil
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from app.core.config import get_settings
+from app.core.device_manager import (
+    AMD_VENDOR_ID,
+    INTEL_VENDOR_ID,
+    DeviceManager,
+    get_supported_vendors,
+    is_supported_vendor,
+    _parse_vulkan_vendor_id,
+    _parse_vulkaninfo_gpu_memory_metrics,
+)
+from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metrics
+
+logger = logging.getLogger(__name__)
+
+_GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan", "rocm"})
+
+
+def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
+    if gpu_layers <= -1:
+        return "all"
+    return str(max(0, gpu_layers))
+
+
+def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool) -> list[str]:
+    effective_vendor = vendor.removesuffix("_pool")
+    if effective_vendor not in _GPU_OFFLOAD_VENDORS or gpu_layers == 0:
+        return []
+
+    args: list[str] = []
+    if not fit_to_vram:
+        args.extend(["--fit", "off"])
+    if not vendor.endswith("_pool"):
+        args.extend(["--main-gpu", "0"])
+    return args
+
+
+def _apply_rocm_runtime_env(env: dict[str, str]) -> None:
+    override = get_settings().rocm_hsa_override_gfx_version.strip()
+    if override:
+        env["HSA_OVERRIDE_GFX_VERSION"] = override
+
+
+def _rocm_pool_stability_args() -> list[str]:
+    settings = get_settings()
+    args: list[str] = []
+
+    parallel = max(1, settings.rocm_pool_parallel)
+    args.extend(["--parallel", str(parallel)])
+
+    cache_ram_mb = max(0, settings.rocm_pool_cache_ram_mb)
+    args.extend(["--cache-ram", str(cache_ram_mb)])
+
+    return args
+
+
+def _rocm_pool_flash_attn_enabled(requested: bool) -> bool:
+    settings = get_settings()
+    if settings.rocm_pool_flash_attn_enabled:
+        return requested
+    return False
+
+
+def _resolve_flash_attn_for_launch(vendor: str, requested: bool, split_mode: str) -> bool:
+    if vendor != "rocm_pool":
+        return requested
+
+    enabled = _rocm_pool_flash_attn_enabled(requested)
+    normalized_split_mode = split_mode.strip().lower()
+
+    # Tensor split requires flash-attn. If the model-level flash setting conflicts,
+    # ignore that model value and force a compatible value at launch.
+    if normalized_split_mode == "tensor" and not enabled:
+        settings = get_settings()
+        if settings.rocm_pool_allow_tensor_split and settings.rocm_pool_flash_attn_enabled:
+            logger.warning(
+                "Ignoring model flash-attn setting for ROCm tensor pool; forcing --flash-attn on"
+            )
+            return True
+
+    return enabled
+
+
+def _effective_pool_split_mode(vendor: str, split_mode: str, *, flash_attn_enabled: bool) -> str:
+    if vendor != "rocm_pool":
+        return split_mode
+
+    normalized = split_mode.strip().lower()
+    if normalized not in {"layer", "tensor"}:
+        logger.warning("ROCm pool requested unsupported split mode '%s'; using 'layer'", split_mode)
+        return "layer"
+
+    if normalized != "tensor":
+        return normalized
+
+    if not flash_attn_enabled:
+        logger.warning("ROCm pool requested split mode 'tensor' but flash-attn is off; using 'layer' instead")
+        return "layer"
+
+    settings = get_settings()
+    if settings.rocm_pool_allow_tensor_split:
+        return normalized
+
+    logger.warning(
+        "ROCm pool requested split mode 'tensor' but it is disabled by configuration; using 'layer' instead"
+    )
+    return "layer"
+
+
+def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) -> None:
+    effective_vendor = vendor.removesuffix("_pool")
+    if effective_vendor not in _GPU_OFFLOAD_VENDORS or gpu_layers == 0:
+        return
+
+    try:
+        text = Path(log_path).read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        logger.warning("Could not read llama log at %s for GPU offload verification", log_path)
+        return
+
+    lowered = text.lower()
+    if "no usable gpu found" in lowered or "gpu-layers option will be ignored" in lowered:
+        raise RuntimeError(
+            "llama-server has no usable GPU backend. Rebuild with the correct inference profile "
+            "(for AMD: docker compose --profile rocm) and verify AMDGPU_TARGETS matches your GPU."
+        )
+
+    match = re.search(r"offloaded\s+(\d+)/(\d+)\s+layers", text, re.IGNORECASE)
+    if match and int(match.group(1)) == 0 and int(match.group(2)) > 0:
+        raise RuntimeError(
+            "Model loaded with 0 GPU layers (CPU-only). Lower context length, keep GPU layers at -1 (all), "
+            "set LLAMA_FIT_TO_VRAM=false, and confirm ROCm sees the GPU inside the inference-rocm container."
+        )
+
+
+def _coalesce_int(value: object) -> int | None:
+    if value is None or value == "":
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+class ActivateModelRequest(BaseModel):
+    model_id: int
+    alias: str
+    file_path: str
+    mmproj_path: str | None = None
+    context_length: int
+    threads: int
+    gpu_layers: int
+    flash_attention_enabled: bool = False
+    memory_mapping_enabled: bool = True
+    vendor: str
+    hardware_id: str
+    hardware_ids: list[str] = []
+    vram_ratios: list[int] = []
+    split_mode: str = "layer"
+    stable_hardware_id: str | None = None
+    stable_hardware_ids: list[str] = []
+    discourage_thinking: bool = False
+
+
+@dataclass
+class RunningModel:
+    model_id: int
+    alias: str
+    hardware_id: str
+    vendor: str
+    port: int
+    process: subprocess.Popen
+    stable_hardware_ids: list[str] = field(default_factory=list, compare=False)
+    command: list[str] = field(default_factory=list, compare=False)
+    log_path: str = field(default="", compare=False)
+    log_file: Optional[IO[bytes]] = field(default=None, compare=False)
+
+
+class InferenceRuntime:
+    def __init__(self) -> None:
+        self.settings = get_settings()
+        self._running: dict[int, RunningModel] = {}
+        self._tokens_processed = 0
+        self._tokens_lock = threading.Lock()
+
+    async def activate_model(self, payload: ActivateModelRequest) -> None:
+        effective_vendor = payload.vendor.removesuffix("_pool")
+        if not is_supported_vendor(effective_vendor):
+            raise RuntimeError(f"Unsupported device vendor for this inference service: {payload.vendor}")
+        if payload.model_id in self._running:
+            return
+
+        self._ensure_stable_hardware_available(payload)
+
+        port = self.settings.llama_base_port + payload.model_id
+        env = self._build_env(payload.vendor, payload.hardware_id, payload.threads, payload.hardware_ids)
+        flash_attn_enabled = _resolve_flash_attn_for_launch(
+            payload.vendor,
+            payload.flash_attention_enabled,
+            payload.split_mode,
+        )
+        if payload.vendor == "rocm_pool" and payload.flash_attention_enabled and not flash_attn_enabled:
+            logger.warning("ROCm pool forcing --flash-attn off for stability")
+
+        command = [
+            self._resolve_llama_server_path(),
+            "-m",
+            payload.file_path,
+            "--host",
+            self.settings.llama_host,
+            "--port",
+            str(port),
+            "-c",
+            str(payload.context_length),
+            "--threads",
+            str(payload.threads),
+            "--n-gpu-layers",
+            _format_gpu_layers_for_cli(payload.gpu_layers),
+            "--flash-attn",
+            "on" if flash_attn_enabled else "off",
+        ]
+        command.extend(
+            _llama_offload_extra_args(
+                payload.vendor,
+                payload.gpu_layers,
+                fit_to_vram=self.settings.llama_fit_to_vram,
+            )
+        )
+        if not payload.memory_mapping_enabled:
+            command.append("--no-mmap")
+        if payload.mmproj_path:
+            command.extend(["--mmproj", payload.mmproj_path])
+        command.extend(
+            self._build_vendor_args(
+                payload.vendor,
+                payload.vram_ratios,
+                payload.split_mode,
+                flash_attn_enabled=flash_attn_enabled,
+            )
+        )
+        command.append("--jinja")
+        if payload.discourage_thinking:
+            command.extend(["--reasoning", "off", "--reasoning-budget", "0"])
+
+        logs_dir = Path(self.settings.logs_dir)
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        log_path = logs_dir / f"llama-{payload.model_id}.log"
+
+        try:
+            log_file: IO[bytes] = open(log_path, "wb")
+            logger.info(
+                "Launching llama-server for model %d (%s) on %s %s; log=%s; command=%s",
+                payload.model_id,
+                payload.alias,
+                payload.vendor,
+                payload.hardware_id,
+                log_path,
+                shlex.join(command),
+            )
+            process = subprocess.Popen(command, env=env, stdout=log_file, stderr=log_file)
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"llama-server executable not found at {self.settings.llama_server_path}") from exc
+
+        self._running[payload.model_id] = RunningModel(
+            model_id=payload.model_id,
+            alias=payload.alias,
+            hardware_id=payload.hardware_id,
+            vendor=payload.vendor,
+            port=port,
+            process=process,
+            stable_hardware_ids=self._stable_hardware_ids_from_payload(payload),
+            command=command,
+            log_path=str(log_path),
+            log_file=log_file,
+        )
+        if not await self.wait_until_healthy(payload.model_id):
+            self.deactivate_model(payload.model_id)
+            raise RuntimeError(f"Model {payload.alias} failed health check")
+
+        try:
+            _validate_gpu_offload_from_log(str(log_path), payload.vendor, payload.gpu_layers)
+        except RuntimeError:
+            self.deactivate_model(payload.model_id)
+            raise
+
+    def deactivate_model(self, model_id: int) -> None:
+        running = self._running.pop(model_id, None)
+        if not running:
+            return
+        running.process.terminate()
+        try:
+            running.process.wait(timeout=10)
+        except Exception:
+            running.process.kill()
+        if running.log_file is not None:
+            try:
+                running.log_file.close()
+            except Exception:
+                pass
+
+    async def wait_until_healthy(self, model_id: int) -> bool:
+        running = self._running.get(model_id)
+        if not running:
+            return False
+
+        url = f"http://{self.settings.llama_host}:{running.port}/health"
+        timeout = self.settings.llama_health_timeout_seconds
+        deadline = time.monotonic() + max(timeout, self.settings.llama_startup_timeout_seconds)
+
+        while time.monotonic() < deadline:
+            exit_code = running.process.poll()
+            if exit_code is not None:
+                logger.error(
+                    "llama-server for model %d (%s) on %s %s exited early with code %d; log=%s; command=%s",
+                    model_id,
+                    running.alias,
+                    running.vendor,
+                    running.hardware_id,
+                    exit_code,
+                    running.log_path,
+                    shlex.join(running.command),
+                )
+                return False
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    response = await client.get(url)
+                if response.status_code == 200:
+                    return True
+            except Exception:
+                pass
+            await asyncio.sleep(0.5)
+
+        logger.error(
+            "llama-server for model %d (%s) on %s %s did not become healthy within %d seconds; log=%s; command=%s",
+            model_id,
+            running.alias,
+            running.vendor,
+            running.hardware_id,
+            max(timeout, self.settings.llama_startup_timeout_seconds),
+            running.log_path,
+            shlex.join(running.command),
+        )
+        return False
+
+    async def chat_completion(self, model_id: int, payload: dict) -> dict:
+        running = self._running.get(model_id)
+        if not running:
+            raise RuntimeError("Model is not active")
+        url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
+        async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
+            response = await client.post(url, json=payload)
+        response.raise_for_status()
+        response_payload = response.json()
+        self._record_usage_from_payload(response_payload)
+        return response_payload
+
+    async def stream_chat_completion(self, model_id: int, payload: dict):
+        running = self._running.get(model_id)
+        if not running:
+            raise RuntimeError("Model is not active")
+
+        url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
+        decoder = codecs.getincrementaldecoder("utf-8")("ignore")
+        event_buffer = ""
+        async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
+            async with client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    if chunk:
+                        event_buffer = self._track_stream_chunk(event_buffer, decoder, chunk)
+                        yield chunk
+                self._finalize_tracked_stream(event_buffer, decoder)
+
+    def _resolve_llama_server_path(self) -> str:
+        configured_path = Path(self.settings.llama_server_path)
+        candidates = [configured_path]
+        if os.name == "nt" and configured_path.suffix.lower() != ".exe":
+            candidates.insert(0, configured_path.with_suffix(".exe"))
+
+        for candidate in candidates:
+            if candidate.exists():
+                return str(candidate)
+
+        return str(configured_path)
+
+    def _build_env(self, vendor: str, hardware_id: str, threads: int, hardware_ids: list[str] | None = None) -> dict[str, str]:
+        env = os.environ.copy()
+        if vendor == "nvidia_pool":
+            ids = hardware_ids if hardware_ids else [hardware_id]
+            indices = [hid.split(":")[-1] for hid in ids]
+            env["CUDA_VISIBLE_DEVICES"] = ",".join(indices)
+        elif vendor == "vulkan_pool":
+            ids = hardware_ids if hardware_ids else [hardware_id]
+            indices = [hid.split(":")[-1] for hid in ids]
+            env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
+        elif vendor == "rocm_pool":
+            ids = hardware_ids if hardware_ids else [hardware_id]
+            indices = [hid.split(":")[-1] for hid in ids]
+            env["HIP_VISIBLE_DEVICES"] = ",".join(indices)
+            _apply_rocm_runtime_env(env)
+        elif vendor == "rocm":
+            env["HIP_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
+            _apply_rocm_runtime_env(env)
+        elif vendor == "nvidia":
+            env["CUDA_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
+        elif vendor == "vulkan":
+            env["GGML_VK_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
+        elif vendor == "cpu":
+            env["OMP_NUM_THREADS"] = str(max(1, threads))
+        else:
+            raise RuntimeError(f"Unknown device vendor: {vendor}")
+        return env
+
+    def _build_vendor_args(
+        self,
+        vendor: str,
+        vram_ratios: list[int] | None = None,
+        split_mode: str = "layer",
+        *,
+        flash_attn_enabled: bool = False,
+    ) -> list[str]:
+        if vendor.endswith("_pool"):
+            args: list[str] = []
+            effective_split_mode = split_mode
+            if vendor == "rocm_pool":
+                args.extend(_rocm_pool_stability_args())
+                effective_split_mode = _effective_pool_split_mode(
+                    vendor,
+                    split_mode,
+                    flash_attn_enabled=flash_attn_enabled,
+                )
+
+            if effective_split_mode == "tensor" and vram_ratios and len(vram_ratios) >= 2:
+                args.extend(["--tensor-split", ",".join(str(r) for r in vram_ratios)])
+            args.extend(["--split-mode", effective_split_mode])
+            return args
+
+        return []
+
+    @staticmethod
+    def _stable_hardware_ids_from_payload(payload: ActivateModelRequest) -> list[str]:
+        ids = [value.strip() for value in payload.stable_hardware_ids if value and value.strip()]
+        if not ids and payload.stable_hardware_id and payload.stable_hardware_id.strip():
+            ids = [payload.stable_hardware_id.strip()]
+        return ids
+
+    def _ensure_stable_hardware_available(self, payload: ActivateModelRequest) -> None:
+        requested = self._stable_hardware_ids_from_payload(payload)
+        if not requested:
+            return
+
+        requested_set = set(requested)
+        for running in self._running.values():
+            if running.process.poll() is not None:
+                continue
+            overlap = requested_set.intersection(running.stable_hardware_ids)
+            if overlap:
+                raise RuntimeError(
+                    f"GPU already in use by model {running.alias} (stable id: {', '.join(sorted(overlap))})"
+                )
+
+    def status_payload(self) -> dict:
+        supported_vendors = get_supported_vendors()
+        detected_devices = [device for device in device_manager.detect_local() if device.vendor in supported_vendors]
+        dynamic_metrics = self._collect_dynamic_metrics()
+        models_by_hardware_id: dict[str, list[dict]] = {}
+
+        for running in self._running.values():
+            if running.process.poll() is not None:
+                continue
+
+            hardware_metrics = dynamic_metrics.get(running.hardware_id, {})
+            process_memory_by_pid = hardware_metrics.get("process_memory_by_pid", {})
+            process_memory_mb = process_memory_by_pid.get(running.process.pid)
+            if process_memory_mb is None:
+                process_memory_mb = self._process_memory_mb(running.process.pid)
+
+            models_by_hardware_id.setdefault(running.hardware_id, []).append(
+                {
+                    "model_id": running.model_id,
+                    "alias": running.alias,
+                    "pid": running.process.pid,
+                    "memory_used_mb": process_memory_mb,
+                }
+            )
+
+        devices: list[dict] = []
+        for device in detected_devices:
+            device_models = sorted(models_by_hardware_id.get(device.hardware_id, []), key=lambda row: row["model_id"])
+            hardware_metrics = dynamic_metrics.get(device.hardware_id, {})
+            process_memory_total = sum(model["memory_used_mb"] for model in device_models)
+            memory_used_mb = int(hardware_metrics.get("memory_used_mb") or 0)
+            process_memory_by_pid = hardware_metrics.get("process_memory_by_pid", {})
+            if device_models and memory_used_mb > 0 and not process_memory_by_pid and process_memory_total < memory_used_mb:
+                self._distribute_shared_memory(device_models, memory_used_mb)
+                process_memory_total = sum(model["memory_used_mb"] for model in device_models)
+            if memory_used_mb <= 0 and process_memory_total > 0:
+                memory_used_mb = process_memory_total
+
+            usage_percent = hardware_metrics.get("usage_percent")
+            usage_source = hardware_metrics.get("usage_source") if usage_percent is not None else "unavailable"
+
+            gpu_usage_percent = hardware_metrics.get("usage_percent") if device.device_type.lower() != "cpu" else None
+            gpu_usage_source = hardware_metrics.get("usage_source") if gpu_usage_percent is not None else "unavailable"
+
+            devices.append(
+                {
+                    "hardware_id": device.hardware_id,
+                    "stable_hardware_id": device.stable_hardware_id,
+                    "stable_hardware_id_source": device.stable_hardware_id_source,
+                    "name": device.name,
+                    "vendor": device.vendor,
+                    "device_type": device.device_type,
+                    "memory_total_mb": hardware_metrics.get("memory_total_mb") or device.memory_mb,
+                    "memory_used_mb": memory_used_mb,
+                    "gpu_usage_percent": gpu_usage_percent,
+                    "gpu_usage_source": gpu_usage_source,
+                    "usage_percent": usage_percent,
+                    "usage_source": usage_source,
+                    "memory_source": hardware_metrics.get("memory_source", "processes"),
+                    "models": device_models,
+                }
+            )
+
+        return {
+            "status": "ok",
+            "devices": devices,
+            "tokens_processed": self.tokens_processed,
+        }
+
+    @property
+    def tokens_processed(self) -> int:
+        with self._tokens_lock:
+            return self._tokens_processed
+
+    def _record_usage_from_payload(self, payload: object) -> None:
+        if not isinstance(payload, dict):
+            return
+
+        usage = payload.get("usage")
+        if not isinstance(usage, dict):
+            return
+
+        total_tokens = _coalesce_int(usage.get("total_tokens"))
+        if total_tokens is None:
+            total_tokens = _coalesce_int(usage.get("totalTokens"))
+        if total_tokens is None or total_tokens <= 0:
+            return
+
+        with self._tokens_lock:
+            self._tokens_processed += total_tokens
+
+    def _track_stream_chunk(self, event_buffer: str, decoder, chunk: bytes) -> str:
+        try:
+            event_buffer += decoder.decode(chunk)
+            return self._consume_sse_events(event_buffer)
+        except Exception:
+            logger.exception("Failed to inspect streamed completion chunk for usage stats")
+            return event_buffer
+
+    def _finalize_tracked_stream(self, event_buffer: str, decoder) -> None:
+        try:
+            event_buffer += decoder.decode(b"", final=True)
+            self._consume_sse_events(event_buffer, final=True)
+        except Exception:
+            logger.exception("Failed to finalize streamed completion usage stats")
+
+    def _consume_sse_events(self, buffer: str, final: bool = False) -> str:
+        normalized_buffer = buffer.replace("\r\n", "\n")
+        events = normalized_buffer.split("\n\n")
+
+        if not final:
+            remainder = events.pop() if events else ""
+        else:
+            remainder = ""
+
+        for event in events:
+            self._record_usage_from_sse_event(event)
+
+        if final and remainder:
+            self._record_usage_from_sse_event(remainder)
+
+        return remainder
+
+    def _record_usage_from_sse_event(self, event: str) -> None:
+        data_lines: list[str] = []
+        for raw_line in event.split("\n"):
+            if raw_line.startswith("data:"):
+                data_lines.append(raw_line[5:].lstrip())
+
+        if not data_lines:
+            return
+
+        data = "\n".join(data_lines).strip()
+        if not data or data == "[DONE]":
+            return
+
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError:
+            return
+
+        self._record_usage_from_payload(payload)
+
+    def _collect_dynamic_metrics(self) -> dict[str, dict]:
+        metrics: dict[str, dict] = {}
+
+        cpu_memory = psutil.virtual_memory()
+        metrics["cpu:0"] = {
+            "usage_percent": round(psutil.cpu_percent(), 1),
+            "usage_source": "system",
+            "memory_used_mb": int(cpu_memory.used / (1024 * 1024)),
+            "memory_total_mb": int(cpu_memory.total / (1024 * 1024)),
+            "memory_source": "system",
+            "process_memory_by_pid": {},
+        }
+
+        metrics.update(self._collect_nvidia_metrics())
+        metrics.update(self._collect_vulkan_metrics())
+        metrics.update(self._collect_rocm_metrics())
+        return metrics
+
+    def _collect_rocm_metrics(self) -> dict[str, dict]:
+        if not is_supported_vendor("rocm"):
+            return {}
+
+        json_output = self._run_command(
+            ["rocm-smi", "--showproductname", "--showmeminfo", "vram", "--showuse", "--json"]
+        )
+        devices = DeviceManager._parse_rocm_json(json_output)
+        if not devices:
+            text_output = self._run_command(["rocm-smi", "--showproductname", "--showmeminfo", "vram"])
+            devices = DeviceManager._parse_rocm_text(text_output)
+
+        metrics: dict[str, dict] = {}
+        for device in devices:
+            metrics[device.hardware_id] = {
+                "usage_percent": None,
+                "usage_source": "unavailable",
+                "memory_used_mb": 0,
+                "memory_total_mb": device.memory_mb,
+                "memory_source": "rocm-smi",
+                "process_memory_by_pid": {},
+            }
+
+        if json_output:
+            try:
+                data = json.loads(json_output)
+            except json.JSONDecodeError:
+                data = None
+            if isinstance(data, dict):
+                for card_key, entry in data.items():
+                    if not card_key.lower().startswith("card") or not isinstance(entry, dict):
+                        continue
+                    index = int(re.sub(r"\D", "", card_key) or "0")
+                    hardware_id = f"rocm:{index}"
+                    metric = metrics.setdefault(
+                        hardware_id,
+                        {
+                            "usage_percent": None,
+                            "usage_source": "unavailable",
+                            "memory_used_mb": 0,
+                            "memory_total_mb": 0,
+                            "memory_source": "rocm-smi",
+                            "process_memory_by_pid": {},
+                        },
+                    )
+                    for key, value in entry.items():
+                        key_lower = key.lower()
+                        if "gpu use" in key_lower or "gpu utilization" in key_lower:
+                            usage = self._parse_percentage(str(value))
+                            if usage is not None:
+                                metric["usage_percent"] = usage
+                                metric["usage_source"] = "rocm-smi"
+                        if "vram total memory" in key_lower:
+                            total_bytes = self._parse_int(str(value))
+                            if total_bytes is not None:
+                                metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
+                        if "vram used memory" in key_lower:
+                            used_bytes = self._parse_int(str(value))
+                            if used_bytes is not None:
+                                metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
+
+        try:
+            amd_card_paths = sorted(
+                p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent") if p.is_file()
+            )
+            rocm_indices = sorted(int(device.hardware_id.split(":")[1]) for device in devices)
+            for rocm_idx, device_path in zip(rocm_indices, amd_card_paths, strict=False):
+                hardware_id = f"rocm:{rocm_idx}"
+                metric = metrics.setdefault(
+                    hardware_id,
+                    {
+                        "usage_percent": None,
+                        "usage_source": "unavailable",
+                        "memory_used_mb": 0,
+                        "memory_total_mb": 0,
+                        "memory_source": "rocm-smi",
+                        "process_memory_by_pid": {},
+                    },
+                )
+                usage = self._read_sysfs_percentage(device_path / "gpu_busy_percent")
+                if usage is not None:
+                    metric["usage_percent"] = usage
+                    metric["usage_source"] = "sysfs"
+                total_bytes = self._read_sysfs_int(device_path / "mem_info_vram_total")
+                used_bytes = self._read_sysfs_int(device_path / "mem_info_vram_used")
+                if total_bytes is not None and total_bytes > 0:
+                    metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
+                if used_bytes is not None and used_bytes >= 0:
+                    metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
+                if total_bytes is not None or used_bytes is not None:
+                    metric["memory_source"] = "sysfs"
+        except Exception:
+            pass
+
+        return metrics
+
+    def _collect_vulkan_metrics(self) -> dict[str, dict]:
+        output = self._run_command(["vulkaninfo"])
+        metrics: dict[str, dict] = {}
+        amd_vulkan_indices: list[int] = []
+        intel_vulkan_by_idx: dict[int, str] = {}
+        memory_by_idx = _parse_vulkaninfo_gpu_memory_metrics(output) if output else {}
+        if output:
+            blocks = re.split(r"GPU(\d+):", output)
+            i = 1
+            while i + 1 < len(blocks):
+                try:
+                    idx = int(blocks[i])
+                except ValueError:
+                    i += 2
+                    continue
+                block = blocks[i + 1]
+                i += 2
+
+                vendor_id = _parse_vulkan_vendor_id(block)
+                if vendor_id == AMD_VENDOR_ID:
+                    amd_vulkan_indices.append(idx)
+                    if device_manager._should_hide_vulkan_amd():
+                        continue
+
+                if vendor_id == INTEL_VENDOR_ID:
+                    pci_bdf = parse_vulkan_pci_bdf(block)
+                    if pci_bdf:
+                        intel_vulkan_by_idx[idx] = pci_bdf
+
+                heap_metrics = memory_by_idx.get(idx)
+                if not heap_metrics or heap_metrics["total_mb"] <= 0:
+                    continue
+
+                hardware_id = f"vulkan:{idx}"
+                metrics[hardware_id] = {
+                    "usage_percent": None,
+                    "usage_source": "unavailable",
+                    "memory_used_mb": heap_metrics["used_mb"],
+                    "memory_total_mb": heap_metrics["total_mb"],
+                    "memory_source": "vulkaninfo",
+                    "process_memory_by_pid": {},
+                }
+
+        # Prefer amdgpu sysfs VRAM counters when available. They match tools like nvtop
+        # more closely than vulkaninfo heap usage on AMD cards and also expose total VRAM.
+        try:
+            amd_card_paths = sorted(
+                p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent")
+                if p.is_file()
+            )
+            for vulkan_idx, device_path in zip(amd_vulkan_indices, amd_card_paths, strict=False):
+                hardware_id = f"vulkan:{vulkan_idx}"
+                metric = metrics.setdefault(
+                    hardware_id,
+                    {
+                        "usage_percent": None,
+                        "usage_source": "unavailable",
+                        "memory_used_mb": 0,
+                        "memory_total_mb": 0,
+                        "memory_source": "processes",
+                        "process_memory_by_pid": {},
+                    },
+                )
+
+                usage = self._read_sysfs_percentage(device_path / "gpu_busy_percent")
+                if usage is not None:
+                    metric["usage_percent"] = usage
+                    metric["usage_source"] = "sysfs"
+
+                total_bytes = self._read_sysfs_int(device_path / "mem_info_vram_total")
+                used_bytes = self._read_sysfs_int(device_path / "mem_info_vram_used")
+                if total_bytes is not None and total_bytes > 0:
+                    metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
+                if used_bytes is not None and used_bytes >= 0:
+                    metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
+                if total_bytes is not None or used_bytes is not None:
+                    metric["memory_source"] = "sysfs"
+        except Exception:
+            pass
+
+        for vulkan_idx, pci_bdf in intel_vulkan_by_idx.items():
+            hardware_id = f"vulkan:{vulkan_idx}"
+            metric = metrics.get(hardware_id)
+            if metric is None:
+                continue
+            try:
+                intel_metrics = read_intel_vram_metrics(pci_bdf)
+            except Exception:
+                continue
+            if not intel_metrics:
+                continue
+            if intel_metrics.get("memory_total_mb"):
+                metric["memory_total_mb"] = intel_metrics["memory_total_mb"]
+            if intel_metrics.get("memory_used_mb") is not None:
+                metric["memory_used_mb"] = intel_metrics["memory_used_mb"]
+            if intel_metrics.get("memory_source"):
+                metric["memory_source"] = intel_metrics["memory_source"]
+            process_memory = intel_metrics.get("process_memory_by_pid")
+            if isinstance(process_memory, dict) and process_memory:
+                metric["process_memory_by_pid"] = process_memory
+
+        return metrics
+
+    def _collect_nvidia_metrics(self) -> dict[str, dict]:
+        gpu_output = self._run_command(
+            [
+                "nvidia-smi",
+                "--query-gpu=index,uuid,utilization.gpu,memory.used,memory.total",
+                "--format=csv,noheader,nounits",
+            ]
+        )
+        if not gpu_output:
+            return {}
+
+        metrics: dict[str, dict] = {}
+        hardware_ids_by_uuid: dict[str, str] = {}
+        for line in gpu_output.splitlines():
+            parts = [part.strip() for part in line.split(",")]
+            if len(parts) < 5:
+                continue
+
+            hardware_id = f"nvidia:{parts[0]}"
+            uuid = parts[1]
+            hardware_ids_by_uuid[uuid] = hardware_id
+            metrics[hardware_id] = {
+                "usage_percent": self._parse_float(parts[2]),
+                "usage_source": "nvidia-smi",
+                "memory_used_mb": self._parse_int(parts[3]),
+                "memory_total_mb": self._parse_int(parts[4]),
+                "memory_source": "nvidia-smi",
+                "process_memory_by_pid": {},
+            }
+
+        process_output = self._run_command(
+            [
+                "nvidia-smi",
+                "--query-compute-apps=gpu_uuid,pid,used_gpu_memory",
+                "--format=csv,noheader,nounits",
+            ]
+        )
+        for line in process_output.splitlines():
+            parts = [part.strip() for part in line.split(",")]
+            if len(parts) < 3:
+                continue
+
+            hardware_id = hardware_ids_by_uuid.get(parts[0])
+            pid = self._parse_int(parts[1])
+            used_memory_mb = self._parse_int(parts[2])
+            if not hardware_id or pid is None or used_memory_mb is None:
+                continue
+
+            metrics.setdefault(hardware_id, {"process_memory_by_pid": {}})
+            process_memory_by_pid = metrics[hardware_id].setdefault("process_memory_by_pid", {})
+            process_memory_by_pid[pid] = used_memory_mb
+
+        return metrics
+
+    @staticmethod
+    def _flatten_metric_entries(value: object, prefix: tuple[str, ...] = ()) -> list[tuple[str, str]]:
+        entries: list[tuple[str, str]] = []
+        if isinstance(value, dict):
+            for key, child in value.items():
+                entries.extend(InferenceRuntime._flatten_metric_entries(child, (*prefix, str(key).lower())))
+            return entries
+
+        if isinstance(value, list):
+            for index, child in enumerate(value):
+                entries.extend(InferenceRuntime._flatten_metric_entries(child, (*prefix, str(index))))
+            return entries
+
+        entries.append((" ".join(prefix), str(value).strip()))
+        return entries
+
+    @staticmethod
+    def _parse_percentage(value: str) -> float | None:
+        match = re.search(r"(-?\d+(?:\.\d+)?)\s*%?", value)
+        if not match:
+            return None
+        try:
+            return round(float(match.group(1)), 1)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_size_to_bytes(value: str) -> int | None:
+        match = re.search(r"(-?\d+(?:\.\d+)?)\s*(bytes|byte|b|kbytes|kb|kib|mbytes|mb|mib|gbytes|gb|gib|tbytes|tb|tib)?", value, re.IGNORECASE)
+        if not match:
+            return None
+
+        try:
+            amount = float(match.group(1))
+        except ValueError:
+            return None
+
+        unit = (match.group(2) or "bytes").lower()
+        multipliers = {
+            "bytes": 1,
+            "byte": 1,
+            "b": 1,
+            "kbytes": 1024,
+            "kb": 1024,
+            "kib": 1024,
+            "mbytes": 1024**2,
+            "mb": 1024**2,
+            "mib": 1024**2,
+            "gbytes": 1024**3,
+            "gb": 1024**3,
+            "gib": 1024**3,
+            "tbytes": 1024**4,
+            "tb": 1024**4,
+            "tib": 1024**4,
+        }
+        return int(amount * multipliers.get(unit, 1))
+
+    @staticmethod
+    def _distribute_shared_memory(models: list[dict], total_memory_mb: int) -> None:
+        if not models or total_memory_mb <= 0:
+            return
+
+        weights = [max(0, int(model.get("memory_used_mb") or 0)) for model in models]
+        if sum(weights) <= 0:
+            weights = [1] * len(models)
+
+        weight_total = sum(weights)
+        allocations = [int(total_memory_mb * weight / weight_total) for weight in weights]
+        remainder = total_memory_mb - sum(allocations)
+        indices = sorted(range(len(weights)), key=lambda index: weights[index], reverse=True)
+        for offset in range(remainder):
+            allocations[indices[offset % len(indices)]] += 1
+
+        for model, allocation in zip(models, allocations):
+            model["memory_used_mb"] = allocation
+
+    @staticmethod
+    def _run_command(command: list[str]) -> str:
+        try:
+            output = subprocess.check_output(command, stderr=subprocess.DEVNULL, text=True)
+        except Exception:
+            return ""
+        return output.strip()
+
+    @staticmethod
+    def _process_memory_mb(pid: int) -> int:
+        try:
+            process = psutil.Process(pid)
+            return int(process.memory_info().rss / (1024 * 1024))
+        except Exception:
+            return 0
+
+    @staticmethod
+    def _parse_int(value: str) -> int | None:
+        text = value.strip()
+        if not text or text.upper() == "N/A":
+            return None
+        try:
+            return int(float(text))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _parse_float(value: str) -> float | None:
+        text = value.strip()
+        if not text or text.upper() == "N/A":
+            return None
+        try:
+            return round(float(text), 1)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _read_sysfs_int(path: Path) -> int | None:
+        try:
+            return int(path.read_text().strip())
+        except Exception:
+            return None
+
+    @classmethod
+    def _read_sysfs_percentage(cls, path: Path) -> float | None:
+        value = cls._read_sysfs_int(path)
+        if value is None:
+            return None
+        return round(float(value), 1)
+
+
+app = FastAPI(title="LmPanel Inference Service")
+runtime = InferenceRuntime()
+device_manager = DeviceManager()
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "active_models": sorted(runtime._running.keys())}
+
+
+@app.get("/runtime/info")
+def runtime_info() -> dict:
+    return {
+        "status": "ok",
+        "supported_vendors": sorted(get_supported_vendors()),
+        "active_models": sorted(runtime._running.keys()),
+    }
+
+
+@app.get("/runtime/devices")
+def runtime_devices() -> dict:
+    devices = [
+        {
+            "hardware_id": device.hardware_id,
+            "stable_hardware_id": device.stable_hardware_id,
+            "stable_hardware_id_source": device.stable_hardware_id_source,
+            "name": device.name,
+            "vendor": device.vendor,
+            "device_type": device.device_type,
+            "memory_mb": device.memory_mb,
+            "max_threads": device.max_threads,
+            "max_slots": device.max_slots,
+            "pci_vendor_id": device.pci_vendor_id,
+        }
+        for device in device_manager.detect_local()
+        if is_supported_vendor(device.vendor)
+    ]
+    return {"status": "ok", "devices": devices}
+
+
+@app.get("/runtime/status")
+def runtime_status() -> dict:
+    return runtime.status_payload()
+
+
+@app.post("/runtime/models/activate")
+async def activate_model(payload: ActivateModelRequest) -> dict:
+    try:
+        await runtime.activate_model(payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "ok", "model_id": payload.model_id}
+
+
+@app.post("/runtime/models/{model_id}/deactivate")
+def deactivate_model(model_id: int) -> dict:
+    runtime.deactivate_model(model_id)
+    return {"status": "ok"}
+
+
+@app.get("/runtime/models/{model_id}/health")
+async def model_health(model_id: int) -> dict:
+    if await runtime.wait_until_healthy(model_id):
+        return {"status": "ok"}
+    raise HTTPException(status_code=503, detail="Model is not healthy")
+
+
+@app.post("/runtime/models/{model_id}/chat/completions")
+async def chat_completion(model_id: int, payload: dict):
+    try:
+        if payload.get("stream"):
+            return StreamingResponse(
+                runtime.stream_chat_completion(model_id, payload),
+                media_type="text/event-stream",
+            )
+        return await runtime.chat_completion(model_id, payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

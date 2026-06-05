@@ -1,0 +1,198 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: lmpanel-backend
+    environment:
+      # Listen on 8000 inside the container; host port 8444 is mapped in `ports` below.
+      APP_PORT: "8000"
+      FRONTEND_ORIGIN: "https://localhost:8443"
+      INFERENCE_SERVICE_URL: http://inference-cpu:8100
+      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100,rocm=http://inference-rocm:8100
+      SUPPORTED_DEVICES: ""
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+      INFERENCE_SERVICE_TIMEOUT_SECONDS: ${INFERENCE_SERVICE_TIMEOUT_SECONDS:-600}
+      OPENAI_API_AUTH_REQUIRED: ${OPENAI_API_AUTH_REQUIRED:-true}
+      OPENAI_MODELS_AUTH_REQUIRED: ${OPENAI_MODELS_AUTH_REQUIRED:-false}
+    volumes:
+      - ./models:/app/models
+      - lmpanel-data:/app/data
+      - ./logs:/app/logs
+      - ./certs:/app/certs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8444:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:8000/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    depends_on:
+      inference-cpu:
+        condition: service_healthy
+      inference-nvidia:
+        condition: service_healthy
+        required: false
+      inference-vulkan:
+        condition: service_healthy
+        required: false
+      inference-rocm:
+        condition: service_healthy
+        required: false
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: lmpanel-frontend
+    ports:
+      - "8443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  inference-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference.cpu
+      args:
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9297}
+    container_name: lmpanel-inference-cpu
+    environment:
+      SUPPORTED_DEVICES: cpu
+      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    restart: unless-stopped
+
+  inference-nvidia:
+    profiles: [nvidia]
+    build:
+      context: .
+      dockerfile: Dockerfile.inference.nvidia
+      args:
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9297}
+    container_name: lmpanel-inference-nvidia
+    environment:
+      SUPPORTED_DEVICES: nvidia
+      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    restart: unless-stopped
+
+  inference-vulkan:
+    profiles: [vulkan]
+    build:
+      context: .
+      dockerfile: Dockerfile.inference.vulkan
+      args:
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9297}
+    container_name: lmpanel-inference-vulkan
+    environment:
+      SUPPORTED_DEVICES: vulkan
+      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - /dev/dri:/dev/dri
+    device_cgroup_rules:
+      - 'c 226:* rwm'
+    group_add:
+      - video
+      - render
+    cap_add:
+      - PERFMON
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    restart: unless-stopped
+
+  inference-rocm:
+    profiles: [rocm]
+    build:
+      context: .
+      dockerfile: Dockerfile.inference.rocm
+      args:
+        ROCM_DEV_IMAGE: ${ROCM_DEV_IMAGE:-rocm/dev-ubuntu-24.04:7.2.3-complete}
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9297}
+        AMDGPU_TARGETS: ${AMDGPU_TARGETS:-gfx1200;gfx1201}
+        GGML_HIP_RCCL: ${GGML_HIP_RCCL:-OFF}
+    container_name: lmpanel-inference-rocm
+    environment:
+      SUPPORTED_DEVICES: rocm
+      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+      LLAMA_FIT_TO_VRAM: ${LLAMA_FIT_TO_VRAM:-false}
+      ROCM_HSA_OVERRIDE_GFX_VERSION: ${ROCM_HSA_OVERRIDE_GFX_VERSION:-12.0.1}
+    # ROCm HIP needs read-write /dev/kfd (major 234) and /dev/dri (226). AMD's llama.cpp
+    # images use --privileged; cgroup-only rules are often insufficient (EPERM on kfd).
+    privileged: true
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+    group_add:
+      - video
+      - render
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
+    ipc: host
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    restart: unless-stopped
+
+volumes:
+  lmpanel-data:

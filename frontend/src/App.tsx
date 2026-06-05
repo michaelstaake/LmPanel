@@ -1,0 +1,368 @@
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import ChatPage from "./pages/ChatPage";
+import AuthPage from "./pages/AuthPage";
+import RegisterPage from "./pages/RegisterPage";
+import ApiPage from "./pages/ApiPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
+import SetupPage from "./pages/SetupPage";
+import StatusPage from "./pages/StatusPage";
+import DevicesPage from "./pages/DevicesPage";
+import ModelsPage from "./pages/ModelsPage";
+import NotFoundPage from "./pages/NotFoundPage";
+import ForbiddenPage from "./pages/ForbiddenPage";
+import KnowledgeBasePage from "./pages/KnowledgeBasePage";
+import TermsAcceptancePage from "./pages/TermsAcceptancePage";
+import { useAuth } from "./context/AuthContext";
+import { MobileNavProvider, type MobileNavSection } from "./context/MobileNavContext";
+import { useToast } from "./context/ToastContext";
+import { BackgroundProgressProvider } from "./context/BackgroundProgressContext";
+import { ModelsCatalogProvider } from "./context/ModelsCatalogContext";
+import MobileNavDrawer, { type MobileNavItem } from "./components/ui/MobileNavDrawer";
+import ToastViewport from "./components/ui/ToastViewport";
+import {
+  apiGet,
+  BACKEND_UNAVAILABLE_EVENT,
+  BACKEND_UNAVAILABLE_MESSAGE,
+  isBackendUnavailableLocked,
+  resolveApiUrl,
+} from "./lib/api";
+import { type CurrentUser } from "./lib/session";
+
+const appVersionLabel = `v${__APP_VERSION__}`;
+const BACKEND_STATUS_POLL_INTERVAL_MS = 5000;
+const MOBILE_BREAKPOINT_PX = 768;
+
+type AppBackgroundStyle = CSSProperties & {
+  "--app-background-color": string;
+  "--app-background-image": string;
+  "--app-background-position": string;
+  "--app-background-repeat": string;
+  "--app-background-size": string;
+};
+
+function getMainNavItems(user: CurrentUser | null, knowledgeBaseEnabled: boolean): MobileNavItem[] {
+  const items: MobileNavItem[] = [];
+
+  if (user) {
+    items.push({ to: "/", end: true, iconClassName: "bi bi-house", label: "Chat" });
+    items.push({ to: "/apikeys", iconClassName: "bi bi-key", label: "API" });
+    if (knowledgeBaseEnabled && user.is_admin) {
+      items.push({ to: "/kb", iconClassName: "bi bi-book-half", label: "KB" });
+    }
+  }
+
+  if (user?.is_admin) {
+    items.push({ to: "/devices", iconClassName: "bi bi-gpu-card", label: "Devices" });
+    items.push({ to: "/models", iconClassName: "bi bi-file-earmark", label: "Models" });
+    items.push({ to: "/settings", iconClassName: "bi bi-gear", label: "Settings" });
+  }
+
+  items.push({ to: "/status", iconClassName: "bi bi-activity", label: "Status" });
+
+  items.push({
+    to: user ? "/profile" : "/login",
+    iconClassName: "bi bi-person",
+    label: user ? user.username : "Login",
+  });
+
+  return items;
+}
+
+function MainNavLink({
+  iconClassName,
+  label,
+  to,
+  end = false,
+}: {
+  iconClassName: string;
+  label: string;
+  to: string;
+  end?: boolean;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) => `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-ink text-white" : "bg-black/5"}`}
+    >
+      <i className={`${iconClassName} text-[14px] leading-none`} aria-hidden="true" />
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { isBootstrapping, requiresSetup, user } = useAuth();
+
+  if (isBootstrapping) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+  }
+  if (requiresSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!user.is_admin) {
+    return <ForbiddenPage />;
+  }
+  return children;
+}
+
+function RequireUser({ children }: { children: ReactNode }) {
+  const { isBootstrapping, requiresSetup, user } = useAuth();
+
+  if (isBootstrapping) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+  }
+  if (requiresSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function RequireSetup({ children }: { children: ReactNode }) {
+  const { isBootstrapping, requiresSetup } = useAuth();
+
+  if (isBootstrapping) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+  }
+  if (requiresSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+  return children;
+}
+
+function HomeRoute() {
+  const { isBootstrapping, requiresSetup, user, termsSettings } = useAuth();
+
+  if (isBootstrapping) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+  }
+  if (requiresSetup) {
+    return <Navigate to="/setup" replace />;
+  }
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (termsSettings.terms_enabled && !user.terms_accepted) {
+    return <Navigate to="/terms" replace />;
+  }
+  return <ChatPage />;
+}
+
+function SetupRoute() {
+  const { bootstrapError, isBootstrapping, requiresSetup, user } = useAuth();
+  const { showError } = useToast();
+
+  useEffect(() => {
+    if (bootstrapError) {
+      showError("Unable to check installation state. Confirm the backend is running and reload after resolving the API error.", { id: "setup-bootstrap-error" });
+    }
+  }, [bootstrapError, showError]);
+
+  if (isBootstrapping) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Checking installation state...</section>;
+  }
+  if (bootstrapError) {
+    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Installation state is temporarily unavailable.</section>;
+  }
+  if (!requiresSetup) {
+    return <Navigate to={user ? "/configuration" : "/login"} replace />;
+  }
+  return <SetupPage />;
+}
+
+export default function App() {
+  const { backgroundColor, backgroundImageMode, backgroundImagePath, bootstrapError, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { showError } = useToast();
+  const location = useLocation();
+  const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>(null);
+  const showMainNav = !isBootstrapping && !requiresSetup;
+  const mainNavItems = getMainNavItems(user, knowledgeBaseEnabled);
+
+  const pageTitle = ((): string => {
+    const path = location.pathname;
+    if (path === "/" || path === "/chat") return "Chat";
+    if (path === "/status") return "Status";
+    if (path === "/apikeys" || path === "/api") return "API";
+    if (path === "/settings") return "Settings";
+    if (path === "/devices") return "Devices";
+    if (path === "/models") return "Models";
+    if (path === "/profile") return "Profile";
+    if (path === "/login" || path === "/auth") return "Login";
+    if (path === "/register") return "Register";
+    if (path === "/setup") return "Setup";
+    if (path === "/kb") return "Knowledge Base";
+    if (path === "/terms") return "Terms and Policies";
+    if (path === "/403") return "Forbidden";
+    if (path === "/404") return "Not Found";
+    return "";
+  })();
+
+  useEffect(() => {
+    const base = sitename || "LmPanel";
+    document.title = pageTitle ? `${pageTitle} ~ ${base}` : base;
+  }, [sitename, pageTitle]);
+
+  useEffect(() => {
+    function handleBackendUnavailable() {
+      setBackendUnavailable(true);
+      showError(BACKEND_UNAVAILABLE_MESSAGE, { id: "backend-unavailable" });
+    }
+
+    window.addEventListener(BACKEND_UNAVAILABLE_EVENT, handleBackendUnavailable);
+    return () => window.removeEventListener(BACKEND_UNAVAILABLE_EVENT, handleBackendUnavailable);
+  }, [showError]);
+
+  useEffect(() => {
+    if (backendUnavailable) {
+      showError(BACKEND_UNAVAILABLE_MESSAGE, { id: "backend-unavailable" });
+    }
+  }, [backendUnavailable, showError]);
+
+  useEffect(() => {
+    if (backendUnavailable) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function pollBackendAvailability() {
+      try {
+        await apiGet("/api/auth/bootstrap-status");
+      } catch {
+        if (!isMounted) {
+          return;
+        }
+      }
+    }
+
+    void pollBackendAvailability();
+    const intervalId = window.setInterval(() => {
+      void pollBackendAvailability();
+    }, BACKEND_STATUS_POLL_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [backendUnavailable]);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
+
+  const appBackgroundStyle = buildAppBackgroundStyle(backgroundColor, backgroundImagePath, backgroundImageMode);
+
+ return (
+    <BackgroundProgressProvider>
+      <ModelsCatalogProvider>
+      <div className="app-background min-h-screen text-ink font-body" style={appBackgroundStyle}>
+        <ToastViewport />
+        <MobileNavProvider value={{ closeMobileNav: () => setIsMobileNavOpen(false), setMobileNavSection }}>
+          <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">
+            <header className="relative z-50 mb-6 flex items-center justify-between gap-4 overflow-visible rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
+              <NavLink to="/" className="inline-flex items-baseline gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30">
+                <h1 className="font-display text-2xl font-semibold tracking-tight">{sitename}</h1>
+              </NavLink>
+              {showMainNav ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileNavOpen(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-black/20 hover:bg-black/5 xl:hidden"
+                    aria-label="Open navigation menu"
+                    aria-expanded={isMobileNavOpen}
+                    aria-controls="mobile-nav-title"
+                  >
+                    <i className="bi bi-list text-[18px] leading-none" aria-hidden="true" />
+                    <span>Menu</span>
+                  </button>
+                  <nav className="hidden items-center gap-2 xl:flex">
+                    {mainNavItems.map((item) => (
+                      <MainNavLink key={`${item.to}-${item.label}`} to={item.to} end={item.end} iconClassName={item.iconClassName} label={item.label} />
+                    ))}
+                  </nav>
+                </>
+              ) : null}
+            </header>
+
+            <Routes>
+              <Route path="/" element={<HomeRoute />} />
+              <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+              <Route path="/configuration" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
+              <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />
+              <Route path="/models" element={<RequireAdmin><ModelsPage /></RequireAdmin>} />
+              <Route path="/users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
+              <Route path="/login" element={<AuthPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
+              <Route path="/status" element={<RequireSetup><StatusPage /></RequireSetup>} />
+              <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
+              <Route path="/api" element={<Navigate to="/apikeys" replace />} />
+              <Route path="/apikeys" element={<RequireUser><ApiPage /></RequireUser>} />
+              <Route path="/kb" element={<RequireAdmin><KnowledgeBasePage /></RequireAdmin>} />
+              <Route path="/terms" element={<TermsAcceptancePage />} />
+              <Route path="/setup" element={<SetupRoute />} />
+              <Route path="/403" element={<ForbiddenPage />} />
+              <Route path="/404" element={<NotFoundPage />} />
+              <Route path="*" element={requiresSetup ? <Navigate to="/setup" replace /> : <NotFoundPage />} />
+            </Routes>
+
+            <MobileNavDrawer
+              open={showMainNav && isMobileNavOpen}
+              onClose={() => setIsMobileNavOpen(false)}
+              sitename={sitename}
+              navItems={mainNavItems}
+              extraSection={mobileNavSection}
+            />
+          </div>
+        </MobileNavProvider>
+      </div>
+      </ModelsCatalogProvider>
+    </BackgroundProgressProvider>
+  );
+}
+
+function buildAppBackgroundStyle(
+  backgroundColor: string,
+  backgroundImagePath: string | null,
+  backgroundImageMode: "fill" | "stretch" | "repeat",
+): AppBackgroundStyle {
+  const baseStyle: AppBackgroundStyle = {
+    "--app-background-color": backgroundColor || "#efe8d2",
+    "--app-background-image": "none",
+    "--app-background-position": "center center",
+    "--app-background-repeat": "no-repeat",
+    "--app-background-size": "auto",
+  };
+
+  if (!backgroundImagePath) {
+    return baseStyle;
+  }
+
+  baseStyle["--app-background-image"] = `url("${resolveApiUrl(backgroundImagePath)}")`;
+
+  if (backgroundImageMode === "stretch") {
+    baseStyle["--app-background-size"] = "100% 100%";
+    return baseStyle;
+  }
+
+  if (backgroundImageMode === "repeat") {
+    baseStyle["--app-background-position"] = "left top";
+    baseStyle["--app-background-repeat"] = "repeat";
+    baseStyle["--app-background-size"] = "auto";
+    return baseStyle;
+  }
+
+  baseStyle["--app-background-size"] = "cover";
+  return baseStyle;
+}
