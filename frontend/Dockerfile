@@ -13,8 +13,10 @@ COPY frontend/ ./
 # bundle directly without a proxy (e.g. `npm run dev`).
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ARG GIT_COMMIT=""
 
-RUN npm run build
+COPY .git /tmp/.git
+RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && npm run build
 
 FROM nginx:1.27-alpine
 
