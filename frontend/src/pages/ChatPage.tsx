@@ -1228,15 +1228,7 @@ export default function ChatPage() {
           )}
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={isSending || isModelsUnavailable}
-              className="min-w-0 flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
-              placeholder={inputPlaceholder}
-            />
-            <div className="flex gap-2 sm:contents">
+            <div className="order-2 flex gap-2 sm:contents">
               <button
                 type="button"
                 onClick={() => {
@@ -1283,24 +1275,47 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() => abortControllerRef.current?.abort()}
-                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:flex-none"
+                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:hidden"
                   aria-label="Stop"
                 >
-                  <i className="bi bi-stop-fill text-[18px] leading-none sm:hidden" aria-hidden="true" />
-                  <span className="hidden sm:inline">Stop</span>
+                  <i className="bi bi-stop-fill text-[18px] leading-none" aria-hidden="true" />
                 </button>
               ) : (
                 <button
                   type="submit"
                   disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex-none"
+                  className="flex h-12 flex-1 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:hidden"
                   aria-label="Send"
                 >
-                  <i className="bi bi-send-fill text-[18px] leading-none sm:hidden" aria-hidden="true" />
-                  <span className="hidden sm:inline">Send</span>
+                  <i className="bi bi-send-fill text-[18px] leading-none" aria-hidden="true" />
                 </button>
               )}
             </div>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              disabled={isSending || isModelsUnavailable}
+              className="order-1 min-w-0 flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
+              placeholder={inputPlaceholder}
+            />
+            {isSending ? (
+              <button
+                type="button"
+                onClick={() => abortControllerRef.current?.abort()}
+                className="hidden h-12 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:flex sm:flex-none"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
+                className="hidden h-12 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex sm:flex-none"
+              >
+                Send
+              </button>
+            )}
           </div>
           </form>
         ) : null}
