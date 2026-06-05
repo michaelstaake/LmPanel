@@ -1287,7 +1287,7 @@ export default function ChatPage() {
                   className="flex h-12 flex-1 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:hidden"
                   aria-label="Send"
                 >
-                  <i className="bi bi-send-fill text-[18px] leading-none" aria-hidden="true" />
+                  <i className="bi bi-arrow-return-left text-[18px] leading-none" aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -1312,8 +1312,9 @@ export default function ChatPage() {
                 type="submit"
                 disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
                 className="hidden h-12 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex sm:flex-none"
+                aria-label="Send"
               >
-                Send
+                <i className="bi bi-arrow-return-left text-[18px] leading-none" aria-hidden="true" />
               </button>
             )}
           </div>
