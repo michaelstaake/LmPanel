@@ -197,7 +197,7 @@ export default function ProfilePage() {
           {showAccountUsage && (
             <>
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Token Usage</p>
-              <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: `repeat(${accountUsage.periods.length}, minmax(0, 1fr))` }}>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountUsage.periods.map((period) => (
                   <div key={period.id} className="rounded-2xl border border-black/10 bg-white/80 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
@@ -231,7 +231,7 @@ export default function ProfilePage() {
           {showAccountToolUsage && (
             <>
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-black/45 ${showAccountUsage ? "mt-6" : "mt-4"}`}>Web Search Usage</p>
-              <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: `repeat(${accountToolUsage.periods.length}, minmax(0, 1fr))` }}>
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountToolUsage.periods.map((period) => (
                   <div key={period.id} className="rounded-2xl border border-black/10 bg-white/80 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
