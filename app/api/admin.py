@@ -424,17 +424,25 @@ def update_package(package_id: int, payload: PackageUpdateRequest, admin_user: U
     if not package:
         raise HTTPException(status_code=404, detail="Package not found")
 
-    if package.is_admin_package or package.is_default_package:
-        raise HTTPException(status_code=400, detail="Cannot edit the admin or default package")
+    if package.is_admin_package:
+        raise HTTPException(status_code=400, detail="Cannot edit the admin package")
 
-    if payload.name is not None:
-        existing = db.query(Package).filter(Package.name == payload.name, Package.id != package_id).first()
-        if existing:
-            raise HTTPException(status_code=409, detail="A package with that name already exists")
-        package.name = payload.name
+    if package.is_default_package:
+        if payload.name is not None and payload.name != package.name:
+            raise HTTPException(status_code=400, detail="Cannot rename the default package")
+        if payload.is_admin_package is not None:
+            raise HTTPException(status_code=400, detail="Cannot change the default package admin status")
+        if payload.is_default_package is not None and payload.is_default_package != package.is_default_package:
+            raise HTTPException(status_code=400, detail="Cannot change default package status")
+    else:
+        if payload.name is not None:
+            existing = db.query(Package).filter(Package.name == payload.name, Package.id != package_id).first()
+            if existing:
+                raise HTTPException(status_code=409, detail="A package with that name already exists")
+            package.name = payload.name
 
-    if payload.is_admin_package is not None:
-        package.is_admin_package = payload.is_admin_package
+        if payload.is_admin_package is not None:
+            package.is_admin_package = payload.is_admin_package
 
     if payload.usage_limit_tokens_60_minutes is not None:
         package.usage_limit_tokens_60_minutes = payload.usage_limit_tokens_60_minutes

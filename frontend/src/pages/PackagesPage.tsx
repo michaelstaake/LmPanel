@@ -253,9 +253,9 @@ export default function PackagesPage() {
     setIsSaving(true);
     try {
       const payload: Omit<PackageRecord, "id"> = {
-        name: editDraft.name,
-        is_admin_package: editDraft.is_admin_package,
-        is_default_package: false,
+        name: editingPackage.is_default_package ? editingPackage.name : editDraft.name,
+        is_admin_package: editingPackage.is_default_package ? editingPackage.is_admin_package : editDraft.is_admin_package,
+        is_default_package: editingPackage.is_default_package,
         usage_limit_tokens_60_minutes: Number(editDraft.usage_limit_tokens_60_minutes),
         usage_limit_tokens_24_hours: Number(editDraft.usage_limit_tokens_24_hours),
         usage_limit_tokens_7_days: Number(editDraft.usage_limit_tokens_7_days),
@@ -278,8 +278,8 @@ export default function PackagesPage() {
   }
 
   function openEditModal(pkg: PackageRecord) {
-    if (pkg.is_admin_package || pkg.is_default_package) {
-      showError("Cannot edit the admin or default package.");
+    if (pkg.is_admin_package) {
+      showError("Cannot edit the admin package.");
       return;
     }
     setEditingPackage(pkg);
@@ -407,7 +407,7 @@ export default function PackagesPage() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {!pkg.is_admin_package && !pkg.is_default_package ? (
+                {!pkg.is_admin_package ? (
                   <>
                     <button
                       className="rounded-lg border border-black/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-black/5"
@@ -416,13 +416,15 @@ export default function PackagesPage() {
                     >
                       Edit
                     </button>
-                    <button
-                      className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
-                      type="button"
-                      onClick={() => openDeleteModal(pkg)}
-                    >
-                      Delete
-                    </button>
+                    {!pkg.is_default_package ? (
+                      <button
+                        className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                        type="button"
+                        onClick={() => openDeleteModal(pkg)}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
                   </>
                 ) : null}
               </div>
@@ -524,7 +526,16 @@ export default function PackagesPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="grid gap-1 text-sm text-black/70">
                 Name
-                <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={editDraft.name} onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))} required />
+                <input
+                  className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-black/50"
+                  value={editDraft.name}
+                  onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))}
+                  disabled={editingPackage?.is_default_package}
+                  required
+                />
+                {editingPackage?.is_default_package ? (
+                  <span className="text-xs text-black/50">The default package name cannot be changed.</span>
+                ) : null}
               </label>
               <div className="md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>
