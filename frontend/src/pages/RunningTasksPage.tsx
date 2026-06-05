@@ -77,7 +77,7 @@ export default function RunningTasksPage() {
     const map = new Map<string, RunningTaskRecord[]>();
 
     for (const task of tasks) {
-      const username = String(task.metadata.username ?? task.metadata.user_id ?? "Unknown");
+      const username = String(task.metadata.username ?? task.metadata.user_id ?? "System");
       const group = map.get(username) ?? [];
       group.push(task);
       map.set(username, group);
