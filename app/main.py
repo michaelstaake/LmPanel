@@ -14,6 +14,7 @@ from app.core.update_check import schedule_update_check
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
 from app.core.db import SessionLocal
+from sqlalchemy.exc import OperationalError
 from app.core.device_manager import DeviceManager
 from app.core.gpu_pool_manager import (
     delete_pools_with_insufficient_members,
@@ -123,6 +124,8 @@ def _cors_allowed_origins() -> list[str]:
         public_url = (app_settings.public_url or "").strip()
         if public_url and public_url not in origins:
             origins.append(public_url)
+    except OperationalError:
+        logger.warning("Could not read app settings for CORS origins; using frontend_origin only")
     finally:
         db.close()
     return origins
