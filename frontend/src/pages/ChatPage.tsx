@@ -1331,7 +1331,7 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => abortControllerRef.current?.abort()}
-                className="hidden h-12 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:flex sm:flex-none"
+                className="order-2 hidden h-12 items-center justify-center rounded-xl bg-red-500 px-4 text-sm font-semibold text-white hover:bg-red-600 sm:flex sm:flex-none"
               >
                 Stop
               </button>
@@ -1339,7 +1339,7 @@ export default function ChatPage() {
               <button
                 type="submit"
                 disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                className="hidden h-12 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex sm:flex-none"
+                className="order-2 hidden h-12 items-center justify-center rounded-xl bg-amber px-4 text-sm font-semibold text-black disabled:opacity-50 sm:flex sm:flex-none"
                 aria-label="Send"
               >
                 <i className="bi bi-arrow-return-left text-[18px] leading-none" aria-hidden="true" />
