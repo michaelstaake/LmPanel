@@ -256,6 +256,7 @@ class BootstrapStatusResponse(BaseModel):
     background_color: str = "#efe8d2"
     background_image_path: str | None = None
     background_image_mode: Literal["fill", "stretch", "repeat"] = "fill"
+    favicon_path: str | None = None
     knowledge_base_enabled: bool = False
     cloudflare_turnstile_enabled: bool = False
     cloudflare_turnstile_site_key: str | None = None
@@ -297,6 +298,7 @@ class AppSettingsResponse(BaseModel):
     background_color: str = "#efe8d2"
     background_image_path: str | None = None
     background_image_mode: Literal["fill", "stretch", "repeat"] = "fill"
+    favicon_path: str | None = None
     knowledge_base_enabled: bool = False
     input_price_per_1m: float = 0.0
     output_price_per_1m: float = 0.0

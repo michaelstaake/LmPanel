@@ -8,6 +8,8 @@ const DEFAULT_BACKGROUND_COLOR = "#efe8d2";
 const DEFAULT_SITENAME = "LmPanel";
 const ALLOWED_BACKGROUND_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_BACKGROUND_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_FAVICON_TYPES = new Set(["image/jpeg", "image/png"]);
+const MAX_FAVICON_BYTES = 2 * 1024 * 1024;
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
 function normalizePublicUrl(rawUrl: string): string | null {
@@ -52,6 +54,7 @@ export default function ConfigurationPage() {
     background_color: DEFAULT_BACKGROUND_COLOR,
     background_image_path: null,
     background_image_mode: "fill",
+    favicon_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
     public_url: "",
@@ -75,6 +78,8 @@ export default function ConfigurationPage() {
   const [isSaving, setIsSaving] = useState<keyof AppSettingsRecord | null>(null);
   const [isUploadingBackgroundImage, setIsUploadingBackgroundImage] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+  const faviconInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -184,6 +189,62 @@ export default function ConfigurationPage() {
       setIsUploadingBackgroundImage(false);
       if (uploadInputRef.current) {
         uploadInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function uploadFavicon(file: File) {
+    if (!token) {
+      return;
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!ALLOWED_FAVICON_TYPES.has(file.type) && !["jpg", "jpeg", "png"].includes(extension)) {
+      showError("Favicon must be a JPG or PNG file.");
+      return;
+    }
+
+    if (file.size > MAX_FAVICON_BYTES) {
+      showError("Favicon must be 2 MB or smaller.");
+      return;
+    }
+
+    setIsUploadingFavicon(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await apiPostForm<AppSettingsRecord>("/api/admin/settings/favicon", formData, token);
+      setSettings(response);
+      await refreshPublicSettings();
+      showSuccess("Favicon updated.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Failed to upload favicon");
+    } finally {
+      setIsUploadingFavicon(false);
+      if (faviconInputRef.current) {
+        faviconInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function deleteFavicon() {
+    if (!token) {
+      return;
+    }
+
+    setIsUploadingFavicon(true);
+    try {
+      const response = await apiDelete<AppSettingsRecord>("/api/admin/settings/favicon", token);
+      setSettings(response);
+      await refreshPublicSettings();
+      showSuccess("Favicon removed.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Failed to remove favicon");
+    } finally {
+      setIsUploadingFavicon(false);
+      if (faviconInputRef.current) {
+        faviconInputRef.current.value = "";
       }
     }
   }
@@ -359,6 +420,54 @@ export default function ConfigurationPage() {
               </div>
             ) : (
               <p className="text-sm text-black/65">No background image uploaded. Desktop will use the background color until you add one.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-black">Favicon</div>
+                <p className="mt-1 text-sm text-black/65">
+                  Upload a square JPG or PNG at least 16px, max 2 MB.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
+                  <span>{isUploadingFavicon ? "Uploading..." : "Upload favicon"}</span>
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    className="hidden"
+                    disabled={isLoading || isUploadingFavicon}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void uploadFavicon(file);
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => void deleteFavicon()}
+                  disabled={isLoading || isUploadingFavicon || !settings.favicon_path}
+                >
+                  Delete favicon
+                </button>
+              </div>
+            </div>
+            {settings.favicon_path ? (
+              <div className="grid gap-3">
+                <p className="text-sm text-black/65">The uploaded favicon is active across all pages.</p>
+                <img
+                  src={resolveApiUrl(settings.favicon_path)}
+                  alt="Current favicon"
+                  className="h-16 w-16 rounded-lg border border-black/10 bg-white object-contain shadow-sm"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-black/65">No favicon uploaded. The default LmPanel icon will be used.</p>
             )}
           </div>
           <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">

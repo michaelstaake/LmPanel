@@ -190,7 +190,7 @@ function SetupRoute() {
 }
 
 export default function App() {
-  const { backgroundColor, backgroundImageMode, backgroundImagePath, bootstrapError, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { backgroundColor, backgroundImageMode, backgroundImagePath, bootstrapError, faviconPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
@@ -222,6 +222,24 @@ export default function App() {
     const base = sitename || "LmPanel";
     document.title = pageTitle ? `${pageTitle} ~ ${base}` : base;
   }, [sitename, pageTitle]);
+
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (faviconPath) {
+      const href = resolveApiUrl(faviconPath);
+      if (link) {
+        link.href = href;
+      } else {
+        const newLink = document.createElement("link");
+        newLink.rel = "icon";
+        newLink.href = href;
+        newLink.type = faviconPath.endsWith(".png") ? "image/png" : "image/jpeg";
+        document.head.appendChild(newLink);
+      }
+    } else if (link) {
+      link.href = "/static/favicons/favicon.png";
+    }
+  }, [faviconPath]);
 
   useEffect(() => {
     function handleBackendUnavailable() {

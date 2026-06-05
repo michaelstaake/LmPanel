@@ -295,6 +295,7 @@ export type AppSettingsRecord = {
   background_color: string;
   background_image_path: string | null;
   background_image_mode: BackgroundImageMode;
+  favicon_path: string | null;
   input_price_per_1m: number;
   output_price_per_1m: number;
   public_url: string;

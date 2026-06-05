@@ -29,7 +29,9 @@ from app.utils.schemas import (
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 app_config = get_settings()
 BACKGROUND_IMAGE_MAX_BYTES = 10 * 1024 * 1024
-BACKGROUND_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ BACKGROUND_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+ FAVICON_MAX_BYTES = 2 * 1024 * 1024
+ FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 @router.get("/settings", response_model=AppSettingsResponse)
@@ -159,6 +161,52 @@ def delete_background_image(admin_user: User = Depends(get_admin_user), db: Sess
     app_settings = get_or_create_app_settings(db)
     _delete_background_file(app_settings.background_image_path)
     app_settings.background_image_path = None
+    db.add(app_settings)
+    db.commit()
+    db.refresh(app_settings)
+    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
+    return _serialize_app_settings(app_settings)
+
+
+@router.post("/settings/favicon", response_model=AppSettingsResponse)
+async def upload_favicon(
+    file: UploadFile = File(...),
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> AppSettingsResponse:
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in FAVICON_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Favicon must be a JPG or PNG file")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Favicon upload was empty")
+    if len(content) > FAVICON_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Favicon must be 2 MB or smaller")
+
+    app_settings = get_or_create_app_settings(db)
+    favicons_directory = _favicons_directory()
+    favicons_directory.mkdir(parents=True, exist_ok=True)
+
+    _delete_favicon_file(app_settings.favicon_path)
+
+    stored_name = f"favicon-{uuid4().hex}{extension}"
+    destination = favicons_directory / stored_name
+    destination.write_bytes(content)
+
+    app_settings.favicon_path = f"/static/favicons/{stored_name}"
+    db.add(app_settings)
+    db.commit()
+    db.refresh(app_settings)
+    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
+    return _serialize_app_settings(app_settings)
+
+
+@router.delete("/settings/favicon", response_model=AppSettingsResponse)
+def delete_favicon(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> AppSettingsResponse:
+    app_settings = get_or_create_app_settings(db)
+    _delete_favicon_file(app_settings.favicon_path)
+    app_settings.favicon_path = None
     db.add(app_settings)
     db.commit()
     db.refresh(app_settings)
@@ -548,6 +596,7 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         background_color=app_settings.background_color,
         background_image_path=app_settings.background_image_path,
         background_image_mode=app_settings.background_image_mode,
+        favicon_path=app_settings.favicon_path,
         knowledge_base_enabled=app_settings.knowledge_base_enabled,
         input_price_per_1m=app_settings.input_price_per_1m,
         output_price_per_1m=app_settings.output_price_per_1m,
@@ -576,5 +625,18 @@ def _delete_background_file(background_image_path: str | None) -> None:
         return
 
     file_path = _backgrounds_directory() / Path(background_image_path).name
+    if file_path.exists():
+        file_path.unlink()
+
+
+def _favicons_directory() -> Path:
+    return Path(app_config.data_dir) / "favicons"
+
+
+def _delete_favicon_file(favicon_path: str | None) -> None:
+    if not favicon_path or not favicon_path.startswith("/static/favicons/"):
+        return
+
+    file_path = _favicons_directory() / Path(favicon_path).name
     if file_path.exists():
         file_path.unlink()

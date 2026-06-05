@@ -12,6 +12,7 @@ export type BootstrapStatus = {
   background_color: string;
   background_image_path: string | null;
   background_image_mode: BackgroundImageMode;
+  favicon_path: string | null;
   knowledge_base_enabled: boolean;
   cloudflare_turnstile_enabled: boolean;
   cloudflare_turnstile_site_key: string | null;

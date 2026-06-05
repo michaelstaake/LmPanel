@@ -20,6 +20,7 @@ type AuthContextValue = {
   backgroundColor: string;
   backgroundImagePath: string | null;
   backgroundImageMode: BackgroundImageMode;
+  faviconPath: string | null;
   knowledgeBaseEnabled: boolean;
   cloudflareTurnstileEnabled: boolean;
   cloudflareTurnstileSiteKey: string | null;
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [backgroundColor, setBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
   const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(null);
   const [backgroundImageMode, setBackgroundImageMode] = useState<BackgroundImageMode>(DEFAULT_BACKGROUND_IMAGE_MODE);
+  const [faviconPath, setFaviconPath] = useState<string | null>(null);
   const [knowledgeBaseEnabled, setKnowledgeBaseEnabled] = useState(false);
   const [cloudflareTurnstileEnabled, setCloudflareTurnstileEnabled] = useState(false);
   const [cloudflareTurnstileSiteKey, setCloudflareTurnstileSiteKey] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
       setBackgroundImagePath(bootstrap.background_image_path || null);
       setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
+      setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
       setBackgroundImagePath(bootstrap.background_image_path || null);
       setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
+      setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -131,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBackgroundColor(DEFAULT_BACKGROUND_COLOR);
       setBackgroundImagePath(null);
       setBackgroundImageMode(DEFAULT_BACKGROUND_IMAGE_MODE);
+      setFaviconPath(null);
       setKnowledgeBaseEnabled(false);
       setCloudflareTurnstileEnabled(false);
       setCloudflareTurnstileSiteKey(null);
@@ -178,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
       setBackgroundImagePath(bootstrap.background_image_path || null);
       setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
+      setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -203,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
+      setFaviconPath(bootstrap.favicon_path || null);
       setBootstrapError(null);
       setUser(currentUser);
       if (response.terms_enabled) {
@@ -263,6 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         backgroundColor,
         backgroundImagePath,
         backgroundImageMode,
+        faviconPath,
         knowledgeBaseEnabled,
         cloudflareTurnstileEnabled,
         cloudflareTurnstileSiteKey,
