@@ -1,7 +1,23 @@
+import re
 from typing import Any, Literal
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+USERNAME_PATTERN = re.compile(r"^[a-z0-9]{4,16}$")
+USERNAME_VALIDATION_MESSAGE = "Username must be 4-16 characters and contain only lowercase letters and numbers"
+
+
+def validate_username(value: str) -> str:
+    if not USERNAME_PATTERN.fullmatch(value):
+        raise ValueError(USERNAME_VALIDATION_MESSAGE)
+    return value
+
+
+def validate_username_optional(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return validate_username(value)
 
 
 def _normalize_background_color(value: str | None) -> str:
@@ -232,16 +248,26 @@ class BootstrapStatusResponse(BaseModel):
 
 
 class BootstrapAdminRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
+    username: str = Field(min_length=4, max_length=16)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=255)
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def validate_username_field(cls, value: str) -> str:
+        return validate_username(value)
 
 
 class UserRegistrationRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
+    username: str = Field(min_length=4, max_length=16)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=255)
     turnstile_response: str | None = None
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def validate_username_field(cls, value: str) -> str:
+        return validate_username(value)
 
 
 class AppSettingsResponse(BaseModel):
@@ -372,21 +398,31 @@ class ActiveProviderUpdateRequest(BaseModel):
 
 
 class UserCreateRequest(BaseModel):
-    username: str = Field(min_length=3, max_length=64)
+    username: str = Field(min_length=4, max_length=16)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=255)
     is_admin: bool = False
     is_active: bool = True
     package_id: int | None = None
 
+    @field_validator("username", mode="before")
+    @classmethod
+    def validate_username_field(cls, value: str) -> str:
+        return validate_username(value)
+
 
 class UserUpdateRequest(BaseModel):
-    username: str | None = Field(default=None, min_length=3, max_length=64)
+    username: str | None = Field(default=None, min_length=4, max_length=16)
     email: str | None = Field(default=None, min_length=3, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=255)
     is_admin: bool | None = None
     is_active: bool | None = None
     package_id: int | None = None
+
+    @field_validator("username", mode="before")
+    @classmethod
+    def validate_username_field(cls, value: str | None) -> str | None:
+        return validate_username_optional(value)
 
 
 class ApiKeyCreateRequest(BaseModel):

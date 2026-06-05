@@ -5,6 +5,7 @@ import { apiGet, apiPatch, apiPost, deleteUser, toggleUserActive, updateUserEmai
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { PackageRecord, UserRecord, UserTokenUsageRecord, UserUpdateResponse } from "../lib/records";
+import { isValidUsername, sanitizeUsernameInput, USERNAME_VALIDATION_MESSAGE } from "../lib/username";
 
 type CreateUserPayload = {
   username: string;
@@ -97,6 +98,11 @@ export default function UsersPage() {
   async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token) {
+      return;
+    }
+
+    if (!isValidUsername(newUser.username)) {
+      showError(USERNAME_VALIDATION_MESSAGE);
       return;
     }
 
@@ -370,7 +376,7 @@ export default function UsersPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="grid gap-1 text-sm text-black/70">
                 Username
-                <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={newUser.username} onChange={(event) => setNewUser((current) => ({ ...current, username: event.target.value }))} />
+                <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={newUser.username} onChange={(event) => setNewUser((current) => ({ ...current, username: sanitizeUsernameInput(event.target.value) }))} minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
               </label>
               <label className="grid gap-1 text-sm text-black/70">
                 Email

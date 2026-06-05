@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { isValidUsername, sanitizeUsernameInput, USERNAME_VALIDATION_MESSAGE } from "../lib/username";
 
 export default function SetupPage() {
   const navigate = useNavigate();
@@ -14,6 +15,11 @@ export default function SetupPage() {
 
   async function handleBootstrap(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!isValidUsername(username)) {
+      showError(USERNAME_VALIDATION_MESSAGE);
+      return;
+    }
 
     if (password !== confirmPassword) {
       showError("Passwords do not match.");
@@ -43,7 +49,7 @@ export default function SetupPage() {
         <form className="mt-5 grid gap-3 md:max-w-xl" onSubmit={handleBootstrap}>
           <label className="grid gap-1 text-sm text-black/70">
             Username
-            <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
+            <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={username} onChange={(event) => setUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
           </label>
           <label className="grid gap-1 text-sm text-black/70">
             Email

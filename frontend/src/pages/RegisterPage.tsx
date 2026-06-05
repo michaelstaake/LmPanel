@@ -3,6 +3,7 @@ import { Navigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { readTurnstileToken, resetTurnstileWidget, turnstileRenderOptions } from "../lib/turnstile";
+import { isValidUsername, sanitizeUsernameInput, USERNAME_VALIDATION_MESSAGE } from "../lib/username";
 
 export default function RegisterPage() {
   const { user, requiresSetup, isBootstrapping, isAuthenticating, register, usersCanRegister, cloudflareTurnstileEnabled, cloudflareTurnstileSiteKey } = useAuth();
@@ -55,6 +56,11 @@ export default function RegisterPage() {
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!isValidUsername(registerUsername)) {
+      showError(USERNAME_VALIDATION_MESSAGE);
+      return;
+    }
+
     if (registerPassword !== registerConfirmPassword) {
       showError("Passwords do not match.");
       return;
@@ -100,7 +106,7 @@ export default function RegisterPage() {
         <form className="mt-6 grid gap-4" onSubmit={handleRegister}>
           <label className="grid gap-2 text-sm text-black/70">
             <span className="font-semibold text-black">Username</span>
-            <input className="rounded-2xl border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" value={registerUsername} onChange={(event) => setRegisterUsername(event.target.value)} autoComplete="username" />
+            <input className="rounded-2xl border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" value={registerUsername} onChange={(event) => setRegisterUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
           </label>
           <label className="grid gap-2 text-sm text-black/70">
             <span className="font-semibold text-black">Email</span>
