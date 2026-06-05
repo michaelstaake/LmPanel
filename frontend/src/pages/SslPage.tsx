@@ -13,7 +13,7 @@ import type { SslStatusRecord, SslTaskResponse } from "../lib/records";
 
 export default function SslPage() {
   const { token } = useAuth();
-  const { showError, showSuccess } = useToast();
+  const { showError, showInfo, showSuccess } = useToast();
   const [status, setStatus] = useState<SslStatusRecord | null>(null);
   const [localEmail, setLocalEmail] = useState("");
   const [cloudflareToken, setCloudflareToken] = useState("");
@@ -92,6 +92,10 @@ export default function SslPage() {
     if (!token || !status) {
       return;
     }
+
+    showInfo(
+      "Once the certificate is installed, you will need to completely restart all LmPanel Docker containers to resume functionality.",
+    );
 
     setIsIssuing(true);
     try {
