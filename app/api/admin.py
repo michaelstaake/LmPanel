@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user, get_current_user
