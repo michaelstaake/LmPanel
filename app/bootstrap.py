@@ -7,6 +7,7 @@ import subprocess
 import uvicorn
 
 from app.core.config import get_settings
+from app.core.letsencrypt import ensure_self_signed_certificate
 
 
 logger = logging.getLogger(__name__)
@@ -44,12 +45,16 @@ def main() -> None:
     prepare_database()
 
     settings = get_settings()
+    cert_path = Path(settings.ssl_certfile)
+    key_path = Path(settings.ssl_keyfile)
+    ensure_self_signed_certificate(cert_path, key_path)
+
     uvicorn.run(
         "app.main:app",
         host=settings.app_host,
         port=settings.app_port,
-        ssl_certfile=settings.ssl_certfile,
-        ssl_keyfile=settings.ssl_keyfile,
+        ssl_certfile=str(cert_path),
+        ssl_keyfile=str(key_path),
     )
 
 

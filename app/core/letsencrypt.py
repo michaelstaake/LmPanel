@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import os
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 from app.core.config import Settings, get_settings
 from app.utils.schemas import normalize_public_url
@@ -18,6 +22,47 @@ from app.utils.schemas import normalize_public_url
 logger = logging.getLogger(__name__)
 
 RENEWAL_THRESHOLD_DAYS = 30
+
+
+def ensure_self_signed_certificate(cert_path: Path, key_path: Path) -> None:
+    if cert_path.exists() and key_path.exists():
+        return
+
+    cert_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Generating self-signed SSL certificate at %s", cert_path)
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    now = datetime.now(timezone.utc)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + timedelta(days=3650))
+        .add_extension(
+            x509.SubjectAlternativeName(
+                [
+                    x509.DNSName("localhost"),
+                    x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+                ]
+            ),
+            critical=False,
+        )
+        .sign(key, hashes.SHA256())
+    )
+
+    key_path.write_bytes(
+        key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+    cert_path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
+    logger.info("Self-signed SSL certificate generated.")
 
 
 def parse_domain_from_public_url(public_url: str) -> str:
