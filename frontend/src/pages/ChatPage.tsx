@@ -1197,7 +1197,7 @@ export default function ChatPage() {
           </div>
         ) : null}
 
-        {!shouldShowNoModelsEmptyState ? (
+       {!shouldShowNoModelsEmptyState ? (
           <form className={`${isNewChatEmptyState ? "mx-auto w-full max-w-xl" : "mt-4"} flex flex-col gap-2`} onSubmit={handleSubmit}>
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 rounded-xl border border-black/10 bg-black/5 p-2">
@@ -1227,6 +1227,33 @@ export default function ChatPage() {
             </div>
           )}
 
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              disabled={isSending || isModelsUnavailable}
+              className="flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
+              placeholder={inputPlaceholder}
+            />
+            {isSending ? (
+              <button
+                type="button"
+                onClick={() => abortControllerRef.current?.abort()}
+                className="rounded-xl bg-red-500 px-4 h-12 text-sm font-semibold text-white hover:bg-red-600"
+              >
+                Stop
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
+                className="rounded-xl bg-amber px-4 h-12 text-sm font-semibold text-black disabled:opacity-50"
+              >
+                Send
+              </button>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
@@ -1269,38 +1296,6 @@ export default function ChatPage() {
             >
               <i className="bi bi-paperclip text-[20px] leading-none" aria-hidden="true" />
             </button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              multiple
-              className="hidden"
-            />
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              disabled={isSending || isModelsUnavailable}
-              className="flex-1 rounded-xl border border-black/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
-              placeholder={inputPlaceholder}
-            />
-            {isSending ? (
-              <button
-                type="button"
-                onClick={() => abortControllerRef.current?.abort()}
-                className="rounded-xl bg-red-500 px-4 h-12 text-sm font-semibold text-white hover:bg-red-600"
-              >
-                Stop
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                className="rounded-xl bg-amber px-4 h-12 text-sm font-semibold text-black disabled:opacity-50"
-              >
-                Send
-              </button>
-            )}
           </div>
           </form>
         ) : null}
