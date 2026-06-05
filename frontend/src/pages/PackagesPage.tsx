@@ -31,6 +31,17 @@ function parseLimitValue(rawValue: string): number | null {
   return parsed;
 }
 
+function validatePackageName(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "Package name is required";
+  }
+  if (!/^[a-zA-Z0-9]+$/.test(trimmed)) {
+    return "Package name can only contain letters and numbers";
+  }
+  return null;
+}
+
 function validateTokenUsageLimits(values: {
   usage_limit_tokens_60_minutes: number;
   usage_limit_tokens_24_hours: number;
@@ -111,6 +122,8 @@ export default function PackagesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [createNameError, setCreateNameError] = useState<string | null>(null);
+  const [editNameError, setEditNameError] = useState<string | null>(null);
 
   // Create modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -177,6 +190,18 @@ export default function PackagesPage() {
       return;
     }
 
+    const packageNameError = validatePackageName(createDraft.name);
+    if (packageNameError !== null) {
+      setCreateNameError(packageNameError);
+      return;
+    }
+
+    const existingPackage = packages.find((p) => p.name.toLowerCase() === createDraft.name.trim().toLowerCase());
+    if (existingPackage) {
+      setCreateNameError("A package with that name already exists.");
+      return;
+    }
+
     const tokenLimitsError = validateTokenLimits(createDraft);
     const toolLimitsError = validateToolLimits(createDraft);
     if (tokenLimitsError !== null || toolLimitsError !== null) {
@@ -218,10 +243,12 @@ export default function PackagesPage() {
         usage_limit_tools_7_days: "0",
         usage_limit_tools_30_days: "0",
       });
+      setCreateNameError(null);
       setIsCreateModalOpen(false);
       showSuccess(`Created package ${response.package.name}.`);
     } catch (error) {
       showError(error instanceof Error ? error.message : "Package creation failed");
+      setCreateNameError(null);
     } finally {
       setIsCreating(false);
     }
@@ -236,6 +263,20 @@ export default function PackagesPage() {
     if (editingPackage.is_admin_package) {
       showError("Cannot edit the admin package.");
       return;
+    }
+
+    if (!editingPackage.is_default_package) {
+      const packageNameError = validatePackageName(editDraft.name);
+      if (packageNameError !== null) {
+        setEditNameError(packageNameError);
+        return;
+      }
+
+      const existingPackage = packages.find((p) => p.id !== editingPackage.id && p.name.toLowerCase() === editDraft.name.trim().toLowerCase());
+      if (existingPackage) {
+        setEditNameError("A package with that name already exists.");
+        return;
+      }
     }
 
     const tokenLimitsError = validateTokenLimits(editDraft);
@@ -269,9 +310,11 @@ export default function PackagesPage() {
       setPackages((current) => current.map((p) => (p.id === editingPackage.id ? response.package : p)));
       setIsEditModalOpen(false);
       setEditingPackage(null);
+      setEditNameError(null);
       showSuccess(`Updated package ${response.package.name}.`);
     } catch (error) {
       showError(error instanceof Error ? error.message : "Package update failed");
+      setEditNameError(null);
     } finally {
       setIsSaving(false);
     }
@@ -474,7 +517,16 @@ export default function PackagesPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="grid gap-1 text-sm text-black/70">
                 Name
-                <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={createDraft.name} onChange={(event) => setCreateDraft((current) => ({ ...current, name: event.target.value }))} required />
+                <input
+                  className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                  value={createDraft.name}
+                  onChange={(event) => {
+                    setCreateDraft((current) => ({ ...current, name: event.target.value }));
+                    setCreateNameError(null);
+                  }}
+                  required
+                />
+                {createNameError ? <span className="text-xs text-red-600">{createNameError}</span> : null}
               </label>
               <div className="md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>
@@ -529,13 +581,17 @@ export default function PackagesPage() {
                 <input
                   className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-black/50"
                   value={editDraft.name}
-                  onChange={(event) => setEditDraft((current) => ({ ...current, name: event.target.value }))}
+                  onChange={(event) => {
+                    setEditDraft((current) => ({ ...current, name: event.target.value }));
+                    setEditNameError(null);
+                  }}
                   disabled={editingPackage?.is_default_package}
                   required
                 />
                 {editingPackage?.is_default_package ? (
                   <span className="text-xs text-black/50">The default package name cannot be changed.</span>
                 ) : null}
+                {editNameError ? <span className="text-xs text-red-600">{editNameError}</span> : null}
               </label>
               <div className="md:col-span-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>

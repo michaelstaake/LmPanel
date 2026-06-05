@@ -722,7 +722,10 @@ class PackageCreateRequest(BaseModel):
     def validate_name(cls, value: str | None) -> str:
         if value is None:
             raise ValueError("Package name is required")
-        return value.strip()
+        value = value.strip()
+        if not re.match(r"^[a-zA-Z0-9]+$", value):
+            raise ValueError("Package name can only contain letters and numbers")
+        return value
 
 
 class PackageUpdateRequest(BaseModel):
@@ -743,4 +746,7 @@ class PackageUpdateRequest(BaseModel):
     def validate_name(cls, value: str | None) -> str | None:
         if value is None:
             return None
-        return value.strip()
+        value = value.strip()
+        if not re.match(r"^[a-zA-Z0-9]+$", value):
+            raise ValueError("Package name can only contain letters and numbers")
+        return value

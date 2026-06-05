@@ -430,8 +430,6 @@ def update_package(package_id: int, payload: PackageUpdateRequest, admin_user: U
     if package.is_default_package:
         if payload.name is not None and payload.name != package.name:
             raise HTTPException(status_code=400, detail="Cannot rename the default package")
-        if payload.is_admin_package is not None:
-            raise HTTPException(status_code=400, detail="Cannot change the default package admin status")
         if payload.is_default_package is not None and payload.is_default_package != package.is_default_package:
             raise HTTPException(status_code=400, detail="Cannot change default package status")
     else:
