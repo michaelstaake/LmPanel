@@ -26,6 +26,7 @@ type ChatMessage = {
   phase?: "uploading" | "thinking" | "streaming" | "complete";
   modelName?: string;
   stats?: ChatCompletionStats | null;
+  cancelled?: boolean;
 };
 
 type ChatCompletionStats = {
@@ -327,6 +328,7 @@ export default function ChatPage() {
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
+  const isNavigatingAwayRef = useRef(false);
   const prevLocationRef = useRef(location.pathname);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
@@ -442,6 +444,20 @@ export default function ChatPage() {
       setUseThinking(true);
     }
   }, [selectedModelSupportsWebSearch, selectedModelAllowsThinkingPreference, selectedModelAlwaysThinks]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isSending && abortControllerRef.current) {
+        isNavigatingAwayRef.current = true;
+        abortControllerRef.current.abort();
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isSending]);
 
   useEffect(() => {
     setMobileNavSection({
@@ -824,19 +840,29 @@ export default function ChatPage() {
         setMessages((current: ChatMessage[]) => {
           if (current.length === 0) return current;
           const last = current[current.length - 1];
-          if (last.role === "assistant") {
+          if (last.role !== "assistant") return current;
+
+          if (isNavigatingAwayRef.current) {
             if (!last.content && !last.thinking) return current.slice(0, -1);
             const updated = [...current];
             updated[updated.length - 1] = {
               ...last,
               thinkingElapsedSeconds: thinkingElapsedSeconds ?? last.thinkingElapsedSeconds ?? null,
-              phase: "complete"
+              cancelled: true,
             };
             return updated;
           }
-          return current;
+
+          if (!last.content && !last.thinking) return current.slice(0, -1);
+          const updated = [...current];
+          updated[updated.length - 1] = {
+            ...last,
+            thinkingElapsedSeconds: thinkingElapsedSeconds ?? last.thinkingElapsedSeconds ?? null,
+            phase: "complete"
+          };
+          return updated;
         });
-        if (chatId !== null && assistantBuffer) {
+        if (chatId !== null && assistantBuffer && !isNavigatingAwayRef.current) {
           void persistMessage(chatId, "assistant", assistantBuffer, {
             modelName: selectedModel,
           });
@@ -1108,7 +1134,7 @@ export default function ChatPage() {
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">
                         {formatSpeakerLabel(message, user?.username ?? null)}
                       </div>
-                      {message.role === "assistant" && message.thinking ? (
+                      {message.role === "assistant" && message.thinking && !message.cancelled ? (
                         <div className="mb-3">
                           <button
                             type="button"
@@ -1140,7 +1166,9 @@ export default function ChatPage() {
                         </div>
                       ) : null}
                       <div className="min-w-0 max-w-full leading-7 text-[15px] text-black/85">
-                        {message.role === "assistant" ? (
+                        {message.cancelled ? (
+                          <span className="text-red-500 italic">Response cancelled</span>
+                        ) : message.role === "assistant" ? (
                           <MessageContent
                             content={message.content}
                             showStreamingCursor={message.phase === "streaming" && Boolean(message.content)}
