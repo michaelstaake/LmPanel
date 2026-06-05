@@ -85,7 +85,7 @@ export default function ApiPage() {
 
   const DEFAULT_API_BASE_URL = "https://EXAMPLE.PUP:8443";
 
-  const BASE_URL = setupStatus?.public_url || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+  const BASE_URL = setupStatus?.api_base_url || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 
   async function refreshV1Models(activeToken: string) {
     setIsLoadingV1Models(true);
@@ -119,7 +119,7 @@ export default function ApiPage() {
           name: "lmpanel",
           npm: "@ai-sdk/openai-compatible",
           options: {
-            baseURL: BASE_URL,
+            baseURL: `${BASE_URL}/v1`,
             apiKey: "API_KEY",
             timeout: 7200000,
           },

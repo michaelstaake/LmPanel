@@ -65,6 +65,26 @@ def normalize_public_url(value: str | None) -> str:
     return f"https://{parsed.hostname}"
 
 
+def build_api_base_url(public_url: str, frontend_origin: str) -> str:
+    if not public_url:
+        return ""
+
+    parsed = urlparse(public_url)
+    if parsed.port is not None:
+        return public_url.rstrip("/")
+
+    origin_parsed = urlparse(frontend_origin.strip())
+    port = origin_parsed.port
+    if not port or port == 443:
+        return public_url
+
+    hostname = parsed.hostname
+    if not hostname:
+        return public_url
+
+    return f"https://{hostname}:{port}"
+
+
 def normalize_message_content(content: Any) -> str:
     """Normalize OpenAI-style content to plain text for text-only backends.
 
@@ -240,6 +260,7 @@ class BootstrapStatusResponse(BaseModel):
     cloudflare_turnstile_enabled: bool = False
     cloudflare_turnstile_site_key: str | None = None
     public_url: str = ""
+    api_base_url: str = ""
 
     @field_validator("background_color", mode="before")
     @classmethod

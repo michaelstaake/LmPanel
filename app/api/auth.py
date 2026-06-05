@@ -17,7 +17,7 @@ from app.models.device import Device
 from app.models.model_config import ModelConfig
 from app.models.package import Package
 from app.models.user import User
-from app.utils.schemas import ApiKeyCreateRequest, BootstrapAdminRequest, BootstrapStatusResponse, LoginRequest, LoginResponse, ProfileUpdateRequest, UserRegistrationRequest, UserResponse
+from app.utils.schemas import ApiKeyCreateRequest, BootstrapAdminRequest, BootstrapStatusResponse, LoginRequest, LoginResponse, ProfileUpdateRequest, UserRegistrationRequest, UserResponse, build_api_base_url
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -29,7 +29,9 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
     has_enabled_device = db.query(Device.id).filter(Device.enabled.is_(True)).first() is not None
     has_active_model = db.query(ModelConfig.id).filter(ModelConfig.activated.is_(True)).first() is not None
     app_settings = get_or_create_app_settings(db)
+    settings = get_settings()
     setup_complete = _setup_complete_path().exists()
+    public_url = app_settings.public_url or ""
 
     if not setup_complete and has_admin_user:
         _mark_setup_complete()
@@ -48,7 +50,8 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
         knowledge_base_enabled=app_settings.knowledge_base_enabled,
         cloudflare_turnstile_enabled=app_settings.cloudflare_turnstile_enabled,
         cloudflare_turnstile_site_key=app_settings.cloudflare_turnstile_site_key,
-        public_url=app_settings.public_url or "",
+        public_url=public_url,
+        api_base_url=build_api_base_url(public_url, settings.frontend_origin),
     )
 
 
