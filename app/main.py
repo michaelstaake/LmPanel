@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import admin, auth, chat, devices, knowledge_base, logs, models, openai_compat, ssl as ssl_api, status, terms as terms_api, web_search as web_search_api
 from app.core.activity_logger import log_event, prune_old_logs, schedule_daily_pruning
 from app.core.letsencrypt import schedule_daily_ssl_renewal
+from app.core.update_check import schedule_update_check
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
 from app.core.db import SessionLocal
@@ -99,11 +100,13 @@ async def lifespan(_: FastAPI):
 
     pruning_task = asyncio.create_task(schedule_daily_pruning())
     ssl_renewal_task = asyncio.create_task(schedule_daily_ssl_renewal())
+    update_check_task = asyncio.create_task(schedule_update_check())
 
     yield
 
     pruning_task.cancel()
     ssl_renewal_task.cancel()
+    update_check_task.cancel()
 
     for model_id in list(inference_manager._running.keys()):
         await inference_manager.deactivate_model(model_id)

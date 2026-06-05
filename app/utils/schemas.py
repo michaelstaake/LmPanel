@@ -315,6 +315,7 @@ class AppSettingsResponse(BaseModel):
     usage_limit_tools_24_hours: int = 0
     usage_limit_tools_7_days: int = 0
     usage_limit_tools_30_days: int = 0
+    update_check_mode: Literal["development", "release", "disabled"] = "disabled"
 
     @field_validator("background_color", mode="before")
     @classmethod
@@ -347,6 +348,7 @@ class AppSettingsUpdateRequest(BaseModel):
     usage_limit_tools_24_hours: int | None = None
     usage_limit_tools_7_days: int | None = None
     usage_limit_tools_30_days: int | None = None
+    update_check_mode: Literal["development", "release", "disabled"] | None = None
 
     @field_validator("background_color", mode="before")
     @classmethod

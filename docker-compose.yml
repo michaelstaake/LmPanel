@@ -16,6 +16,8 @@ services:
       INFERENCE_SERVICE_TIMEOUT_SECONDS: ${INFERENCE_SERVICE_TIMEOUT_SECONDS:-600}
       OPENAI_API_AUTH_REQUIRED: ${OPENAI_API_AUTH_REQUIRED:-true}
       OPENAI_MODELS_AUTH_REQUIRED: ${OPENAI_MODELS_AUTH_REQUIRED:-false}
+      VITE_APP_VERSION: ${VITE_APP_VERSION:-1.0.1}
+      VITE_APP_GIT_COMMIT: ${VITE_APP_GIT_COMMIT:-}
     volumes:
       - ./models:/app/models
       - lmpanel-data:/app/data
@@ -48,6 +50,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        GIT_COMMIT: ${VITE_APP_GIT_COMMIT:-}
+        APP_VERSION: ${VITE_APP_VERSION:-1.0.1}
     container_name: lmpanel-frontend
     ports:
       - "8443:443"

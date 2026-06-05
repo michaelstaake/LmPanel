@@ -1,6 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,9 @@ from app.utils.schemas import (
     UserCreateRequest,
     UserUpdateRequest,
 )
+
+GITHUB_REPO_OWNER = "michaelstaake"
+GITHUB_REPO_NAME = "LmPanel"
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 app_config = get_settings()
@@ -68,6 +72,8 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.cloudflare_turnstile_secret_key = payload.cloudflare_turnstile_secret_key
     if payload.two_factor_enabled is not None:
         app_settings.two_factor_enabled = payload.two_factor_enabled
+    if payload.update_check_mode is not None:
+        app_settings.update_check_mode = payload.update_check_mode
 
     usage_limit_updates = {
         "usage_limit_tokens_60_minutes": payload.usage_limit_tokens_60_minutes,
@@ -212,6 +218,59 @@ def delete_favicon(admin_user: User = Depends(get_admin_user), db: Session = Dep
     db.refresh(app_settings)
     log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
     return _serialize_app_settings(app_settings)
+
+
+class UpdateCheckResponse(BaseModel):
+    latest_commit: str
+    latest_version: str
+    update_available: bool
+
+
+@router.get("/updates/check", response_model=UpdateCheckResponse)
+async def check_for_updates(admin_user: User = Depends(get_admin_user)) -> UpdateCheckResponse:
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            commit_response = await client.get(
+                f"https://api.github.com/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/commits/main",
+                headers={"Accept": "application/vnd.github.v3+json"},
+            )
+        except Exception:
+            commit_response = None
+
+        try:
+            release_response = await client.get(
+                f"https://api.github.com/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases/latest",
+                headers={"Accept": "application/vnd.github.v3+json"},
+            )
+        except Exception:
+            release_response = None
+
+    latest_commit = ""
+    latest_version = ""
+
+    if commit_response and commit_response.status_code == 200:
+        latest_commit = commit_response.json().get("sha", "")
+
+    if release_response and release_response.status_code == 200:
+        latest_version = release_response.json().get("tag_name", "")
+
+    import os
+    current_commit = os.environ.get("VITE_APP_GIT_COMMIT", "")
+    current_version = os.environ.get("VITE_APP_VERSION", "")
+
+    update_available = False
+    if latest_commit and current_commit and latest_commit != current_commit:
+        update_available = True
+    elif latest_version and current_version:
+        current_tag = current_version if current_version.startswith("v") else f"v{current_version}"
+        if latest_version != current_tag:
+            update_available = True
+
+    return UpdateCheckResponse(
+        latest_commit=latest_commit,
+        latest_version=latest_version,
+        update_available=update_available,
+    )
 
 
 @router.get("/users")
@@ -613,6 +672,7 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         usage_limit_tools_24_hours=app_settings.usage_limit_tools_24_hours,
         usage_limit_tools_7_days=app_settings.usage_limit_tools_7_days,
         usage_limit_tools_30_days=app_settings.usage_limit_tools_30_days,
+        update_check_mode=app_settings.update_check_mode,
     )
 
 

@@ -14,9 +14,10 @@ COPY frontend/ ./
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ARG GIT_COMMIT=""
+ARG APP_VERSION=""
 
 COPY .git /tmp/.git
-RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && npm run build
+RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && export VITE_APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" && npm run build
 
 FROM nginx:1.27-alpine
 
