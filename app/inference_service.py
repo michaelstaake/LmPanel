@@ -16,7 +16,7 @@ import httpx
 import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
 from app.core.device_manager import (
@@ -162,6 +162,8 @@ def _coalesce_int(value: object) -> int | None:
 
 
 class ActivateModelRequest(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     model_id: int
     alias: str
     file_path: str
