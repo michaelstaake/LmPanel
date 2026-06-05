@@ -235,7 +235,7 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 First off, if you are using the CPU device, yes, it's probably going to be slow. CPU inference is included in all installs of LmPanel for testing and fallback purposes, but you'll probably want to use GPUs to actually run your inference workloads. CPUs simply aren't optimized for AI workloads.
 
-If CPU load is high even though your models should be running on the GPU, ensure the GPU layer settings for the models are set to 99. -1 should work, but in reality 99 delivers more consistent results.
+If CPU load is high even though your models should be running on the GPU, ensure the GPU layer settings for the models are set to 99 (the default).
 
 #### GPU stats
 

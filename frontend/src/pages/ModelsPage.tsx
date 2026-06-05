@@ -1077,7 +1077,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-black/70">
                     <span>GPU Layers</span>
                     <span className="text-xs text-black/45">Layers to offload to the GPU. Use 99 to offload all layers.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-1} value={modalNumericDrafts.gpu_layers ?? String(modalDraft.gpu_layers)} onChange={(event) => setModalNumericDraft("gpu_layers", event.target.value)} onBlur={(event) => commitModalNumericDraft("gpu_layers", event.target.value, (n) => (Math.round(n) === -1 ? -1 : Math.max(0, Math.round(n))))} />
+                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-1} placeholder="99" value={modalNumericDrafts.gpu_layers ?? String(modalDraft.gpu_layers)} onChange={(event) => setModalNumericDraft("gpu_layers", event.target.value)} onBlur={(event) => commitModalNumericDraft("gpu_layers", event.target.value, (n) => (Math.round(n) === -1 ? -1 : Math.max(0, Math.round(n))))} />
                   </label>
                   <label className="grid gap-1 text-sm text-black/70">
                     <span>Threads</span>

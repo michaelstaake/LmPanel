@@ -93,6 +93,7 @@ class RocmDetectionTests(unittest.TestCase):
 class LlamaOffloadCliTests(unittest.TestCase):
     def test_format_gpu_layers_for_cli(self) -> None:
         self.assertEqual(_format_gpu_layers_for_cli(-1), "all")
+        self.assertEqual(_format_gpu_layers_for_cli(99), "99")
         self.assertEqual(_format_gpu_layers_for_cli(42), "42")
 
     def test_llama_offload_extra_args_disable_fit_for_rocm(self) -> None:
@@ -158,7 +159,7 @@ class RocmInferenceEnvTests(unittest.TestCase):
             file_path="/tmp/model.gguf",
             context_length=4096,
             threads=4,
-            gpu_layers=-1,
+            gpu_layers=99,
             vendor="rocm",
             hardware_id="rocm:1",
             stable_hardware_id="0000:03:00.0",

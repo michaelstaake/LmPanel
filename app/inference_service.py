@@ -147,7 +147,7 @@ def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) 
     match = re.search(r"offloaded\s+(\d+)/(\d+)\s+layers", text, re.IGNORECASE)
     if match and int(match.group(1)) == 0 and int(match.group(2)) > 0:
         raise RuntimeError(
-            "Model loaded with 0 GPU layers (CPU-only). Lower context length, keep GPU layers at -1 (all), "
+            "Model loaded with 0 GPU layers (CPU-only). Lower context length, keep GPU layers at 99 (all layers, or -1 for legacy), "
             "set LLAMA_FIT_TO_VRAM=false, and confirm ROCm sees the GPU inside the inference-rocm container."
         )
 

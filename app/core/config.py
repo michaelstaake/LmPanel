@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
     default_context_length: int = 32768
     default_threads: int = 8
-    default_gpu_layers: int = -1
+    default_gpu_layers: int = 99
     default_temperature: float = 0.7
     default_top_p: float = 0.95
     default_top_k: int = 40
