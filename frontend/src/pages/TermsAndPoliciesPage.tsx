@@ -4,6 +4,7 @@ import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { apiGet, apiPatch } from "../lib/api";
+import SettingsLayout from "./SettingsLayout";
 
 const MAX_TERMS_CONTENT_LENGTH = 50000;
 
@@ -72,8 +73,9 @@ export default function TermsAndPoliciesPage() {
   }
 
   return (
-    <form onSubmit={handleSave}>
-      <section className="grid gap-4">
+    <SettingsLayout title="Terms and Policies">
+      <form onSubmit={handleSave}>
+        <section className="grid gap-4">
         <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
           <h2 className="font-display text-xl">Terms and Policies</h2>
           <p className="mt-1 text-sm text-black/65">
@@ -149,7 +151,8 @@ export default function TermsAndPoliciesPage() {
             </div>
           </div>
         </article>
-      </section>
-    </form>
+        </section>
+      </form>
+    </SettingsLayout>
   );
 }

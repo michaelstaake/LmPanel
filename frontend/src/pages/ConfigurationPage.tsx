@@ -3,6 +3,7 @@ import { apiDelete, apiGet, apiPatch, apiPostForm, resolveApiUrl } from "../lib/
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { AppSettingsRecord } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 const DEFAULT_BACKGROUND_COLOR = "#efe8d2";
 const DEFAULT_SITENAME = "LmPanel";
@@ -289,7 +290,8 @@ export default function ConfigurationPage() {
   }
 
   return (
-    <section className="grid gap-4">
+    <SettingsLayout title="Configuration">
+      <section className="grid gap-4">
       <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <h2 className="font-display text-xl">Configuration</h2>
 
@@ -511,6 +513,7 @@ export default function ConfigurationPage() {
           </label>
         </div>
       </article>
-    </section>
+      </section>
+    </SettingsLayout>
   );
 }

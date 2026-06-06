@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { apiGet, apiPatch } from "../lib/api";
+import SettingsLayout from "./SettingsLayout";
 
 export default function KnowledgeBaseSettings() {
   const { token } = useAuth();
@@ -62,7 +63,8 @@ export default function KnowledgeBaseSettings() {
   }
 
   return (
-    <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <SettingsLayout title="Knowledge Base">
+      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg">Knowledge Base</h2>
@@ -84,6 +86,7 @@ export default function KnowledgeBaseSettings() {
           </button>
         </label>
       </div>
-    </article>
+      </article>
+    </SettingsLayout>
   );
 }

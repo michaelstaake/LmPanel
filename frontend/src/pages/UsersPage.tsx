@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { PackageRecord, UserRecord, UserTokenUsageRecord, UserUpdateResponse } from "../lib/records";
 import { isValidUsername, sanitizeUsernameInput, USERNAME_VALIDATION_MESSAGE } from "../lib/username";
+import SettingsLayout from "./SettingsLayout";
 
 type CreateUserPayload = {
   username: string;
@@ -303,7 +304,8 @@ export default function UsersPage() {
   const visibleUsers = currentUser ? users.filter((user) => user.id !== currentUser.id) : users;
 
   return (
-    <section className="grid gap-4">
+    <SettingsLayout title="Users">
+      <section className="grid gap-4">
       <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -664,6 +666,7 @@ export default function UsersPage() {
           </div>
         </div>
       </Modal>
-    </section>
+      </section>
+    </SettingsLayout>
   );
 }

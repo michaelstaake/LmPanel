@@ -4,6 +4,7 @@ import { apiGet, apiDelete, apiPatch, apiPost } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { PackageRecord } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 const TOKEN_PERIOD_FIELDS = [
   { key: "usage_limit_tokens_60_minutes" as const, label: "60 Minutes" },
@@ -418,7 +419,8 @@ export default function PackagesPage() {
   const standardPackages = packages.filter((p) => !p.is_admin_package);
 
   return (
-    <section className="grid gap-4">
+    <SettingsLayout title="Packages">
+      <section className="grid gap-4">
       <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -666,6 +668,7 @@ export default function PackagesPage() {
           </div>
         </div>
       </Modal>
-    </section>
+      </section>
+    </SettingsLayout>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { apiGet } from "../lib/api";
 import type { ActivityLogRecord, DockerContainersResponse, DockerLogsResponse, LogsResponse } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 const CATEGORIES = [
   { value: "", label: "All" },
@@ -77,7 +78,8 @@ function ActivityLogsTab() {
   }
 
   return (
-    <div className="grid gap-4">
+    <SettingsLayout title="Logs">
+      <div className="grid gap-4">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur">
         <div className="flex gap-1">
@@ -372,6 +374,7 @@ export default function LogsPage() {
       </div>
 
       {activeTab === "activity" ? <ActivityLogsTab /> : <DockerLogsTab />}
-    </div>
+      </div>
+    </SettingsLayout>
   );
 }

@@ -3,6 +3,7 @@ import { apiGet, apiPatch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { AppSettingsRecord } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 const DEFAULT_SITENAME = "LmPanel";
 
@@ -141,7 +142,8 @@ export default function SecurityPage() {
   const isCheckboxDisabled = isLoading || isSaving === "cloudflare_turnstile_enabled" || (!canDisableTurnstile && !hasTurnstileKeys);
 
   return (
-    <section className="grid gap-4">
+    <SettingsLayout title="Security">
+      <section className="grid gap-4">
       <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <h2 className="font-display text-xl">Security</h2>
 
@@ -308,6 +310,7 @@ export default function SecurityPage() {
           </div>
         </div>
       </article>
-    </section>
+      </section>
+    </SettingsLayout>
   );
 }

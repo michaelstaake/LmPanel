@@ -9,6 +9,7 @@ import {
   renewLetsEncryptCertificate,
   updateSslSettings,
 } from "../lib/api";
+import SettingsLayout from "./SettingsLayout";
 import type { SslStatusRecord, SslTaskResponse } from "../lib/records";
 
 export default function SslPage() {
@@ -128,7 +129,8 @@ export default function SslPage() {
   const certificate = status?.certificate;
 
   return (
-    <section className="grid gap-4">
+    <SettingsLayout title="SSL">
+      <section className="grid gap-4">
       <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <h2 className="font-display text-xl">SSL</h2>
         <p className="mt-2 text-sm text-black/65">
@@ -276,6 +278,7 @@ export default function SslPage() {
           </div>
         </div>
       </article>
-    </section>
+      </section>
+    </SettingsLayout>
   );
 }

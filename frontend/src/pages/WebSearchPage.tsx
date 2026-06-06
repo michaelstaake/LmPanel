@@ -8,6 +8,7 @@ import {
   updateWebSearchProvider,
 } from "../lib/api";
 import type { ActiveProviderRecord, WebSearchProviderRecord } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 type ProviderDraft = {
   enabled: boolean;
@@ -137,7 +138,8 @@ export default function WebSearchPage() {
     activeProviderType !== null && !availableProviders.some((p) => p.provider_type === activeProviderType);
 
   return (
-    <div className="grid gap-4">
+    <SettingsLayout title="Web Search">
+      <div className="grid gap-4">
       <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -274,6 +276,7 @@ export default function WebSearchPage() {
           </div>
         )}
       </article>
-    </div>
+      </div>
+    </SettingsLayout>
   );
 }

@@ -184,7 +184,7 @@ function SetupRoute() {
     return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Installation state is temporarily unavailable.</section>;
   }
   if (!requiresSetup) {
-    return <Navigate to={user ? "/configuration" : "/login"} replace />;
+    return <Navigate to={user ? "/settings/general" : "/login"} replace />;
   }
   return <SetupPage />;
 }
@@ -201,10 +201,27 @@ export default function App() {
 
   const pageTitle = ((): string => {
     const path = location.pathname;
-    if (path === "/" || path === "/chat") return "Chat";
+    if (path === "/" || path === "/new-chat" || path === "/chat") return "Chat";
     if (path === "/status") return "Status";
     if (path === "/apikeys" || path === "/api") return "API";
     if (path === "/settings") return "Settings";
+    if (path.startsWith("/settings/")) {
+      const subPath = path.split("/")[2];
+      const labels: Record<string, string> = {
+        general: "Configuration",
+        security: "Security",
+        users: "Users",
+        packages: "Packages",
+        running_tasks: "Running Tasks",
+        web_search: "Web Search",
+        kb_settings: "Knowledge Base",
+        ssl: "SSL",
+        terms: "Terms and Policies",
+        logs: "Logs",
+        updates: "Updates",
+      };
+      return labels[subPath] || "Settings";
+    }
     if (path === "/devices") return "Devices";
     if (path === "/models") return "Models";
     if (path === "/profile") return "Profile";
@@ -328,10 +345,9 @@ export default function App() {
               <Route path="/" element={<HomeRoute />} />
               <Route path="/new-chat" element={<HomeRoute />} />
               <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
-              <Route path="/configuration" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
+              <Route path="/settings/*" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
               <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />
               <Route path="/models" element={<RequireAdmin><ModelsPage /></RequireAdmin>} />
-              <Route path="/users" element={<RequireAdmin><Navigate to="/settings" replace /></RequireAdmin>} />
               <Route path="/login" element={<AuthPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { cancelRunningTask, fetchRunningTasks, type RunningTaskRecord } from "../lib/api";
+import SettingsLayout from "./SettingsLayout";
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -131,7 +132,8 @@ export default function RunningTasksPage() {
   }
 
   return (
-    <div className="grid gap-4">
+    <SettingsLayout title="Running Tasks">
+      <div className="grid gap-4">
       <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -253,6 +255,7 @@ export default function RunningTasksPage() {
           })}
         </div>
       )}
-    </div>
+      </div>
+    </SettingsLayout>
   );
 }
