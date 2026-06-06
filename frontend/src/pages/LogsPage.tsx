@@ -78,9 +78,8 @@ function ActivityLogsTab() {
   }
 
   return (
-    <SettingsLayout title="Logs">
-      <div className="grid gap-4">
-      {/* Controls */}
+    <div className="grid gap-4">
+    {/* Controls */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur">
         <div className="flex gap-1">
           {CATEGORIES.map((cat) => (
@@ -354,7 +353,8 @@ export default function LogsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("activity");
 
   return (
-    <div className="grid gap-4">
+    <SettingsLayout title="Logs">
+      <div className="grid gap-4">
       {/* Tab switcher */}
       <div className="flex gap-1 rounded-2xl border border-black/10 bg-white/80 p-1.5 shadow-sm backdrop-blur w-fit">
         <button
