@@ -39,24 +39,28 @@ export default function SettingsLayout({ children, title }: SettingsLayoutProps)
     return items;
   })();
 
+  const showBreadcrumbs = title && breadcrumbs.length > 1;
+
   return (
     <div className="grid gap-4">
-      <nav aria-label="Breadcrumb" className="text-sm">
-        <ol className="flex items-center gap-1.5">
-          {breadcrumbs.map((crumb, index) => (
-            <li key={crumb.to} className="flex items-center gap-1.5">
-              {index > 0 && <span className="text-black/30" aria-hidden="true">/</span>}
-              {index === breadcrumbs.length - 1 ? (
-                <span className="font-semibold text-black">{crumb.label}</span>
-              ) : (
-                <Link to={crumb.to} className="text-black/60 hover:text-black/80">
-                  {crumb.label}
-                </Link>
-              )}
-            </li>
-          ))}
-        </ol>
-      </nav>
+      {showBreadcrumbs && (
+        <nav aria-label="Breadcrumb" className="text-sm">
+          <ol className="flex items-center gap-1.5">
+            {breadcrumbs.map((crumb, index) => (
+              <li key={crumb.to} className="flex items-center gap-1.5">
+                {index > 0 && <span className="text-neutral-400" aria-hidden="true">/</span>}
+                {index === breadcrumbs.length - 1 ? (
+                  <span className="font-semibold text-neutral-800">{crumb.label}</span>
+                ) : (
+                  <Link to={crumb.to} className="text-neutral-600 hover:text-neutral-800">
+                    {crumb.label}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )}
 
       {children}
     </div>
