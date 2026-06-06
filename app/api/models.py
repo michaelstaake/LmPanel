@@ -1013,12 +1013,32 @@ def _estimate_model_size_mb(file_path: str) -> int:
         return 0
 
 
+def _list_model_directory_files(model: ModelConfig) -> tuple[list[dict[str, int | str]], int]:
+    model_dir = _model_directory_path(model)
+    files: list[dict[str, int | str]] = []
+    total_size = 0
+    if not model_dir.exists():
+        return files, total_size
+
+    for entry in sorted(model_dir.iterdir(), key=lambda item: item.name.lower()):
+        if not entry.is_file():
+            continue
+        try:
+            size = entry.stat().st_size
+        except OSError:
+            size = 0
+        files.append({"name": entry.name, "size": size})
+        total_size += size
+    return files, total_size
+
+
 def _serialize_model(model: ModelConfig) -> dict:
     try:
         file_size = os.path.getsize(model.file_path)
     except OSError:
         file_size = None
     max_context_length = read_gguf_max_context_length(model.file_path)
+    directory_files, directory_size = _list_model_directory_files(model)
     return {
         "id": model.id,
         "priority": model.priority,
@@ -1049,6 +1069,8 @@ def _serialize_model(model: ModelConfig) -> dict:
         "flash_attention_enabled": model.flash_attention_enabled,
         "memory_mapping_enabled": model.memory_mapping_enabled,
         "mmproj_file_name": model.mmproj_file_name,
+        "directory_files": directory_files,
+        "directory_size": directory_size,
         "assignment_mode": model.assignment_mode,
         "pinned_device_id": model.pinned_device_id,
         "pinned_pool_id": model.pinned_pool_id,

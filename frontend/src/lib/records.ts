@@ -74,6 +74,11 @@ export type ApiKeyRecord = {
   last_used_at: string | null;
 };
 
+export type ModelDirectoryFile = {
+  name: string;
+  size: number;
+};
+
 export type ModelRecord = {
   id: number;
   priority: number;
@@ -81,6 +86,8 @@ export type ModelRecord = {
   model_dir_name: string;
   file_path: string;
   file_size: number | null;
+  directory_files: ModelDirectoryFile[];
+  directory_size: number;
   alias: string;
   description: string;
   system_prompt: string;

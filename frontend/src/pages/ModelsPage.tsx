@@ -10,18 +10,12 @@ import Modal from "../components/ui/Modal";
 const AUTO_SAVE_DELAY_MS = 700;
 const MODEL_ASSET_ACCEPT = ".gguf,.mmproj,.json,.txt,.yaml,.yml,.bin,.safetensors";
 
-const ASSIGNMENT_MODE_OPTIONS = [
-  { label: "Auto", value: "auto" },
-  { label: "Manual", value: "manual" },
-] as const;
-
 const CONTEXT_LENGTH_MODE_OPTIONS = [
   { label: "Auto", value: "auto" },
   { label: "Custom", value: "custom" },
 ] as const;
 
 type ContextLengthMode = (typeof CONTEXT_LENGTH_MODE_OPTIONS)[number]["value"];
-type AssignmentUiMode = (typeof ASSIGNMENT_MODE_OPTIONS)[number]["value"];
 
 type AssignmentTarget = {
   label: string;
@@ -47,10 +41,6 @@ function buildAssignmentTargets(devices: DeviceRecord[], pools: GpuPoolRecord[])
       id: pool.id,
     })),
   ];
-}
-
-function getAssignmentUiMode(model: ModelRecord): AssignmentUiMode {
-  return model.assignment_mode === "auto" ? "auto" : "manual";
 }
 
 function getAssignmentTargetValue(model: ModelRecord): string {
@@ -89,6 +79,33 @@ function buildAssignmentUpdate(targetValue: string): Pick<ModelRecord, "assignme
   };
 }
 
+function getDeviceDropdownValue(model: ModelRecord, assignmentTargets: AssignmentTarget[]): string {
+  if (model.assignment_mode === "auto") {
+    return "auto";
+  }
+
+  const targetValue = getAssignmentTargetValue(model);
+  if (!targetValue || !assignmentTargets.some((target) => target.value === targetValue)) {
+    return "auto";
+  }
+
+  return targetValue;
+}
+
+function normalizeAssignmentDraft(model: ModelRecord, assignmentTargets: AssignmentTarget[]): ModelRecord {
+  const deviceValue = getDeviceDropdownValue(model, assignmentTargets);
+  if (deviceValue === "auto") {
+    return {
+      ...model,
+      assignment_mode: "auto",
+      pinned_device_id: null,
+      pinned_pool_id: null,
+    };
+  }
+
+  return { ...model, ...buildAssignmentUpdate(deviceValue) };
+}
+
 type ModelsPageProps = {
   setupMode?: boolean;
   onComplete?: () => void;
@@ -103,7 +120,7 @@ function buildModelPayload(model: ModelRecord) {
     system_prompt: model.system_prompt,
     chat_template: model.chat_template,
     context_length: model.context_length,
-    gpu_layers: model.gpu_layers,
+    gpu_layers: 99,
     threads: model.threads,
     temperature: model.temperature,
     top_p: model.top_p,
@@ -272,6 +289,40 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     Object.values(saveTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
   }, []);
 
+  useEffect(() => {
+    setModalDraft((current) => {
+      if (!current || current.assignment_mode === "auto") {
+        return current;
+      }
+      const targets = buildAssignmentTargets(devices, pools);
+      if (getDeviceDropdownValue(current, targets) !== "auto") {
+        return current;
+      }
+      return normalizeAssignmentDraft(current, targets);
+    });
+  }, [devices, pools]);
+
+  useEffect(() => {
+    if (settingsModelId == null) {
+      return;
+    }
+    const currentModel = models.find((model) => model.id === settingsModelId);
+    if (!currentModel) {
+      return;
+    }
+    setModalDraft((draft) => {
+      if (!draft || draft.id !== settingsModelId) {
+        return draft;
+      }
+      return {
+        ...draft,
+        directory_files: currentModel.directory_files,
+        directory_size: currentModel.directory_size,
+        mmproj_file_name: currentModel.mmproj_file_name,
+      };
+    });
+  }, [models, settingsModelId]);
+
   function scheduleModelSave(modelId: number) {
     const existingTimeout = saveTimeoutsRef.current[modelId];
     if (existingTimeout) {
@@ -324,6 +375,8 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         ...current,
         model_dir_name: model.model_dir_name,
         mmproj_file_name: model.mmproj_file_name,
+        directory_files: model.directory_files,
+        directory_size: model.directory_size,
       };
     });
   }
@@ -600,8 +653,9 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
   }
 
   function openSettingsModal(model: ModelRecord) {
+    const targets = buildAssignmentTargets(devices, pools);
     setSettingsModelId(model.id);
-    setModalDraft({ ...model });
+    setModalDraft(normalizeAssignmentDraft({ ...model }, targets));
     setModalContextLengthMode(model.max_context_length != null && model.context_length === model.max_context_length ? "auto" : "custom");
     setModalNumericDraftsState({});
   }
@@ -655,7 +709,8 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }
     setIsSavingModal(true);
     try {
-      const response = await apiPatch<Record<string, string | number | boolean | null>, ModelUpdateResponse>(`/api/models/${modalDraft.id}`, buildModelPayload(modalDraft), token);
+      const normalizedDraft = normalizeAssignmentDraft(modalDraft, assignmentTargets);
+      const response = await apiPatch<Record<string, string | number | boolean | null>, ModelUpdateResponse>(`/api/models/${modalDraft.id}`, buildModelPayload(normalizedDraft), token);
       savedConfigRef.current[modalDraft.id] = serializeModelConfig(response.model);
       setModels((current) =>
         current.map((item) => {
@@ -882,29 +937,97 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         >
           <div className="p-6">
             <h2 id="model-settings-modal-title" className="font-display text-xl">Model Settings</h2>
-            <p className="mt-1 text-sm text-black/55">
-              {modalDraft.file_name}
-              {modalDraft.file_size != null ? <span className="ml-2">({formatFileSize(modalDraft.file_size)})</span> : null}
-            </p>
 
             <div className="mt-5 grid gap-5">
               <section>
+                <div className="overflow-hidden rounded-xl border border-black/10">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-black/5 text-left text-xs font-semibold text-black/60">
+                        <th className="px-4 py-2.5">{modalDraft.model_dir_name}</th>
+                        <th className="px-4 py-2.5 text-right">{formatFileSize(modalDraft.directory_size ?? 0)}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-black/5">
+                      {(modalDraft.directory_files ?? []).map((file) => (
+                        <tr key={file.name} className="text-black/70">
+                          <td className="px-4 py-2.5 font-mono text-xs">{file.name}</td>
+                          <td className="px-4 py-2.5 text-right text-xs text-black/55">{formatFileSize(file.size)}</td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td className="px-4 py-3" colSpan={2}>
+                          <button
+                            type="button"
+                            className="rounded-xl border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => openAssetUploadModal(modalDraft.id)}
+                            disabled={isSavingModal || isDeletingModal || isUploading}
+                          >
+                            Add Files
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">General</p>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                <div className="grid gap-3">
+                  <label className="grid gap-1 text-sm text-black/70">
                     <span>Name</span>
-                    <span className="text-xs text-black/45">Shown in model lists and chat.</span>
+                    <span className="text-xs text-black/45">Used in API requests and displayed on the front end.</span>
                     <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.alias} onChange={(event) => updateModalDraft({ alias: event.target.value })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                  <label className="grid gap-1 text-sm text-black/70">
                     <span>Description</span>
-                    <span className="text-xs text-black/45">Short note for admins and users.</span>
+                    <span className="text-xs text-black/45">Optional, displayed on the front end.</span>
                     <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.description} onChange={(event) => updateModalDraft({ description: event.target.value })} />
                   </label>
-                  <div className="rounded-xl border border-black/10 bg-sand/50 px-3 py-3 text-sm text-black/70 md:col-span-2">
-                    <p><span className="font-semibold text-black/80">Folder:</span> {modalDraft.model_dir_name}</p>
-                    <p className="mt-1"><span className="font-semibold text-black/80">Detected mmproj:</span> {modalDraft.mmproj_file_name ?? "None detected"}</p>
-                  </div>
+                </div>
+              </section>
+
+              <section>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Devices</p>
+                <div className="grid gap-3">
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>Device</span>
+                    <span className="text-xs text-black/45">Auto lets LmPanel choose the most sensible device.</span>
+                    <select
+                      className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                      value={getDeviceDropdownValue(modalDraft, assignmentTargets)}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        if (value === "auto") {
+                          updateModalDraft({
+                            assignment_mode: "auto",
+                            pinned_device_id: null,
+                            pinned_pool_id: null,
+                          });
+                          return;
+                        }
+                        updateModalDraft(buildAssignmentUpdate(value));
+                      }}
+                    >
+                      <option value="auto">Auto</option>
+                      {assignmentTargets.map((target) => (
+                        <option key={target.value} value={target.value}>{target.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>CPU threads</span>
+                    <span className="text-xs text-black/45">CPU worker threads for this model.</span>
+                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
+                  </label>
+                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
+                    <span className="grid gap-0.5">
+                      <span className="text-sm text-black/70">Memory Mapping</span>
+                      <span className="text-xs text-black/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
+                    </span>
+                  </label>
                 </div>
               </section>
 
@@ -928,7 +1051,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   </label>
                   <label className="grid gap-1 text-sm text-black/70">
                     <span>Context Length</span>
-                    <span className="text-xs text-black/45">Maximum tokens kept in context.</span>
+                    <span className="text-xs text-black/45">Larger context lengths may increase memory usage.</span>
                     <input
                       className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm disabled:bg-black/5 disabled:text-black/45"
                       type="number"
@@ -1032,109 +1155,32 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Devices</p>
-                <div className="grid gap-3">
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Assignment Mode</span>
-                    <span className="text-xs text-black/45">Auto lets LmPanel choose the hardware.</span>
-                    <select className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={getAssignmentUiMode(modalDraft)} onChange={(event) => {
-                      const mode = event.target.value as AssignmentUiMode;
-                      if (mode === "auto") {
-                        updateModalDraft({
-                          assignment_mode: "auto",
-                          pinned_device_id: null,
-                          pinned_pool_id: null,
-                        });
-                        return;
-                      }
-
-                      const existingTargetValue = getAssignmentTargetValue(modalDraft);
-                      const nextTargetValue = existingTargetValue || assignmentTargets[0]?.value || "";
-                      updateModalDraft(buildAssignmentUpdate(nextTargetValue));
-                    }}>
-                      {ASSIGNMENT_MODE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Assignment Target</span>
-                    <span className="text-xs text-black/45">Pick the device or GPU pool to use.</span>
-                    <select
-                      className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm disabled:bg-black/5"
-                      value={getAssignmentTargetValue(modalDraft)}
-                      disabled={modalDraft.assignment_mode === "auto"}
-                      onChange={(event) => {
-                        updateModalDraft(buildAssignmentUpdate(event.target.value));
-                      }}
-                    >
-                      <option value="">Choose a device or pool</option>
-                      {assignmentTargets.map((target) => (
-                        <option key={target.value} value={target.value}>{target.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>GPU Layers</span>
-                    <span className="text-xs text-black/45">Layers to offload to the GPU. Use 99 to offload all layers.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-1} placeholder="99" value={modalNumericDrafts.gpu_layers ?? String(modalDraft.gpu_layers)} onChange={(event) => setModalNumericDraft("gpu_layers", event.target.value)} onBlur={(event) => commitModalNumericDraft("gpu_layers", event.target.value, (n) => (Math.round(n) === -1 ? -1 : Math.max(0, Math.round(n))))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Threads</span>
-                    <span className="text-xs text-black/45">CPU worker threads for this model.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
-                  </label>
-                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Behavior</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} placeholder="Temperature" aria-label="Temperature" value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
+                  <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} placeholder="Top P" aria-label="Top P" value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
+                  <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} placeholder="Top K" aria-label="Top K" value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
+                  <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} placeholder="Presence Penalty" aria-label="Presence Penalty" value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
+                  <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm md:col-span-2" type="number" min={0} step={0.05} placeholder="Repetition Penalty" aria-label="Repetition Penalty" value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
+                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
                     <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
                       <span className="text-sm text-black/70">Flash Attention</span>
                       <span className="text-xs text-black/45">Use flash attention to speed up inference.</span>
                     </span>
                   </label>
-                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
-                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
-                    <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Memory Mapping</span>
-                      <span className="text-xs text-black/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
-                    </span>
-                  </label>
                 </div>
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Behavior</p>
-                <div className="grid gap-3 md:grid-cols-2">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Advanced</p>
+                <div className="grid gap-3">
                   <label className="grid gap-1 text-sm text-black/70">
-                    <span>Temperature</span>
-                    <span className="text-xs text-black/45">Higher values make replies less deterministic.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Top P</span>
-                    <span className="text-xs text-black/45">Limits sampling to likely next tokens.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Top K</span>
-                    <span className="text-xs text-black/45">Caps sampling to the top token candidates.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Presence Penalty</span>
-                    <span className="text-xs text-black/45">Encourages the model to introduce new tokens.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70">
-                    <span>Repetition Penalty</span>
-                    <span className="text-xs text-black/45">Discourages the model from repeating prior text.</span>
-                    <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
                     <span>System Prompt</span>
                     <span className="text-xs text-black/45">Default instructions sent with each chat.</span>
                     <textarea className="min-h-24 rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.system_prompt} onChange={(event) => updateModalDraft({ system_prompt: event.target.value })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                  <label className="grid gap-1 text-sm text-black/70">
                     <span>Chat Template</span>
                     <span className="text-xs text-black/45">Formats messages for this model.</span>
                     <textarea className="min-h-24 rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.chat_template} onChange={(event) => updateModalDraft({ chat_template: event.target.value })} />
@@ -1145,14 +1191,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
             <div className="mt-6 flex items-center justify-between gap-3 border-t border-black/10 pt-4">
               <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="rounded-xl border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => openAssetUploadModal(modalDraft.id)}
-                  disabled={isSavingModal || isDeletingModal || isUploading}
-                >
-                  Add Files
-                </button>
                 <button
                   type="button"
                   className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
