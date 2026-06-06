@@ -164,6 +164,27 @@ def delete_stale_pool_memberships(db: Session) -> StalePoolMembershipCleanupResu
     )
 
 
+def deactivate_pool_models(
+    db: Session,
+    pool_id: int,
+    inference: "InferenceManager | None" = None,
+) -> list[ModelConfig]:
+    models = db.query(ModelConfig).filter(
+        ModelConfig.assignment_mode == "pool",
+        ModelConfig.pinned_pool_id == pool_id,
+    ).all()
+    for model in models:
+        if model.activated and inference is not None:
+            inference.deactivate_model(model.id)
+        if model.activated:
+            model.activated = False
+        model.assignment_mode = "auto"
+        model.pinned_pool_id = None
+        model.pinned_device_id = None
+        db.add(model)
+    return models
+
+
 def _pool_member_device_ids(db: Session, pool_id: int) -> list[int]:
     return [row.device_id for row in db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool_id).all()]
 

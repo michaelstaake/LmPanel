@@ -6,7 +6,11 @@ from app.core.activity_logger import log_event
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.device_manager import DeviceManager, build_device_display_suffix, get_supported_vendors
-from app.core.gpu_pool_manager import delete_pool_and_revert_models, revert_models_pinned_to_devices
+from app.core.gpu_pool_manager import (
+    deactivate_pool_models,
+    delete_pool_and_revert_models,
+    revert_models_pinned_to_devices,
+)
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice, VALID_SPLIT_MODES
 from app.models.model_config import ModelConfig
@@ -148,6 +152,17 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
                 stripped = value.strip()
                 value = device_manager.default_name_for_device(device) if not stripped else stripped
             setattr(device, field, value)
+
+    if payload.enabled is not None and not device.enabled and enabled_before:
+        inference = router.inference_manager  # type: ignore[attr-defined]
+        pool_memberships = db.query(GpuPoolDevice).filter(GpuPoolDevice.device_id == device_id).all()
+        deactivated_models: list[ModelConfig] = []
+        for membership in pool_memberships:
+            deactivated_models.extend(deactivate_pool_models(db, membership.pool_id, inference))
+        if deactivated_models:
+            db.commit()
+            for model in deactivated_models:
+                log_event(db, "model.assignment_reset", details={"model_id": model.id, "alias": model.alias, "reason": "device_disabled", "device_id": device_id})
 
     db.add(device)
     db.commit()
