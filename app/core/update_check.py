@@ -33,7 +33,7 @@ def _read_build_info() -> tuple[str, str]:
         return "", ""
 
 
-async def check_for_updates() -> dict | None:
+async def check_for_updates(mode: str = "development") -> dict | None:
     async with httpx.AsyncClient(timeout=10) as client:
         try:
             commit_response = await client.get(
@@ -70,12 +70,14 @@ async def check_for_updates() -> dict | None:
             current_version = file_version
 
     update_available = False
-    if latest_commit and current_commit and latest_commit != current_commit:
-        update_available = True
-    elif latest_version and current_version:
-        current_tag = current_version if current_version.startswith("v") else f"v{current_version}"
-        if latest_version != current_tag:
+    if mode == "development":
+        if latest_commit and current_commit and latest_commit != current_commit:
             update_available = True
+    else:
+        if latest_version and current_version:
+            current_tag = current_version if current_version.startswith("v") else f"v{current_version}"
+            if latest_version != current_tag:
+                update_available = True
 
     return {
         "latest_commit": latest_commit,
@@ -97,7 +99,7 @@ async def schedule_update_check() -> None:
                 if app_settings.update_check_mode == "disabled":
                     continue
 
-                result = await check_for_updates()
+                result = await check_for_updates(mode=app_settings.update_check_mode)
                 if result and result["update_available"]:
                     logger.info("Update available: commit=%s, version=%s", result["latest_commit"], result["latest_version"])
             finally:

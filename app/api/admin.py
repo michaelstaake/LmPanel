@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user, get_current_user
+from app.core.update_check import check_for_updates as _check_for_updates
 
 _BUILD_INFO_PATH = "/app/shared/build-info.env"
 
@@ -250,54 +251,15 @@ class UpdateCheckResponse(BaseModel):
 
 
 @router.get("/updates/check", response_model=UpdateCheckResponse)
-async def check_for_updates(admin_user: User = Depends(get_admin_user)) -> UpdateCheckResponse:
-    async with httpx.AsyncClient(timeout=10) as client:
-        try:
-            commit_response = await client.get(
-                f"https://api.github.com/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/commits/main",
-                headers={"Accept": "application/vnd.github.v3+json"},
-            )
-        except Exception:
-            commit_response = None
-
-        try:
-            release_response = await client.get(
-                f"https://api.github.com/repos/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases/latest",
-                headers={"Accept": "application/vnd.github.v3+json"},
-            )
-        except Exception:
-            release_response = None
-
-    latest_commit = ""
-    latest_version = ""
-
-    if commit_response and commit_response.status_code == 200:
-        latest_commit = commit_response.json().get("sha", "")
-
-    if release_response and release_response.status_code == 200:
-        latest_version = release_response.json().get("tag_name", "")
-
-    current_commit = os.environ.get("VITE_APP_GIT_COMMIT", "")
-    current_version = os.environ.get("VITE_APP_VERSION", "")
-    if not current_commit or not current_version:
-        file_commit, file_version = _read_build_info()
-        if not current_commit:
-            current_commit = file_commit
-        if not current_version:
-            current_version = file_version
-
-    update_available = False
-    if latest_commit and current_commit and latest_commit != current_commit:
-        update_available = True
-    elif latest_version and current_version:
-        current_tag = current_version if current_version.startswith("v") else f"v{current_version}"
-        if latest_version != current_tag:
-            update_available = True
-
+async def check_for_updates(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> UpdateCheckResponse:
+    app_settings = get_or_create_app_settings(db)
+    result = await _check_for_updates(mode=app_settings.update_check_mode)
+    if result is None:
+        result = {"latest_commit": "", "latest_version": "", "update_available": False}
     return UpdateCheckResponse(
-        latest_commit=latest_commit,
-        latest_version=latest_version,
-        update_available=update_available,
+        latest_commit=result["latest_commit"],
+        latest_version=result["latest_version"],
+        update_available=result["update_available"],
     )
 
 
