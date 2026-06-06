@@ -243,32 +243,48 @@ export default function App() {
 
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (faviconPath) {
-      const href = resolveApiUrl(faviconPath);
-      if (link) {
-        link.href = href;
-      } else {
-        const newLink = document.createElement("link");
-        newLink.rel = "icon";
-        newLink.href = href;
-        newLink.type = faviconPath.endsWith(".png") ? "image/png" : "image/jpeg";
-        document.head.appendChild(newLink);
-      }
-    } else {
-      (async () => {
-        const status = await getSystemStatus();
-        const href = createFaviconSvg(status);
+
+    function updateFavicon() {
+      if (faviconPath) {
+        const href = resolveApiUrl(faviconPath);
         if (link) {
           link.href = href;
         } else {
           const newLink = document.createElement("link");
           newLink.rel = "icon";
           newLink.href = href;
-          newLink.type = "image/svg+xml";
+          newLink.type = faviconPath.endsWith(".png") ? "image/png" : "image/jpeg";
           document.head.appendChild(newLink);
         }
-      })();
+      } else {
+        (async () => {
+          const status = await getSystemStatus();
+          const href = createFaviconSvg(status);
+          if (link) {
+            link.href = href;
+          } else {
+            const newLink = document.createElement("link");
+            newLink.rel = "icon";
+            newLink.href = href;
+            newLink.type = "image/svg+xml";
+            document.head.appendChild(newLink);
+          }
+        })();
+      }
     }
+
+    updateFavicon();
+
+    let intervalId: number | undefined;
+    if (!faviconPath) {
+      intervalId = window.setInterval(updateFavicon, 5000);
+    }
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+    };
   }, [faviconPath]);
 
   useEffect(() => {
