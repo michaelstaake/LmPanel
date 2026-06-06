@@ -71,7 +71,7 @@ async def check_for_updates(mode: str = "development") -> dict | None:
 
     update_available = False
     if mode == "development":
-        if latest_commit and current_commit and latest_commit != current_commit:
+        if latest_commit and current_commit and latest_commit[:7] != current_commit:
             update_available = True
     else:
         if latest_version and current_version:

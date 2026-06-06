@@ -160,7 +160,7 @@ export default function UpdatesPage() {
                       </div>
                       <p className="mt-1 text-sm text-black/65">
                         {settings.update_check_mode === "development"
-                          ? `Latest commit: ${updateStatus.latest_commit}`
+                          ? `Latest commit: ${updateStatus.latest_commit.slice(0, 7)}`
                           : `Latest version: ${updateStatus.latest_version}`}
                       </p>
                     </div>
