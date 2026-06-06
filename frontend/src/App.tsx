@@ -29,6 +29,7 @@ import {
   resolveApiUrl,
 } from "./lib/api";
 import { type CurrentUser } from "./lib/session";
+import { createFaviconSvg, getSystemStatus } from "./lib/favicon";
 
 const appVersionLabel = `v${__APP_VERSION__}`;
 const BACKEND_STATUS_POLL_INTERVAL_MS = 5000;
@@ -253,8 +254,20 @@ export default function App() {
         newLink.type = faviconPath.endsWith(".png") ? "image/png" : "image/jpeg";
         document.head.appendChild(newLink);
       }
-    } else if (link) {
-      link.href = "/static/favicons/favicon.png";
+    } else {
+      (async () => {
+        const status = await getSystemStatus();
+        const href = createFaviconSvg(status);
+        if (link) {
+          link.href = href;
+        } else {
+          const newLink = document.createElement("link");
+          newLink.rel = "icon";
+          newLink.href = href;
+          newLink.type = "image/svg+xml";
+          document.head.appendChild(newLink);
+        }
+      })();
     }
   }, [faviconPath]);
 
