@@ -1,4 +1,5 @@
 import { useState } from "react";
+import AboutPage from "./AboutPage";
 import ConfigurationPage from "./ConfigurationPage";
 import KnowledgeBaseSettings from "./KnowledgeBaseSettings";
 import LogsPage from "./LogsPage";
@@ -10,7 +11,7 @@ import SecurityPage from "./SecurityPage";
 import PackagesPage from "./PackagesPage";
 import TermsAndPoliciesPage from "./TermsAndPoliciesPage";
 
-type SettingsTab = "general" | "security" | "packages" | "running_tasks" | "users" | "web_search" | "kb_settings" | "ssl" | "terms" | "logs";
+type SettingsTab = "general" | "security" | "packages" | "running_tasks" | "users" | "web_search" | "kb_settings" | "ssl" | "terms" | "logs" | "about";
 
 const tabs: { id: SettingsTab; label: string }[] = [
   { id: "general", label: "Configuration" },
@@ -23,6 +24,7 @@ const tabs: { id: SettingsTab; label: string }[] = [
   { id: "ssl", label: "SSL" },
   { id: "terms", label: "Terms and Policies" },
   { id: "logs", label: "Logs" },
+  { id: "about", label: "LmPanel" },
 ];
 
 export default function SettingsPage() {
@@ -53,6 +55,7 @@ export default function SettingsPage() {
       {activeTab === "ssl" && <SslPage />}
       {activeTab === "terms" && <TermsAndPoliciesPage />}
       {activeTab === "logs" && <LogsPage />}
+      {activeTab === "about" && <AboutPage />}
     </div>
   );
 }

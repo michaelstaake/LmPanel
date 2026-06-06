@@ -511,26 +511,6 @@ export default function ConfigurationPage() {
           </label>
         </div>
       </article>
-
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
-        <h2 className="font-display text-xl">
-          LmPanel v{__APP_VERSION__}
-          {__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}
-        </h2>
-        <div className="mt-4 text-sm text-black/65">
-          <p className="mt-2">
-            Learn more, get help, and contribute on {" "}
-            <a
-              href="https://github.com/michaelstaake/LmPanel"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-ink underline underline-offset-2 hover:text-ink/85"
-            >
-              GitHub
-            </a>.
-          </p>
-        </div>
-      </article>
     </section>
   );
 }
