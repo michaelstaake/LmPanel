@@ -320,6 +320,30 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
+          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <div>
+              <div className="text-sm font-semibold text-black">URL</div>
+              <p className="mt-1 text-sm text-black/65">
+                Set the URL to your LmPanel instance. Used in API docs, required for SSL, and otherwise useful.
+              </p>
+            </div>
+            <div className="mt-2 max-w-xl">
+              <input
+                type="url"
+                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                value={localPublicUrl}
+                onChange={(e) => setLocalPublicUrl(e.target.value)}
+                onBlur={() => commitPublicUrl(localPublicUrl)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    commitPublicUrl(localPublicUrl);
+                  }
+                }}
+                disabled={isLoading || isSaving === "public_url"}
+                placeholder="https://lmpanel.example.com"
+              />
+            </div>
+          </div>
           <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -470,30 +494,6 @@ export default function ConfigurationPage() {
             ) : (
               <p className="text-sm text-black/65">No favicon uploaded.</p>
             )}
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div>
-              <div className="text-sm font-semibold text-black">URL</div>
-              <p className="mt-1 text-sm text-black/65">
-                Public HTTPS address for this LmPanel instance (no port or trailing slash). Required for Let&apos;s Encrypt on the SSL tab.
-              </p>
-            </div>
-            <div className="mt-2 max-w-xl">
-              <input
-                type="url"
-                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
-                value={localPublicUrl}
-                onChange={(e) => setLocalPublicUrl(e.target.value)}
-                onBlur={() => commitPublicUrl(localPublicUrl)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    commitPublicUrl(localPublicUrl);
-                  }
-                }}
-                disabled={isLoading || isSaving === "public_url"}
-                placeholder="https://lmpanel.example.com"
-              />
-            </div>
           </div>
           <label className="flex items-start justify-between gap-4 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div>
