@@ -1021,13 +1021,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span className="text-xs text-black/45">CPU worker threads for this model.</span>
                     <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
                   </label>
-                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
-                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
-                    <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Memory Mapping</span>
-                      <span className="text-xs text-black/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
-                    </span>
-                  </label>
                 </div>
               </section>
 
@@ -1162,19 +1155,26 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} placeholder="Top K" aria-label="Top K" value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
                   <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} placeholder="Presence Penalty" aria-label="Presence Penalty" value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
                   <input className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm md:col-span-2" type="number" min={0} step={0.05} placeholder="Repetition Penalty" aria-label="Repetition Penalty" value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
-                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
-                    <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} />
-                    <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Flash Attention</span>
-                      <span className="text-xs text-black/45">Use flash attention to speed up inference.</span>
-                    </span>
-                  </label>
                 </div>
               </section>
 
               <section>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Advanced</p>
                 <div className="grid gap-3">
+                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                    <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} />
+                    <span className="grid gap-0.5">
+                      <span className="text-sm text-black/70">Flash Attention</span>
+                      <span className="text-xs text-black/45">Use flash attention to speed up inference.</span>
+                    </span>
+                  </label>
+                  <label className="flex gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
+                    <span className="grid gap-0.5">
+                      <span className="text-sm text-black/70">Memory Mapping</span>
+                      <span className="text-xs text-black/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
+                    </span>
+                  </label>
                   <label className="grid gap-1 text-sm text-black/70">
                     <span>System Prompt</span>
                     <span className="text-xs text-black/45">Default instructions sent with each chat.</span>
