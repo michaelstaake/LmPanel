@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 
 import httpx
 
@@ -10,6 +11,26 @@ logger = logging.getLogger(__name__)
 
 GITHUB_REPO_OWNER = "michaelstaake"
 GITHUB_REPO_NAME = "LmPanel"
+
+_BUILD_INFO_PATH = "/app/shared/build-info.env"
+
+
+def _read_build_info() -> tuple[str, str]:
+    try:
+        with open(_BUILD_INFO_PATH) as f:
+            content = f.read()
+        commit = ""
+        version = ""
+        for line in content.splitlines():
+            m = re.match(r'VITE_APP_GIT_COMMIT="([^"]*)"', line)
+            if m:
+                commit = m.group(1)
+            m = re.match(r'VITE_APP_VERSION="([^"]*)"', line)
+            if m:
+                version = m.group(1)
+        return commit, version
+    except Exception:
+        return "", ""
 
 
 async def check_for_updates() -> dict | None:
@@ -41,6 +62,12 @@ async def check_for_updates() -> dict | None:
 
     current_commit = os.environ.get("VITE_APP_GIT_COMMIT", "")
     current_version = os.environ.get("VITE_APP_VERSION", "")
+    if not current_commit or not current_version:
+        file_commit, file_version = _read_build_info()
+        if not current_commit:
+            current_commit = file_commit
+        if not current_version:
+            current_version = file_version
 
     update_available = False
     if latest_commit and current_commit and latest_commit != current_commit:

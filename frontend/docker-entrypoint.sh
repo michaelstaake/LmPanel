@@ -17,4 +17,11 @@ else
     echo "SSL certificate already exists, skipping generation."
 fi
 
+if [ -f /tmp/build-info.env ]; then
+    if [ ! -f /shared/build-info.env ]; then
+        cp /tmp/build-info.env /shared/build-info.env
+        echo "Build info copied to shared volume."
+    fi
+fi
+
 exec nginx -g "daemon off;"

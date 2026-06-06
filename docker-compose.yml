@@ -24,6 +24,7 @@ services:
       - ./logs:/app/logs
       - ./certs:/app/certs
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - build-info:/app/shared
     ports:
       - "8444:8000"
     healthcheck:
@@ -58,6 +59,7 @@ services:
       - "8443:443"
     volumes:
       - ./certs:/etc/nginx/certs
+      - build-info:/shared
     depends_on:
       backend:
         condition: service_healthy
@@ -201,3 +203,4 @@ services:
 
 volumes:
   lmpanel-data:
+  build-info:

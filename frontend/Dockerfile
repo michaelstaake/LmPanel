@@ -17,7 +17,7 @@ ARG GIT_COMMIT=""
 ARG APP_VERSION=""
 
 COPY .git /tmp/.git
-RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && export VITE_APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" && npm run build
+RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && export VITE_APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" && npm run build && printf 'VITE_APP_GIT_COMMIT="%s"\nVITE_APP_VERSION="%s"\n' "${VITE_APP_GIT_COMMIT}" "${VITE_APP_VERSION}" > /tmp/build-info.env
 
 FROM nginx:1.27-alpine
 
@@ -25,6 +25,7 @@ RUN apk add --no-cache openssl
 
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /tmp/build-info.env /tmp/build-info.env
 COPY frontend/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 

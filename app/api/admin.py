@@ -1,3 +1,5 @@
+import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,6 +9,26 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user, get_current_user
+
+_BUILD_INFO_PATH = "/app/shared/build-info.env"
+
+
+def _read_build_info() -> tuple[str, str]:
+    try:
+        with open(_BUILD_INFO_PATH) as f:
+            content = f.read()
+        commit = ""
+        version = ""
+        for line in content.splitlines():
+            m = re.match(r'VITE_APP_GIT_COMMIT="([^"]*)"', line)
+            if m:
+                commit = m.group(1)
+            m = re.match(r'VITE_APP_VERSION="([^"]*)"', line)
+            if m:
+                version = m.group(1)
+        return commit, version
+    except Exception:
+        return "", ""
 from app.core.activity_logger import log_event
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
@@ -255,9 +277,14 @@ async def check_for_updates(admin_user: User = Depends(get_admin_user)) -> Updat
     if release_response and release_response.status_code == 200:
         latest_version = release_response.json().get("tag_name", "")
 
-    import os
     current_commit = os.environ.get("VITE_APP_GIT_COMMIT", "")
     current_version = os.environ.get("VITE_APP_VERSION", "")
+    if not current_commit or not current_version:
+        file_commit, file_version = _read_build_info()
+        if not current_commit:
+            current_commit = file_commit
+        if not current_version:
+            current_version = file_version
 
     update_available = False
     if latest_commit and current_commit and latest_commit != current_commit:
