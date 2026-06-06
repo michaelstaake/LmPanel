@@ -504,7 +504,7 @@ export default function PackagesPage() {
       </article>
 
       {/* Create package modal */}
-      <Modal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} labelledBy="package-create-title" panelClassName="max-w-3xl">
+      <Modal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} labelledBy="package-create-title" panelClassName="max-w-2xl">
         <article className="p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -565,7 +565,7 @@ export default function PackagesPage() {
       </Modal>
 
       {/* Edit package modal */}
-      <Modal open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} labelledBy="package-edit-title" panelClassName="max-w-3xl">
+      <Modal open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} labelledBy="package-edit-title" panelClassName="max-w-2xl">
         <article className="p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
