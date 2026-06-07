@@ -322,6 +322,7 @@ export default function StatusPage() {
   const [isManageCostOpen, setIsManageCostOpen] = useState(false);
   const [modalDraft, setModalDraft] = useState({ input_price_per_1m: "0", output_price_per_1m: "0" });
   const [isSavingCost, setIsSavingCost] = useState(false);
+  const [isTokenStatsOpen, setIsTokenStatsOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -590,13 +591,27 @@ export default function StatusPage() {
             <p className="mt-1 text-sm text-black/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
           </div>
 
-          {tokenCards.map((card) => (
-            <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className || ""}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
-              <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
-              <p className="mt-1 text-sm text-black/55">{card.detail}</p>
-            </div>
-          ))}
+          <section className="lg:col-span-12">
+            <button
+              type="button"
+              onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
+              className="flex w-full items-center justify-between rounded-2xl border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Token Usage</p>
+              <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+            </button>
+            {isTokenStatsOpen && (
+              <div className="mt-3 grid gap-3">
+                {tokenCards.map((card) => (
+                  <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className || ""}`}>
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
+                    <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
+                    <p className="mt-1 text-sm text-black/55">{card.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Estimated Savings</p>
