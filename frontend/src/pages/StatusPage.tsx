@@ -643,7 +643,7 @@ export default function StatusPage() {
       {isLoading ? (
         <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading...</div>
       ) : visibleDevices.length > 0 ? (
-        <div className="grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} isAdmin={user?.is_admin ?? false} />)}
         </div>
       ) : (
