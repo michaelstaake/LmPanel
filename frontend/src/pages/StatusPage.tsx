@@ -253,10 +253,10 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
         {device.models.length > 0 && (
           <div className="space-y-2">
             {device.models.map((model) => (
-              <div key={`${device.id}-legend-${model.model_id}`} className="flex items-center gap-1.5">
+              <div key={`${device.id}-legend-${model.model_id}`} className="flex flex-wrap items-center gap-1.5">
                 <span className="h-2.5 w-2.5 shrink-0 " style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
                 <span className="text-sm font-semibold text-ink">{model.alias}</span>
-                {isAdmin && <span className="text-xs text-black/50">{model.file_name}</span>}
+                {isAdmin && <span className="mt-0.5 block w-fit text-xs text-black/50">{model.file_name}</span>}
               </div>
             ))}
           </div>
