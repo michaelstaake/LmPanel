@@ -220,9 +220,9 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
     <article className="overflow-hidden -[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-display text-xl text-ink">{device.name}</h3>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
-            <h3 className="font-display text-xl text-ink">{device.name}</h3>
             {isPooled && (
               <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
             )}
@@ -231,25 +231,23 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
       </div>
 
       <div className="mt-4 grid gap-3">
-        <div className="flex gap-4">
+        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
           {!isCpuDevice && (
-            <div className="flex-1">
+            <>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
-              <p className="mt-1 text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
-            </div>
+              <p className="text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
+            </>
           )}
 
           {isCpuDevice && hasCpuUsage && (
-            <div className="flex-1">
+            <>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
-              <p className="mt-1 text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
-            </div>
+              <p className="text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
+            </>
           )}
 
-          <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
-            <p className="mt-1 text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
-          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
+          <p className="text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
         </div>
 
         {device.models.length > 0 && (
