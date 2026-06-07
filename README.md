@@ -36,7 +36,7 @@ The current release version is the most stable flavor of LmPanel. Download the l
 Alternately, you can clone the repository to get the latest development version. You'll get the latest improvements before they make it to the release version, but it may be unstable or buggy.
 
 ```bash
-#Development version not recommended for production use. If stability is important to you, please download the latest release instead.
+#Development version not recommended for production use
 git clone https://github.com/michaelstaake/LmPanel.git
 cd LmPanel
 ```
