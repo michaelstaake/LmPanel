@@ -195,74 +195,112 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
   const unassignedMemoryPercent = memoryPercent !== null && assignedMemoryPercent !== null
     ? clampPercent(memoryPercent - assignedMemoryPercent)
     : 0;
-  const memoryBarSegments = memoryPercent !== null ? [
-    ...(isCpuDevice && unassignedMemoryPercent > 0 ? [{
-      key: `${device.id}-memory-system`,
-      width: unassignedMemoryPercent,
-      backgroundColor: "#000000",
-      title: "System RAM used outside LmPanel",
-    }] : []),
-    ...device.models.map((model) => ({
+
+  const modelMemorySegments = device.models
+    .map((model) => ({
       key: `${device.id}-memory-${model.model_id}`,
       width: getMemoryPercent(isCpuDevice ? model.memory_used_mb : model.display_memory_used_mb, device.memory_total_mb) ?? 0,
       backgroundColor: getModelColor(modelColors, model.model_id),
       title: isCpuDevice ? formatRawModelMemoryTooltip(model) : formatModelMemoryTooltip(model),
-    })).filter((segment) => segment.width > 0),
-    ...(!isCpuDevice && unassignedMemoryPercent > 0 ? [{
-      key: `${device.id}-memory-unassigned`,
-      width: unassignedMemoryPercent,
-      backgroundColor: "rgba(0, 0, 0, 0.2)",
-      title: "Used by runtime or system overhead",
-    }] : []),
-  ] : [];
+      model,
+    }))
+    .filter((segment) => segment.width > 0);
+
+  const hasModelColors = modelMemorySegments.length > 0;
+
+  const headerGradient = useMemo(() => {
+    if (modelMemorySegments.length === 0) return null;
+    const stops = modelMemorySegments
+      .map((seg, i) => `${seg.backgroundColor} ${(i / (modelMemorySegments.length - 1)) * 100}%`)
+      .join(", ");
+    return stops;
+  }, [modelMemorySegments]);
 
   return (
-    <article className="overflow-hidden -[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
-            <h3 className="font-display text-xl text-ink">{device.name}</h3>
-            {isPooled && (
-              <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
-            )}
-          </div>
-        </div>
-      </div>
+    <article className="overflow-hidden border border-black/10 bg-white/80 shadow-sm backdrop-blur group hover:shadow-md transition-shadow">
+      {hasModelColors && (
+        <div className="h-1.5 w-full" style={{ backgroundImage: `linear-gradient(to right, ${headerGradient})` }} />
+      )}
 
-      <div className="mt-4 grid gap-3">
-        <div className="flex gap-4">
-          {!isCpuDevice && (
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
-              <p className="mt-1 text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-block border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
+              {isPooled && (
+                <span className="inline-block border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
+              )}
+            </div>
+            <h3 className="mt-1 font-display text-xl text-ink truncate">{device.name}</h3>
+          </div>
+
+          {!isCpuDevice && hasGpuUsage && (
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">GPU</p>
+              <p className="font-display text-2xl text-ink tabular-nums">{formatWholePercent(gpuUsagePercent)}</p>
             </div>
           )}
 
           {isCpuDevice && hasCpuUsage && (
-            <div className="flex-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
-              <p className="mt-1 text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
+            <div className="shrink-0 text-right">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">CPU</p>
+              <p className="font-display text-2xl text-ink tabular-nums">{formatWholePercent(cpuUsagePercent)}</p>
             </div>
           )}
-
-          <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
-            <p className="mt-1 text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
-          </div>
         </div>
 
-        {device.models.length > 0 && (
-          <div className="space-y-2">
-            {device.models.map((model) => (
-              <div key={`${device.id}-legend-${model.model_id}`} className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 shrink-0 " style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
-                <span className="text-sm font-semibold text-ink">{model.alias}</span>
-                {isAdmin && <span className="text-xs text-black/50">{model.file_name}</span>}
+        <div className="mt-4 space-y-3">
+          {hasModelColors && (
+            <>
+              <div className="h-3 overflow-hidden rounded-sm bg-black/5">
+                <div className="flex h-full" style={{ width: "100%" }}>
+                  {modelMemorySegments.map((segment) => (
+                    <div
+                      key={segment.key}
+                      className="h-full transition-all duration-500"
+                      style={{
+                        width: `${segment.width}%`,
+                        backgroundColor: segment.backgroundColor,
+                      }}
+                      title={segment.title}
+                    />
+                  ))}
+                  {unassignedMemoryPercent > 0 && (
+                    <div
+                      className="h-full"
+                      style={{ width: `${unassignedMemoryPercent}%`, backgroundColor: "rgba(0, 0, 0, 0.15)" }}
+                      title="Used by runtime or system overhead"
+                    />
+                  )}
+                </div>
               </div>
-            ))}
+
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                {modelMemorySegments.map(({ model, backgroundColor }) => (
+                  <div key={model.model_id} className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor }} />
+                    <span className="text-xs font-semibold text-ink truncate max-w-[180px]">{model.alias}</span>
+                    {isAdmin && <span className="text-[11px] text-black/40 truncate max-w-[120px]">{model.file_name}</span>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center justify-between border-t border-black/5 pt-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">Memory</p>
+              <p className="mt-0.5 text-sm font-display text-ink tabular-nums">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
+            </div>
+
+            {assignedMemoryPercent !== null && assignedMemoryPercent > 0 && (
+              <div className="text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">Models</p>
+                <p className="mt-0.5 font-display text-sm text-ink tabular-nums">{formatWholePercent(assignedMemoryPercent)}</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </article>
   );
