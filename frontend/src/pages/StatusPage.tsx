@@ -230,14 +230,14 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
 
       <div className="mt-4 space-y-3">
         {!isCpuDevice && (
-          <div className="flex items-baseline justify-between border-b border-black/5 pb-1">
+          <div className="flex items-baseline justify-between border-t border-b border-black/5 pt-2 pb-1">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
             <p className="text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
           </div>
         )}
 
         {isCpuDevice && hasCpuUsage && (
-          <div className="flex items-baseline justify-between border-b border-black/5 pb-1">
+          <div className="flex items-baseline justify-between border-t border-b border-black/5 pt-2 pb-1">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
             <p className="text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
           </div>
