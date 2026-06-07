@@ -227,7 +227,6 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
               <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
             )}
           </div>
-          <p className="mt-1 text-sm text-black/65">
         </div>
       </div>
 
