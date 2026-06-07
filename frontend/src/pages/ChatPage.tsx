@@ -1633,6 +1633,6 @@ function formatThoughtLabel(value: number | null): string {
     return "Thought";
   }
 
-  const  = value >= 10 ? value.toFixed(1) : value.toFixed(2);
-  return `Thought for ${} ${Number() === 1 ? "second" : "seconds"}`;
+  const duration = value >= 10 ? value.toFixed(1) : value.toFixed(2);
+  return `Thought for ${duration} ${Number(duration) === 1 ? "second" : "seconds"}`;
 }
