@@ -591,41 +591,38 @@ export default function StatusPage() {
             <p className="mt-1 text-sm text-black/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
           </div>
 
-          <section className="lg:col-span-12">
-            <button
-              type="button"
-              onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
-              className="flex w-full items-center justify-between rounded-2xl border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Token Usage</p>
-              <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
-            </button>
-            {isTokenStatsOpen && (
-              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-4">
-                {tokenCards.map((card) => (
-                  <div key={card.label} className="rounded-2xl border border-black/10 bg-white/80 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
-                    <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
-                    <p className="mt-1 text-sm text-black/55">{card.detail}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+          <button
+            type="button"
+            onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
+            className="flex w-full items-center justify-between rounded-2xl border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90 lg:col-span-12"
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Token Usage</p>
+            <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+          </button>
 
-          <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Estimated Savings</p>
-            <p className="mt-2 font-display text-3xl text-ink">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
-            {user?.is_admin ? (
-              <p className="mt-1 text-sm">
-                <a href="#" className="text-blue-600 hover:underline" onClick={(e) => { e.preventDefault(); openManageCostModal(); }}>Manage Cost</a>
-              </p>
-            ) : appSettings ? (
-              <p className="mt-1 text-sm text-black/55">Based on cloud API pricing of ${appSettings.input_price_per_1m.toFixed(2)}/1M Input, ${appSettings.output_price_per_1m.toFixed(2)}/1M Output</p>
-            ) : (
-              <p className="mt-1 text-sm text-black/55">Log in to view</p>
-            )}
-          </div>
+          {isTokenStatsOpen && tokenCards.map((card) => (
+            <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className}`}>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
+              <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
+              <p className="mt-1 text-sm text-black/55">{card.detail}</p>
+            </div>
+          ))}
+
+          {isTokenStatsOpen && (
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Estimated Savings</p>
+              <p className="mt-2 font-display text-3xl text-ink">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
+              {user?.is_admin ? (
+                <p className="mt-1 text-sm">
+                  <a href="#" className="text-blue-600 hover:underline" onClick={(e) => { e.preventDefault(); openManageCostModal(); }}>Manage Cost</a>
+                </p>
+              ) : appSettings ? (
+                <p className="mt-1 text-sm text-black/55">Based on cloud API pricing of ${appSettings.input_price_per_1m.toFixed(2)}/1M Input, ${appSettings.output_price_per_1m.toFixed(2)}/1M Output</p>
+              ) : (
+                <p className="mt-1 text-sm text-black/55">Log in to view</p>
+              )}
+            </div>
+          )}
         </div>
 
       {user?.is_admin && (
