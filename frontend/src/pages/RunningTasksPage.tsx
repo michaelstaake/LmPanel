@@ -137,8 +137,7 @@ export default function RunningTasksPage() {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-black/80">Running tasks</h2>
-            <p className="text-sm text-black/55">Active chat requests, model fetches, and model uploads.</p>
+            <p className="text-sm text-black/55">Current model requests and model fetches</p>
           </div>
           <div className=" bg-black/5 px-3 py-1 text-xs font-semibold text-black/55">
             {tasks.length} active
