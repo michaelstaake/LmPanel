@@ -603,7 +603,7 @@ export default function StatusPage() {
             {isTokenStatsOpen && (
               <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-4">
                 {tokenCards.map((card) => (
-                  <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className || ""}`}>
+                  <div key={card.label} className="rounded-2xl border border-black/10 bg-white/80 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
                     <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
                     <p className="mt-1 text-sm text-black/55">{card.detail}</p>
