@@ -35,10 +35,10 @@ The current release version is the most stable flavor of LmPanel. Download the l
 
 Alternately, you can clone the repository to get the latest development version. You'll get the latest improvements before they make it to the release version, but it may be unstable or buggy.
 
-> ```bash
-> git clone https://github.com/michaelstaake/LmPanel.git
-> cd LmPanel
-> ```
+```bash
+git clone https://github.com/michaelstaake/LmPanel.git
+cd LmPanel
+```
 
 **2. Copy environment file.**
 
