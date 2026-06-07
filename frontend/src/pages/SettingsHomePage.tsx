@@ -25,7 +25,7 @@ const settingsNavItems: SettingsNavItem[] = [
 export default function SettingsHomePage() {
   return (
     <SettingsLayout>
-      <div className="mb-6  border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <div className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl">LmPanel</h2>

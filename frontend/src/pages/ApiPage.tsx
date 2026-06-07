@@ -209,7 +209,7 @@ export default function ApiPage() {
   }
 
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-0">
       <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">

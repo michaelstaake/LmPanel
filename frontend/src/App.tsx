@@ -343,8 +343,8 @@ export default function App() {
       <div className="app-background min-h-screen text-ink font-body" style={appBackgroundStyle}>
         <ToastViewport />
         <MobileNavProvider value={{ closeMobileNav: () => setIsMobileNavOpen(false), setMobileNavSection }}>
-          <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">
-            <header className="relative z-50 mb-6 flex items-center justify-between gap-4 overflow-visible  border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
+          <div className="mx-auto max-w-7xl px-4 md:px-8">
+            <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible  border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
               <NavLink to="/" className="inline-flex items-baseline gap-3  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30">
                 <h1 className="font-display text-2xl font-semibold tracking-tight">{sitename}</h1>
               </NavLink>
