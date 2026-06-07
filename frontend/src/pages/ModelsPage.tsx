@@ -1180,11 +1180,26 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               <section>
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Behavior</p>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} placeholder="Temperature" aria-label="Temperature" value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} placeholder="Top P" aria-label="Top P" value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} placeholder="Top K" aria-label="Top K" value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} placeholder="Presence Penalty" aria-label="Presence Penalty" value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm md:col-span-2" type="number" min={0} step={0.05} placeholder="Repetition Penalty" aria-label="Repetition Penalty" value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>Temperature</span>
+                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
+                  </label>
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>Top P</span>
+                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
+                  </label>
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>Top K</span>
+                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
+                  </label>
+                  <label className="grid gap-1 text-sm text-black/70">
+                    <span>Presence Penalty</span>
+                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
+                  </label>
+                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                    <span>Repetition Penalty</span>
+                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
+                  </label>
                 </div>
               </section>
 
