@@ -1,4 +1,4 @@
-import CodeBlock from "./CodeBlock";
+﻿import CodeBlock from "./CodeBlock";
 import { parseMessageSegments } from "../../lib/codeBlockParser";
 
 type MessageContentProps = {
@@ -21,7 +21,7 @@ export default function MessageContent({ content, showStreamingCursor = false }:
         )
       )}
       {showStreamingCursor ? (
-        <span className="ml-1 inline-block h-5 w-2 animate-pulse rounded-full bg-amber align-middle" />
+        <span className="ml-1 inline-block h-5 w-2 animate-pulse  bg-amber align-middle" />
       ) : null}
     </>
   );

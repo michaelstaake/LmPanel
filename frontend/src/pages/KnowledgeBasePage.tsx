@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+﻿import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import Modal from "../components/ui/Modal";
@@ -241,13 +241,13 @@ export default function KnowledgeBasePage() {
   return (
     <div className="grid gap-4 lg:grid-cols-[260px_1fr] lg:gap-5">
       {/* Sidebar - Categories */}
-      <aside className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur lg:order-1 lg:sticky lg:top-[72px] lg:max-h-[calc(100vh-88px)] lg:overflow-y-auto">
+      <aside className=" border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur lg:order-1 lg:sticky lg:top-[72px] lg:max-h-[calc(100vh-88px)] lg:overflow-y-auto">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-base">Categories</h2>
           <button
             type="button"
             onClick={openCreateCategory}
-            className="rounded-lg bg-ink px-2.5 py-1 text-[13px] font-semibold text-white transition hover:bg-ink/90"
+            className=" bg-ink px-2.5 py-1 text-[13px] font-semibold text-white transition hover:bg-ink/90"
           >
             + Add
           </button>
@@ -262,7 +262,7 @@ export default function KnowledgeBasePage() {
                 setSelectedCategoryId(null);
                 setOpenMenuId("all");
               }}
-              className={`mb-1 flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition ${
+              className={`mb-1 flex w-full items-center justify-between gap-2  px-2.5 py-2 text-left text-sm transition ${
                 selectedCategoryId === null
                   ? "bg-ink text-white"
                   : "text-black/70 hover:bg-black/5"
@@ -275,14 +275,14 @@ export default function KnowledgeBasePage() {
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === "all" ? null : "all"); }}
-                className="rounded p-1 transition hover:bg-white/20"
+                className=" p-1 transition hover:bg-white/20"
               >
                 <i className="bi bi-three-dots-vertical text-[14px]"></i>
               </button>
             </button>
 
             {openMenuId === "all" && (
-              <div className="absolute right-2 z-50 mt-1 w-40 rounded-xl border border-black/10 bg-white py-1 shadow-lg">
+              <div className="absolute right-2 z-50 mt-1 w-40  border border-black/10 bg-white py-1 shadow-lg">
                 <button
                   type="button"
                   onMouseDown={(e) => e.stopPropagation()}
@@ -309,7 +309,7 @@ export default function KnowledgeBasePage() {
                   if (draftMode !== "idle") cancelDraft();
                   setSelectedCategoryId(selectedCategoryId === cat.id ? null : cat.id);
                 }}
-                className={`relative flex w-full items-center justify-between gap-2 overflow-visible rounded-lg px-2.5 py-2 text-left text-sm transition ${
+                className={`relative flex w-full items-center justify-between gap-2 overflow-visible  px-2.5 py-2 text-left text-sm transition ${
                   selectedCategoryId === cat.id
                     ? "bg-ink text-white"
                     : "text-black/70 hover:bg-black/5"
@@ -320,7 +320,7 @@ export default function KnowledgeBasePage() {
                     selectedCategoryId === cat.id ? "text-white/70" : "text-black/35"
                   }`}></i>
                   <span className="text-sm">{cat.name}</span>
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                  <span className={` px-1.5 py-0.5 text-[10px] font-medium ${
                     selectedCategoryId === cat.id
                       ? "bg-white/20 text-white/80"
                       : "bg-black/10 text-black/50"
@@ -329,13 +329,13 @@ export default function KnowledgeBasePage() {
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === `cat-${cat.id}` ? null : `cat-${cat.id}`); }}
-                  className="rounded p-1 transition hover:bg-white/20"
+                  className=" p-1 transition hover:bg-white/20"
                 >
                   <i className="bi bi-three-dots-vertical text-[14px]"></i>
                 </button>
 
                 {openMenuId === `cat-${cat.id}` && (
-                  <div className="absolute right-2 z-50 mt-1 w-40 rounded-xl border border-black/10 bg-white py-1 shadow-lg">
+                  <div className="absolute right-2 z-50 mt-1 w-40  border border-black/10 bg-white py-1 shadow-lg">
                     <button
                       type="button"
                       onMouseDown={(e) => e.stopPropagation()}
@@ -378,7 +378,7 @@ export default function KnowledgeBasePage() {
       <div className="grid gap-4 lg:order-2">
         {/* Draft form */}
         {(draftMode === "creating" || draftMode === "editing") && (
-          <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+          <article className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
             <form onSubmit={saveDraft}>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-display text-lg">{draftMode === "creating" ? "Add Document" : "Edit Document"}</h2>
@@ -389,7 +389,7 @@ export default function KnowledgeBasePage() {
                   <select
                     value={draftCategoryId ?? ""}
                     onChange={(e) => setDraftCategoryId(Number(e.target.value))}
-                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                    className="w-full  border border-black/15 bg-white px-3 py-2 text-sm"
                     required
                   >
                     <option value="" disabled>
@@ -408,7 +408,7 @@ export default function KnowledgeBasePage() {
                     type="text"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                    className="w-full  border border-black/15 bg-white px-3 py-2 text-sm"
                     placeholder="Document title"
                     autoFocus
                     required
@@ -424,14 +424,14 @@ export default function KnowledgeBasePage() {
                   <button
                     type="submit"
                     disabled={isSaving || !draftTitle.trim()}
-                    className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:opacity-50"
+                    className=" bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-ink/90 disabled:opacity-50"
                   >
                     {isSaving ? "Saving..." : draftMode === "creating" ? "Create" : "Update"}
                   </button>
                   <button
                     type="button"
                     onClick={cancelDraft}
-                    className="rounded-xl border border-black/15 px-4 py-2 text-sm font-semibold text-black/70 transition hover:bg-black/5"
+                    className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black/70 transition hover:bg-black/5"
                   >
                     Cancel
                   </button>
@@ -443,7 +443,7 @@ export default function KnowledgeBasePage() {
 
         {/* Document list */}
         {draftMode === "idle" && (
-        <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <article className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
           <div className="mb-4 flex items-center gap-2 text-sm">
             <span className="font-display text-base">Documents</span>
             {selectedCategoryId !== null && (
@@ -467,14 +467,14 @@ export default function KnowledgeBasePage() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="relative rounded-xl border border-black/10 bg-white/60 p-4 transition hover:bg-black/5"
+                  className="relative  border border-black/10 bg-white/60 p-4 transition hover:bg-black/5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-black/80">{doc.title}</h3>
                         {getCategoryName(doc.category_id) && (
-                          <span className="rounded-full bg-black/10 px-2 py-0.5 text-[11px] font-medium text-black/60">
+                          <span className=" bg-black/10 px-2 py-0.5 text-[11px] font-medium text-black/60">
                             {getCategoryName(doc.category_id)}
                           </span>
                         )}
@@ -490,12 +490,12 @@ export default function KnowledgeBasePage() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === `doc-${doc.id}` ? null : `doc-${doc.id}`); }}
-                        className="rounded-lg border border-black/15 p-1.5 text-xs text-black/70 transition hover:bg-black/5"
+                        className=" border border-black/15 p-1.5 text-xs text-black/70 transition hover:bg-black/5"
                       >
                         <i className="bi bi-three-dots-vertical"></i>
                       </button>
                       {openMenuId === `doc-${doc.id}` && (
-                        <div className="absolute right-0 z-50 mt-1 w-40 rounded-xl border border-black/10 bg-white py-1 shadow-lg">
+                        <div className="absolute right-0 z-50 mt-1 w-40  border border-black/10 bg-white py-1 shadow-lg">
                           <button
                             type="button"
                             onMouseDown={(e) => e.stopPropagation()}
@@ -534,7 +534,7 @@ export default function KnowledgeBasePage() {
             <div>
               <h2 id="category-edit-title" className="font-display text-2xl">Edit Category</h2>
             </div>
-            <button className="rounded-xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCategoryModalOpen(false)}>
+            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCategoryModalOpen(false)}>
               Close
             </button>
           </div>
@@ -542,14 +542,14 @@ export default function KnowledgeBasePage() {
             <label className="grid gap-1 text-sm text-black/70">
               Category Name
               <input
-                className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                className=" border border-black/15 bg-white px-3 py-2 text-sm"
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
                 autoFocus
                 required
               />
             </label>
-            <button className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={!categoryName.trim()}>
+            <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={!categoryName.trim()}>
               Update Category
             </button>
           </form>
@@ -563,7 +563,7 @@ export default function KnowledgeBasePage() {
             <div>
               <h2 id="category-create-title" className="font-display text-2xl">Add Category</h2>
             </div>
-            <button className="rounded-xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCategoryCreateModalOpen(false)}>
+            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCategoryCreateModalOpen(false)}>
               Close
             </button>
           </div>
@@ -571,14 +571,14 @@ export default function KnowledgeBasePage() {
             <label className="grid gap-1 text-sm text-black/70">
               Category Name
               <input
-                className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                className=" border border-black/15 bg-white px-3 py-2 text-sm"
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
                 autoFocus
                 required
               />
             </label>
-            <button className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={!categoryName.trim()}>
+            <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={!categoryName.trim()}>
               Create Category
             </button>
           </form>

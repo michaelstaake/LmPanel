@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPostForm, resolveApiUrl } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -296,7 +296,7 @@ export default function ConfigurationPage() {
         <h2 className="font-display text-xl">Configuration</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-2  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold text-black">Site name</div>
@@ -308,7 +308,7 @@ export default function ConfigurationPage() {
             <div className="mt-2 max-w-md">
               <input
                 type="text"
-                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="w-full  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={localSitename}
                 onChange={(e) => setLocalSitename(e.target.value)}
                 onBlur={() => commitSitename(localSitename)}
@@ -322,7 +322,7 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-2  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-black">URL</div>
               <p className="mt-1 text-sm text-black/65">
@@ -332,7 +332,7 @@ export default function ConfigurationPage() {
             <div className="mt-2 max-w-xl">
               <input
                 type="url"
-                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="w-full  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={localPublicUrl}
                 onChange={(e) => setLocalPublicUrl(e.target.value)}
                 onBlur={() => commitPublicUrl(localPublicUrl)}
@@ -346,7 +346,7 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold text-black">Background color</div>
@@ -367,12 +367,12 @@ export default function ConfigurationPage() {
                   }
                 }}
                 disabled={isLoading || isSaving === "background_color"}
-                className="h-11 w-16 cursor-pointer rounded-xl border border-black/15 bg-white p-1 disabled:cursor-not-allowed"
+                className="h-11 w-16 cursor-pointer  border border-black/15 bg-white p-1 disabled:cursor-not-allowed"
               />
               <input
                 type="text"
                 inputMode="text"
-                className="w-full max-w-xs rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="w-full max-w-xs  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={localBackgroundColor}
                 onChange={(event) => setLocalBackgroundColor(event.target.value)}
                 onBlur={() => commitBackgroundColor(localBackgroundColor)}
@@ -386,7 +386,7 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="text-sm font-semibold text-black">Background image</div>
@@ -395,7 +395,7 @@ export default function ConfigurationPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
+                <label className="inline-flex cursor-pointer items-center  border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
                   <span>{isUploadingBackgroundImage ? "Uploading..." : "Upload image"}</span>
                   <input
                     ref={uploadInputRef}
@@ -413,7 +413,7 @@ export default function ConfigurationPage() {
                 </label>
                 <button
                   type="button"
-                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void deleteBackgroundImage()}
                   disabled={isLoading || isUploadingBackgroundImage || !settings.background_image_path}
                 >
@@ -424,7 +424,7 @@ export default function ConfigurationPage() {
             <label className="grid gap-2 text-sm text-black/70 md:max-w-xs">
               <span className="font-semibold text-black">Desktop image fit</span>
               <select
-                className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className=" border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={settings.background_image_mode}
                 onChange={(event) => void updateSetting("background_image_mode", event.target.value)}
                 disabled={isLoading || isSaving === "background_image_mode"}
@@ -442,14 +442,14 @@ export default function ConfigurationPage() {
                 <img
                   src={resolveApiUrl(settings.background_image_path)}
                   alt="Current background"
-                  className="h-36 w-full rounded-2xl border border-black/10 bg-white object-cover shadow-sm md:max-w-[220px]"
+                  className="h-36 w-full  border border-black/10 bg-white object-cover shadow-sm md:max-w-[220px]"
                 />
               </div>
             ) : (
               <p className="text-sm text-black/65">No background image uploaded. Desktop will use the background color until you add one.</p>
             )}
           </div>
-          <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="text-sm font-semibold text-black">Favicon</div>
@@ -458,7 +458,7 @@ export default function ConfigurationPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
+                <label className="inline-flex cursor-pointer items-center  border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
                   <span>{isUploadingFavicon ? "Uploading..." : "Upload favicon"}</span>
                   <input
                     ref={faviconInputRef}
@@ -476,7 +476,7 @@ export default function ConfigurationPage() {
                 </label>
                 <button
                   type="button"
-                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void deleteFavicon()}
                   disabled={isLoading || isUploadingFavicon || !settings.favicon_path}
                 >
@@ -490,14 +490,14 @@ export default function ConfigurationPage() {
                 <img
                   src={resolveApiUrl(settings.favicon_path)}
                   alt="Current favicon"
-                  className="h-16 w-16 rounded-lg border border-black/10 bg-white object-contain shadow-sm"
+                  className="h-16 w-16  border border-black/10 bg-white object-contain shadow-sm"
                 />
               </div>
             ) : (
               <p className="text-sm text-black/65">No favicon uploaded.</p>
             )}
           </div>
-          <label className="flex items-start justify-between gap-4 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <label className="flex items-start justify-between gap-4  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-black">Users can register</div>
               <p className="mt-1 text-sm text-black/65">

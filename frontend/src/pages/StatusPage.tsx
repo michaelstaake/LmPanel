@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch } from "../lib/api";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
 import { AccountUsageStatusRecord, AppSettingsRecord, DeviceStatusRecord, GpuPoolRecord, StatusModelRecord, StatusResponse, TokenUsageMetricRecord, TokenUsageSummaryRecord, TopTokenUserRecord } from "../lib/records";
@@ -217,13 +217,13 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
   ] : [];
 
   return (
-    <article className="overflow-hidden rounded-[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <article className="overflow-hidden -[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-display text-xl text-ink">{device.name}</h3>
             {isPooled && (
-              <span className="rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
+              <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
             )}
           </div>
           <p className="mt-2 text-sm text-black/65">
@@ -235,7 +235,7 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
 
       <div className="mt-5 grid gap-4">
         {!isCpuDevice && (
-          <section className="rounded-2xl border border-black/10 bg-[#f3efe2] p-4">
+          <section className=" border border-black/10 bg-[#f3efe2] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
@@ -243,18 +243,18 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
               </div>
               <p className="font-display text-2xl text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
             </div>
-            <div className="mt-4 h-4 overflow-hidden rounded-full bg-black/10">
+            <div className="mt-4 h-4 overflow-hidden  bg-black/10">
               {hasGpuUsage ? (
-                <div className="h-full rounded-full bg-black" style={{ width: `${gpuUsagePercent}%` }} />
+                <div className="h-full  bg-black" style={{ width: `${gpuUsagePercent}%` }} />
               ) : (
-                <div className="h-full rounded-full bg-black/25" title="GPU usage unavailable" />
+                <div className="h-full  bg-black/25" title="GPU usage unavailable" />
               )}
             </div>
           </section>
         )}
 
         {isCpuDevice && hasCpuUsage && (
-          <section className="rounded-2xl border border-black/10 bg-[#f3efe2] p-4">
+          <section className=" border border-black/10 bg-[#f3efe2] p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
@@ -262,13 +262,13 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
               </div>
               <p className="font-display text-2xl text-ink">{formatWholePercent(cpuUsagePercent)}</p>
             </div>
-            <div className="mt-4 h-4 overflow-hidden rounded-full bg-black/10">
-              <div className="h-full rounded-full bg-black" style={{ width: `${cpuUsagePercent}%` }} />
+            <div className="mt-4 h-4 overflow-hidden  bg-black/10">
+              <div className="h-full  bg-black" style={{ width: `${cpuUsagePercent}%` }} />
             </div>
           </section>
         )}
 
-        <section className="rounded-2xl border border-black/10 bg-[#f3efe2] p-4">
+        <section className=" border border-black/10 bg-[#f3efe2] p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
@@ -276,18 +276,18 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
             </div>
             <p className="font-display text-2xl text-ink">{memoryPercent !== null ? `${memoryPercent.toFixed(1)}%` : "N/A"}</p>
           </div>
-          <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-black/10">
+          <div className="mt-4 flex h-4 overflow-hidden  bg-black/10">
             {memoryPercent !== null ? memoryBarSegments.map((segment, index) => (
               <div
                 key={segment.key}
-                className={`h-full ${memoryBarSegments.length === 1 ? "rounded-full" : index === 0 ? "rounded-l-full" : index === memoryBarSegments.length - 1 ? "rounded-r-full" : ""}`}
+                className={`h-full ${memoryBarSegments.length === 1 ? "" : index === 0 ? "-l-full" : index === memoryBarSegments.length - 1 ? "-r-full" : ""}`}
                 style={{
                   width: `${segment.width}%`,
                   backgroundColor: segment.backgroundColor,
                 }}
                 title={segment.title}
               />
-            )) : <div className="h-full w-full rounded-full bg-black/25" title="Memory capacity unavailable" />}
+            )) : <div className="h-full w-full  bg-black/25" title="Memory capacity unavailable" />}
           </div>
         </section>
 
@@ -295,7 +295,7 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
           <div className="space-y-2">
             {device.models.map((model) => (
               <div key={`${device.id}-legend-${model.model_id}`} className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
+                <span className="h-2.5 w-2.5 shrink-0 " style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
                 <span className="text-sm font-semibold text-ink">{model.alias}</span>
                 {isAdmin && <span className="text-xs text-black/50">{model.file_name}</span>}
               </div>
@@ -562,9 +562,9 @@ export default function StatusPage() {
   );
 
   return (
-    <section className="grid gap-4 overflow-hidden rounded-[32px] border border-black/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(245,240,226,0.78)_100%)] p-6 shadow-sm backdrop-blur">
+    <section className="grid gap-4 overflow-hidden -[32px] border border-black/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(245,240,226,0.78)_100%)] p-6 shadow-sm backdrop-blur">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">System Health</p>
             <div className="mt-2 flex items-center gap-3">
               <i className={`${systemHealth.iconClassName} ${systemHealth.iconColorClassName} text-[28px] leading-none`} aria-hidden="true" />
@@ -573,19 +573,19 @@ export default function StatusPage() {
             <p className="mt-1 text-sm text-black/55">{systemHealth.detail}</p>
           </div>
 
-          <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Free Disk Space</p>
             <p className="mt-2 font-display text-3xl text-ink">{formatDiskSpace(systemDiskFreeBytes)}</p>
             <p className="mt-1 text-sm text-black/55">Available on /</p>
           </div>
 
-          <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Host CPU</p>
             <p className="mt-2 font-display text-3xl text-ink">{systemCpuUsagePercent !== null ? `${systemCpuUsagePercent.toFixed(1)}%` : "N/A"}</p>
             <p className="mt-1 text-sm text-black/55">Total utilization</p>
           </div>
 
-          <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">AI Memory</p>
             <p className="mt-2 font-display text-3xl text-ink">{summary.memoryUsagePercent !== null ? `${summary.memoryUsagePercent.toFixed(1)}%` : "N/A"}</p>
             <p className="mt-1 text-sm text-black/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
@@ -594,14 +594,14 @@ export default function StatusPage() {
           <button
             type="button"
             onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
-            className="flex w-full items-center justify-between rounded-2xl border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90 lg:col-span-12"
+            className="flex w-full items-center justify-between  border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90 lg:col-span-12"
           >
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Token Usage</p>
             <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
           </button>
 
           {isTokenStatsOpen && tokenCards.map((card) => (
-            <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className}`}>
+            <div key={card.label} className={` border border-black/10 bg-white/80 p-4 ${card.className}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
               <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
               <p className="mt-1 text-sm text-black/55">{card.detail}</p>
@@ -609,7 +609,7 @@ export default function StatusPage() {
           ))}
 
           {isTokenStatsOpen && (
-            <div className="rounded-2xl border border-black/10 bg-white/80 p-4 lg:col-span-3">
+            <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Estimated Savings</p>
               <p className="mt-2 font-display text-3xl text-ink">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
               {user?.is_admin ? (
@@ -634,7 +634,7 @@ export default function StatusPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="input-price" className="block text-sm font-medium text-black/70">Input (per 1M tokens)</label>
-              <div className="mt-1 flex rounded-lg border border-black/10 bg-white overflow-hidden">
+              <div className="mt-1 flex  border border-black/10 bg-white overflow-hidden">
                 <span className="flex items-center pl-3 text-black/50">$</span>
                 <input
                   id="input-price"
@@ -650,7 +650,7 @@ export default function StatusPage() {
 
             <div>
               <label htmlFor="output-price" className="block text-sm font-medium text-black/70">Output (per 1M tokens)</label>
-              <div className="mt-1 flex rounded-lg border border-black/10 bg-white overflow-hidden">
+              <div className="mt-1 flex  border border-black/10 bg-white overflow-hidden">
                 <span className="flex items-center pl-3 text-black/50">$</span>
                 <input
                   id="output-price"
@@ -670,7 +670,7 @@ export default function StatusPage() {
               type="button"
               onClick={saveCostSettings}
               disabled={isSavingCost}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/85 disabled:opacity-50"
+              className=" bg-black px-4 py-2 text-sm font-medium text-white hover:bg-black/85 disabled:opacity-50"
             >
               {isSavingCost ? "Saving..." : "Save"}
             </button>
@@ -680,13 +680,13 @@ export default function StatusPage() {
       )}
 
       {isLoading ? (
-        <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading...</div>
+        <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading...</div>
       ) : visibleDevices.length > 0 ? (
         <div className="grid gap-4">
           {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} isAdmin={user?.is_admin ?? false} />)}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-black/15 bg-white/60 px-4 py-8 text-sm text-black/55 shadow-sm">No ready devices are available.</div>
+        <div className=" border border-dashed border-black/15 bg-white/60 px-4 py-8 text-sm text-black/55 shadow-sm">No ready devices are available.</div>
       )}
     </section>
   );

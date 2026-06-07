@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+﻿import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
 import AuthPage from "./pages/AuthPage";
@@ -97,7 +97,7 @@ function MainNavLink({
       to={to}
       end={end}
       onClick={handleClick}
-      className={({ isActive }) => `inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-ink text-white" : "bg-black/5"}`}
+      className={({ isActive }) => `inline-flex items-center gap-2  px-3 py-2 text-sm ${isActive ? "bg-ink text-white" : "bg-black/5"}`}
     >
       <i className={`${iconClassName} text-[14px] leading-none`} aria-hidden="true" />
       <span>{label}</span>
@@ -109,7 +109,7 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup, user } = useAuth();
 
   if (isBootstrapping) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -127,7 +127,7 @@ function RequireUser({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup, user } = useAuth();
 
   if (isBootstrapping) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -142,7 +142,7 @@ function RequireSetup({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup } = useAuth();
 
   if (isBootstrapping) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -154,7 +154,7 @@ function HomeRoute() {
   const { isBootstrapping, requiresSetup, user, termsSettings } = useAuth();
 
   if (isBootstrapping) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -179,10 +179,10 @@ function SetupRoute() {
   }, [bootstrapError, showError]);
 
   if (isBootstrapping) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Checking installation state...</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Checking installation state...</section>;
   }
   if (bootstrapError) {
-    return <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Installation state is temporarily unavailable.</section>;
+    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Installation state is temporarily unavailable.</section>;
   }
   if (!requiresSetup) {
     return <Navigate to={user ? "/settings/general" : "/login"} replace />;
@@ -344,8 +344,8 @@ export default function App() {
         <ToastViewport />
         <MobileNavProvider value={{ closeMobileNav: () => setIsMobileNavOpen(false), setMobileNavSection }}>
           <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">
-            <header className="relative z-50 mb-6 flex items-center justify-between gap-4 overflow-visible rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
-              <NavLink to="/" className="inline-flex items-baseline gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30">
+            <header className="relative z-50 mb-6 flex items-center justify-between gap-4 overflow-visible  border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
+              <NavLink to="/" className="inline-flex items-baseline gap-3  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30">
                 <h1 className="font-display text-2xl font-semibold tracking-tight">{sitename}</h1>
               </NavLink>
               {showMainNav ? (
@@ -353,7 +353,7 @@ export default function App() {
                   <button
                     type="button"
                     onClick={() => setIsMobileNavOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-black/20 hover:bg-black/5 xl:hidden"
+                    className="inline-flex items-center gap-2  border border-black/10 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-black/20 hover:bg-black/5 xl:hidden"
                     aria-label="Open navigation menu"
                     aria-expanded={isMobileNavOpen}
                     aria-controls="mobile-nav-title"

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { cancelRunningTask, fetchRunningTasks, type RunningTaskRecord } from "../lib/api";
@@ -140,18 +140,18 @@ export default function RunningTasksPage() {
             <h2 className="text-lg font-semibold text-black/80">Running tasks</h2>
             <p className="text-sm text-black/55">Active chat requests, model fetches, and model uploads.</p>
           </div>
-          <div className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-black/55">
+          <div className=" bg-black/5 px-3 py-1 text-xs font-semibold text-black/55">
             {tasks.length} active
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <div className=" border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
           <p className="text-center text-sm text-black/50">Loading running tasks…</p>
         </div>
       ) : tasks.length === 0 ? (
-        <div className="rounded-2xl border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <div className=" border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
           <p className="text-center text-sm text-black/50">No active tasks.</p>
         </div>
       ) : (
@@ -159,14 +159,14 @@ export default function RunningTasksPage() {
           {groups.map(([username, groupTasks]) => {
             const isExpanded = expandedGroups[username] ?? true;
             return (
-              <div key={username} className="overflow-hidden rounded-2xl border border-black/10 bg-white/80 shadow-sm backdrop-blur">
+              <div key={username} className="overflow-hidden  border border-black/10 bg-white/80 shadow-sm backdrop-blur">
                 <button
                   type="button"
                   onClick={() => toggleGroup(username)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-black/[0.02]"
                 >
                   <span className="text-sm font-semibold text-black/70">{username}</span>
-                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/50">{groupTasks.length}</span>
+                  <span className=" bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/50">{groupTasks.length}</span>
                   <svg
                     className={`h-4 w-4 text-black/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                     fill="none"
@@ -198,7 +198,7 @@ export default function RunningTasksPage() {
                             <tr key={task.task_id} className="hover:bg-black/[0.02]">
                               <td className="px-4 py-2.5">
                                 <div className="flex items-center gap-2">
-                                  <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/60">
+                                  <span className=" bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/60">
                                     {formatTaskType(task.task_type)}
                                   </span>
                                   <span className="text-black/80">{task.description}</span>
@@ -214,9 +214,9 @@ export default function RunningTasksPage() {
                               </td>
                               <td className="px-4 py-2.5">
                                 <div className="flex items-center gap-2">
-                                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-black/10">
+                                  <div className="h-1.5 w-20 overflow-hidden  bg-black/10">
                                     <div
-                                      className={`h-full rounded-full transition-all ${progressColor(task)}`}
+                                      className={`h-full  transition-all ${progressColor(task)}`}
                                       style={{ width: `${pct}%` }}
                                     />
                                   </div>
@@ -238,7 +238,7 @@ export default function RunningTasksPage() {
                                   type="button"
                                   onClick={() => void handleCancel(task)}
                                   disabled={isCanceling}
-                                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                  className=" border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                   {isCanceling ? "Cancelling…" : "Cancel"}
                                 </button>

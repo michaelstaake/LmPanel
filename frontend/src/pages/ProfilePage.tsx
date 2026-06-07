@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
 import { AccountToolUsageStatusRecord, AccountUsageStatusRecord, StatusResponse } from "../lib/records";
 import { useAuth } from "../context/AuthContext";
@@ -144,7 +144,7 @@ export default function ProfilePage() {
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45">{roleLabel}</p>
@@ -157,21 +157,21 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setEmailModalOpen(true)}
-              className="shrink-0 rounded-xl border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
             >
               Update email
             </button>
             <button
               type="button"
               onClick={() => setPasswordModalOpen(true)}
-              className="shrink-0 rounded-xl border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
             >
               Update password
             </button>
             <button
               type="button"
               onClick={logout}
-              className="shrink-0 rounded-xl border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
             >
               Log out
             </button>
@@ -180,7 +180,7 @@ export default function ProfilePage() {
       </article>
 
       {(showAccountUsage || showAccountToolUsage) && (
-        <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+        <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Your Usage{packageLabel}</p>
           <p className="mt-1 text-sm text-black/60">
             {adminUsage
@@ -199,7 +199,7 @@ export default function ProfilePage() {
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Token Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountUsage.periods.map((period) => (
-                  <div key={period.id} className="rounded-2xl border border-black/10 bg-white/80 p-4">
+                  <div key={period.id} className=" border border-black/10 bg-white/80 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
@@ -214,9 +214,9 @@ export default function ProfilePage() {
                           {numberFormatter.format(period.used_tokens)} / {numberFormatter.format(period.limit_tokens)} tokens
                         </p>
                         {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+                        <div className="mt-3 h-2 overflow-hidden  bg-black/10">
                           <div
-                            className={`h-full rounded-full ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
+                            className={`h-full  ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
                             style={{ width: `${clampPercent(period.percent)}%` }}
                           />
                         </div>
@@ -233,7 +233,7 @@ export default function ProfilePage() {
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-black/45 ${showAccountUsage ? "mt-6" : "mt-4"}`}>Web Search Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountToolUsage.periods.map((period) => (
-                  <div key={period.id} className="rounded-2xl border border-black/10 bg-white/80 p-4">
+                  <div key={period.id} className=" border border-black/10 bg-white/80 p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
@@ -248,9 +248,9 @@ export default function ProfilePage() {
                           {numberFormatter.format(period.used_tokens)} / {numberFormatter.format(period.limit_tokens)} searches
                         </p>
                         {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+                        <div className="mt-3 h-2 overflow-hidden  bg-black/10">
                           <div
-                            className={`h-full rounded-full ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
+                            className={`h-full  ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
                             style={{ width: `${clampPercent(period.percent)}%` }}
                           />
                         </div>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setEmailModalOpen(false)}
-              className="shrink-0 rounded-lg p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -281,7 +281,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-black/70">
               <span className="mb-2 block font-semibold text-black">Email</span>
               <input
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -290,7 +290,7 @@ export default function ProfilePage() {
               />
             </label>
             <button
-              className="rounded-xl bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingEmail}
             >
@@ -307,7 +307,7 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setPasswordModalOpen(false)}
-              className="shrink-0 rounded-lg p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -317,7 +317,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-black/70">
               <span className="mb-2 block font-semibold text-black">New password</span>
               <input
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -328,7 +328,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-black/70">
               <span className="mb-2 block font-semibold text-black">Confirm new password</span>
               <input
-                className="w-full rounded-xl border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -337,7 +337,7 @@ export default function ProfilePage() {
               />
             </label>
             <button
-              className="rounded-xl bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingPassword}
             >

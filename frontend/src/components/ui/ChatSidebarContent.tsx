@@ -1,4 +1,4 @@
-type ChatSidebarContentProps = {
+﻿type ChatSidebarContentProps = {
   token: string;
   isLoadingChats: boolean;
   savedChats: { id: number; title: string }[];
@@ -31,7 +31,7 @@ export default function ChatSidebarContent({
         <button
           type="button"
           onClick={onNewChat}
-          className="flex-1 rounded-xl bg-ink px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-black"
+          className="flex-1  bg-ink px-4 py-2 text-left text-sm font-semibold text-white transition hover:bg-black"
         >
           <span className="inline-flex items-center gap-2">
             <i className="bi bi-pencil-square text-[16px] leading-none" aria-hidden="true" />
@@ -42,7 +42,7 @@ export default function ChatSidebarContent({
           <button
             type="button"
             onClick={onCollapse}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-black/10 bg-white text-black/60 transition hover:border-black/20 hover:bg-black/5 hover:text-black"
+            className="flex h-10 w-10 items-center justify-center  border border-black/10 bg-white text-black/60 transition hover:border-black/20 hover:bg-black/5 hover:text-black"
             aria-label="Collapse sidebar"
             title="Collapse sidebar"
           >
@@ -56,7 +56,7 @@ export default function ChatSidebarContent({
             Chats {isLoadingChats ? "(loading...)" : `(${savedChats.length})`}
           </div>
           {savedChats.length === 0 && !isLoadingChats ? (
-            <div className="rounded-lg bg-black/5 p-2 text-xs text-black/50">
+            <div className=" bg-black/5 p-2 text-xs text-black/50">
               No chats to display.
             </div>
           ) : null}
@@ -69,7 +69,7 @@ export default function ChatSidebarContent({
                     onAfterSelectChat?.();
                     void onOpenChat(chat.id);
                   }}
-                  className={`flex-1 truncate rounded-lg px-2 py-1 text-left text-xs hover:bg-black/5 ${
+                  className={`flex-1 truncate  px-2 py-1 text-left text-xs hover:bg-black/5 ${
                     activeChatId === chat.id ? "bg-amber/30" : ""
                   }`}
                   title={chat.title}
@@ -79,7 +79,7 @@ export default function ChatSidebarContent({
                 <button
                   type="button"
                   onClick={() => void onDeleteChat(chat.id)}
-                  className="rounded-lg px-2 py-1 text-xs text-black/40 hover:bg-red-50 hover:text-red-700"
+                  className=" px-2 py-1 text-xs text-black/40 hover:bg-red-50 hover:text-red-700"
                   aria-label="Delete chat"
                 >
                   ×
@@ -89,7 +89,7 @@ export default function ChatSidebarContent({
           </ul>
         </div>
       ) : (
-        <div className="rounded-lg bg-black/5 p-2 text-xs text-black/60">
+        <div className=" bg-black/5 p-2 text-xs text-black/60">
           Sign in via the <a className="font-semibold underline" href="/login">Login</a>{" "}
           page to save your chat history.
         </div>

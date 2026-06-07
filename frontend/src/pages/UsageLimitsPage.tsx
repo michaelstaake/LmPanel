@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiGet, apiPatch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -288,12 +288,12 @@ export default function UsageLimitsPage() {
   );
 
   if (isLoading) {
-    return <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading usage limits...</div>;
+    return <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading usage limits...</div>;
   }
 
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
-      <section className="rounded-[28px] border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
+      <section className="-[28px] border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
         <h2 className="font-display text-2xl text-ink">Usage Limits</h2>
         <p className="mt-2 max-w-3xl text-sm text-black/60">
           Set per-account limits for standard users. Admin users are not limited. Use zero to disable a time window.
@@ -313,7 +313,7 @@ export default function UsageLimitsPage() {
                 step={1}
                 value={draft[period.key]}
                 onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
+                className="mt-1 w-full  border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
               />
               <p className="mt-1 text-xs text-black/50">0 = unlimited for this window</p>
             </div>
@@ -341,7 +341,7 @@ export default function UsageLimitsPage() {
                   step={1}
                   value={draft[period.key]}
                   onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                  className="mt-1 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
+                  className="mt-1 w-full  border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
                 />
                 <p className="mt-1 text-xs text-black/50">0 = unlimited for this window</p>
               </div>
@@ -369,7 +369,7 @@ export default function UsageLimitsPage() {
           <button
             type="submit"
             disabled={isSaving || !allValid}
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
+            className=" bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save usage limits"}
           </button>

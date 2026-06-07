@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useToast } from "../../context/ToastContext";
 
@@ -91,7 +91,7 @@ export default function ToastViewport() {
             }}
             role={toast.kind === "error" ? "alert" : "status"}
             aria-live={toast.kind === "error" ? "assertive" : "polite"}
-            className={`pointer-events-none rounded-2xl border p-4 shadow-lg shadow-black/10 backdrop-blur transition duration-200 animate-[toast-in_180ms_ease-out] ${hoveredToastId === toast.id ? "opacity-55" : "opacity-85"} ${style.cardClassName}`}
+            className={`pointer-events-none  border p-4 shadow-lg shadow-black/10 backdrop-blur transition duration-200 animate-[toast-in_180ms_ease-out] ${hoveredToastId === toast.id ? "opacity-55" : "opacity-85"} ${style.cardClassName}`}
           >
             {toast.content ?? <p className="min-w-0 text-sm leading-6">{toast.message}</p>}
           </section>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPatch, checkForUpdates, UpdateCheckRecord } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -121,7 +121,7 @@ export default function UpdatesPage() {
         <h2 className="font-display text-xl">Update check</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className="rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="text-sm font-semibold text-black">Update check mode</div>
             <p className="mt-1 text-sm text-black/65">
               Choose how the app checks for updates. Development checks the latest commit, release checks the latest GitHub release version.
@@ -143,7 +143,7 @@ export default function UpdatesPage() {
                   value={settings.update_check_mode}
                   disabled={isLoading || isSaving === "update_check_mode"}
                   onChange={(event) => void updateSetting("update_check_mode", event.target.value)}
-                  className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className=" border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 >
                   <option value="disabled">Disabled</option>
                   <option value="development">Development</option>
@@ -152,7 +152,7 @@ export default function UpdatesPage() {
               </label>
 
               {settings.update_check_mode !== "disabled" && updateStatus && (
-                <div className="rounded-xl border border-black/10 bg-white px-4 py-3">
+                <div className=" border border-black/10 bg-white px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-semibold text-black">
@@ -166,7 +166,7 @@ export default function UpdatesPage() {
                     </div>
                     <button
                       type="button"
-                      className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                      className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => {
                         if (!token) return;
                         setIsCheckingUpdate(true);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { apiGet, apiPatch } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -148,7 +148,7 @@ export default function SecurityPage() {
         <h2 className="font-display text-xl">Security</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className="rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="text-sm font-semibold text-black">CAPTCHA</div>
             <p className="mt-1 text-sm text-black/65">
               Enable Cloudflare Turnstile to protect login and registration from automated submissions.
@@ -181,7 +181,7 @@ export default function SecurityPage() {
                 </p>
                 <input
                   type="text"
-                  className="max-w-md rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                   value={localSiteKey}
                   onChange={(e) => setLocalSiteKey(e.target.value)}
                   onBlur={() => {
@@ -204,7 +204,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_site_key ? (
                 <button
                   type="button"
-                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -241,7 +241,7 @@ export default function SecurityPage() {
                 </p>
                 <input
                   type="password"
-                  className="max-w-md rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                   value={localSecretKey}
                   onChange={(e) => setLocalSecretKey(e.target.value)}
                   onBlur={() => {
@@ -265,7 +265,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_secret_key_set ? (
                 <button
                   type="button"
-                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -299,12 +299,12 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="text-sm font-semibold text-black">2FA</div>
             <p className="mt-1 text-sm text-black/65">
               Two-factor authentication for user accounts.
             </p>
-            <div className="mt-4 rounded-xl border border-black/10 bg-white px-4 py-3">
+            <div className="mt-4  border border-black/10 bg-white px-4 py-3">
               <p className="text-sm text-black/65">Coming soon...</p>
             </div>
           </div>

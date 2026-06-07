@@ -1,4 +1,4 @@
-import { PropsWithChildren, useEffect, useRef } from "react";
+﻿import { PropsWithChildren, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 type ModalProps = PropsWithChildren<{
@@ -123,7 +123,7 @@ export default function Modal({
           aria-labelledby={labelledBy}
           aria-describedby={describedBy}
           tabIndex={-1}
-          className={`relative z-[101] w-full overflow-y-auto outline-none overscroll-contain ${fullScreen ? "min-h-dvh max-h-none rounded-none border-0 bg-[#fffdf7] shadow-none" : "max-h-[calc(100dvh-4rem)] rounded-[28px] border border-black/10 bg-[#fffdf7] shadow-2xl sm:max-h-[min(calc(100dvh-7rem),860px)]"} ${panelClassName}`}
+          className={`relative z-[101] w-full overflow-y-auto outline-none overscroll-contain ${fullScreen ? "min-h-dvh max-h-none -none border-0 bg-[#fffdf7] shadow-none" : "max-h-[calc(100dvh-4rem)] -[28px] border border-black/10 bg-[#fffdf7] shadow-2xl sm:max-h-[min(calc(100dvh-7rem),860px)]"} ${panelClassName}`}
         >
           {children}
         </div>

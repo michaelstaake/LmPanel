@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+﻿import { useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -38,7 +38,7 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
             if (el) codeRefs.current.set(index, el);
             else codeRefs.current.delete(index);
           }}
-          className="my-3 w-full max-w-full overflow-hidden rounded-2xl border border-black/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0"
+          className="my-3 w-full max-w-full overflow-hidden  border border-black/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0"
           {...rest}
         >
           <div className="max-h-[24rem] overflow-y-auto">
@@ -47,7 +47,7 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
               <button
                 type="button"
                 onClick={() => handleCopy(index)}
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold tracking-[0.12em] text-sand/70 transition hover:bg-white/10 hover:text-sand"
+                className="inline-flex items-center gap-1  px-2 py-1 text-[10px] font-semibold tracking-[0.12em] text-sand/70 transition hover:bg-white/10 hover:text-sand"
                 aria-label="Copy code"
                 title="Copy code"
               >

@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+﻿import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 
 type SettingsLayoutProps = {
@@ -42,7 +42,7 @@ export default function SettingsLayout({ children, title }: SettingsLayoutProps)
   const showBreadcrumbs = title && breadcrumbs.length > 1;
 
   return (
-    <div className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <div className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
       {showBreadcrumbs && (
         <nav aria-label="Breadcrumb" className="mb-4 text-sm">
           <ol className="flex items-center gap-1.5">

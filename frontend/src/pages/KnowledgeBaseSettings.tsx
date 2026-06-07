@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { apiGet, apiPatch } from "../lib/api";
@@ -56,7 +56,7 @@ export default function KnowledgeBaseSettings() {
 
   if (isLoading) {
     return (
-      <section className="rounded-2xl border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">
+      <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">
         Loading...
       </section>
     );
@@ -78,10 +78,10 @@ export default function KnowledgeBaseSettings() {
             type="button"
             onClick={toggleKnowledgeBase}
             disabled={isSaving}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${knowledgeBaseEnabled ? "bg-ink" : "bg-black/20"} disabled:opacity-50`}
+            className={`relative inline-flex h-6 w-11 items-center  transition ${knowledgeBaseEnabled ? "bg-ink" : "bg-black/20"} disabled:opacity-50`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${knowledgeBaseEnabled ? "translate-x-6" : "translate-x-1"}`}
+              className={`inline-block h-4 w-4 transform  bg-white transition ${knowledgeBaseEnabled ? "translate-x-6" : "translate-x-1"}`}
             />
           </button>
         </label>

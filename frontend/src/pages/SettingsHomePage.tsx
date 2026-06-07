@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
 import SettingsLayout from "./SettingsLayout";
 
 type SettingsNavItem = {
@@ -25,7 +25,7 @@ const settingsNavItems: SettingsNavItem[] = [
 export default function SettingsHomePage() {
   return (
     <SettingsLayout>
-      <div className="mb-6 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <div className="mb-6  border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl">LmPanel</h2>
@@ -51,7 +51,7 @@ export default function SettingsHomePage() {
             key={item.id}
             to={item.id}
             className={({ isActive }) =>
-              `group rounded-2xl border p-5 shadow-sm backdrop-blur transition ${
+              `group  border p-5 shadow-sm backdrop-blur transition ${
                 isActive
                   ? "border-black/20 bg-white/90"
                   : "border-black/10 bg-white/80 hover:border-black/20 hover:bg-white/90"
@@ -59,7 +59,7 @@ export default function SettingsHomePage() {
             }
           >
             <div className="flex items-start gap-4">
-              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg ${
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center  text-lg ${
                 "bg-black/5 text-black/70 group-hover:bg-black/10"
               }`}>
                 <i className={item.iconClassName} aria-hidden="true" />

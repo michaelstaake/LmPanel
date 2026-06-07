@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -131,8 +131,8 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
       content: (
         <div className="flex flex-col gap-2">
           <p className="font-semibold">Fetching model...</p>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-200/60">
-            <div className="h-full rounded-full bg-blue-500 transition-[width]" style={{ width: "0%" }} />
+          <div className="h-1.5 w-full overflow-hidden  bg-blue-200/60">
+            <div className="h-full  bg-blue-500 transition-[width]" style={{ width: "0%" }} />
           </div>
           <div className="flex items-center justify-between text-xs text-blue-700/70">
             <span>0%</span>
@@ -189,8 +189,8 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
               {fileName}
             </p>
           ) : null}
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-200/60">
-            <div className="h-full rounded-full bg-blue-500 transition-[width]" style={{ width: "0%" }} />
+          <div className="h-1.5 w-full overflow-hidden  bg-blue-200/60">
+            <div className="h-full  bg-blue-500 transition-[width]" style={{ width: "0%" }} />
           </div>
           <div className="flex items-center justify-between text-xs text-blue-700/70">
             <span>0%</span>
@@ -323,8 +323,8 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
                   {fileName}
                 </p>
               ) : null}
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-200/60">
-                <div className="h-full rounded-full bg-blue-500 transition-[width]" style={{ width: `${percent}%` }} />
+              <div className="h-1.5 w-full overflow-hidden  bg-blue-200/60">
+                <div className="h-full  bg-blue-500 transition-[width]" style={{ width: `${percent}%` }} />
               </div>
               <div className="flex items-center justify-between text-xs text-blue-700/70">
                 <span>{percent}%</span>
@@ -457,8 +457,8 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
             {state.uploadFileName}
           </p>
         ) : null}
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-blue-200/60">
-          <div className="h-full rounded-full bg-blue-500 transition-[width]" style={{ width: `${percent}%` }} />
+        <div className="h-1.5 w-full overflow-hidden  bg-blue-200/60">
+          <div className="h-full  bg-blue-500 transition-[width]" style={{ width: `${percent}%` }} />
         </div>
         <div className="flex items-center justify-between text-xs text-blue-700/70">
           <span>{percent}%</span>

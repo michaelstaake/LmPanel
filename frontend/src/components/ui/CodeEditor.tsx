@@ -1,4 +1,4 @@
-import MonacoEditor, { type Monaco } from "@monaco-editor/react";
+﻿import MonacoEditor, { type Monaco } from "@monaco-editor/react";
 
 type CodeEditorProps = {
   value: string;
@@ -18,7 +18,7 @@ export default function CodeEditor({
   language = "markdown",
 }: CodeEditorProps) {
   return (
-    <div className="grid overflow-hidden rounded-2xl">
+    <div className="grid overflow-hidden ">
       <MonacoEditor
         height={height}
         value={value}

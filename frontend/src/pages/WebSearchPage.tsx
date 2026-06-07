@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
@@ -152,7 +152,7 @@ export default function WebSearchPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-black/70">Active provider</label>
             <select
-              className={`rounded-xl border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-black/40" : ""}`}
+              className={` border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-black/40" : ""}`}
               value={activeProviderType ?? ""}
               disabled={settingActive || (dropdownProviders.length === 0 && !activeIsUnavailable)}
               onChange={(event) => void handleSetActive(event.target.value === "" ? null : event.target.value)}
@@ -190,7 +190,7 @@ export default function WebSearchPage() {
               return (
                 <article
                   key={provider.provider_type}
-                  className="rounded-2xl border border-black/10 bg-[#fffdf7] p-5"
+                  className=" border border-black/10 bg-[#fffdf7] p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -198,14 +198,14 @@ export default function WebSearchPage() {
                       <p className="mt-0.5 text-sm text-black/55">{provider.description}</p>
                     </div>
                     {provider.api_key_set && provider.enabled && (
-                      <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                      <span className=" border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
                         Configured
                       </span>
                     )}
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <label className="flex items-center gap-3 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
+                    <label className="flex items-center gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
                       <input
                         type="checkbox"
                         checked={draft.enabled}
@@ -227,7 +227,7 @@ export default function WebSearchPage() {
                           : "Enter your API key."}
                       </span>
                       <input
-                        className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                        className=" border border-black/15 bg-white px-3 py-2 text-sm"
                         type="password"
                         autoComplete="new-password"
                         placeholder={provider.api_key_set ? "••••••••  (key already set)" : "Enter API key"}
@@ -240,7 +240,7 @@ export default function WebSearchPage() {
                       <span>Number of Results</span>
                       <span className="text-xs text-black/45">Results returned per search query (1–20).</span>
                       <input
-                        className="rounded-xl border border-black/15 bg-white px-3 py-2 text-sm"
+                        className=" border border-black/15 bg-white px-3 py-2 text-sm"
                         type="number"
                         min={1}
                         max={20}
@@ -263,7 +263,7 @@ export default function WebSearchPage() {
                   <div className="mt-4 flex justify-end">
                     <button
                       type="button"
-                      className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={isSaving}
                       onClick={() => void saveProvider(provider.provider_type)}
                     >

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import CodeEditor from "../components/ui/CodeEditor";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
 import { useAuth } from "../context/AuthContext";
@@ -83,7 +83,7 @@ export default function TermsAndPoliciesPage() {
           </p>
 
           <div className="mt-5 grid gap-3">
-            <label className="flex items-start justify-between gap-4 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <label className="flex items-start justify-between gap-4  border border-black/10 bg-[#fffdf7] px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-black">Enable terms and policies</div>
                 <p className="mt-1 text-sm text-black/65">
@@ -95,11 +95,11 @@ export default function TermsAndPoliciesPage() {
                 checked={localSettings.terms_enabled}
                 disabled={isLoading || isSaving}
                 onChange={(event) => updateEnabled(event.target.checked)}
-                className="mt-1 h-5 w-5 cursor-pointer rounded-lg border border-black/15 text-ink focus:ring-ink/20"
+                className="mt-1 h-5 w-5 cursor-pointer  border border-black/15 text-ink focus:ring-ink/20"
               />
             </label>
 
-            <div className="rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold text-black">Terms and policies content</div>
@@ -111,7 +111,7 @@ export default function TermsAndPoliciesPage() {
                   <button
                     type="button"
                     onClick={() => setShowPreview(!showPreview)}
-                    className="rounded-xl border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5"
+                    className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5"
                     disabled={isLoading || isSaving}
                   >
                     {showPreview ? "Edit" : "Preview"}
@@ -121,7 +121,7 @@ export default function TermsAndPoliciesPage() {
 
               <div className="mt-3">
                 {showPreview ? (
-                  <div className="rounded-2xl border border-black/10 bg-white p-5">
+                  <div className=" border border-black/10 bg-white p-5">
                     {localSettings.terms_content ? (
                       <MarkdownRenderer content={localSettings.terms_content} />
                     ) : (
@@ -143,7 +143,7 @@ export default function TermsAndPoliciesPage() {
                 <button
                   type="submit"
                   disabled={isLoading || isSaving}
-                  className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
+                  className=" bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
                 >
                   {isSaving ? "Saving..." : "Save"}
                 </button>

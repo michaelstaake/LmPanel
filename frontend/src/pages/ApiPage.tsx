@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import Modal from "../components/ui/Modal";
 import CodeEditor from "../components/ui/CodeEditor";
 import { apiDelete, apiGet, apiPost, fetchV1Models, type V1ModelEntry } from "../lib/api";
@@ -210,26 +210,26 @@ export default function ApiPage() {
 
   return (
     <section className="grid gap-4">
-      <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <h2 className="font-display text-2xl">API Keys</h2>
           </div>
-          <button className="rounded-xl border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => setIsCreateModalOpen(true)}>
+          <button className=" border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => setIsCreateModalOpen(true)}>
             Add API key
           </button>
         </div>
 
         <div className="mt-5 space-y-4">
             {apiKeys.map((apiKey) => (
-              <div key={apiKey.id} className="rounded-2xl border border-black/10 bg-[#fffdf7] p-4">
+              <div key={apiKey.id} className=" border border-black/10 bg-[#fffdf7] p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <h3 className="font-display text-lg text-black">{apiKey.name}</h3>
                     <p className="mt-1 text-xs uppercase tracking-[0.18em] text-black/45">{formatLastUsed(apiKey.last_used_at)}</p>
                   </div>
                   <button
-                    className="rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className=" border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                     type="button"
                     onClick={() => void handleRevokeApiKey(apiKey.id)}
                     disabled={revokingKeyId === apiKey.id}
@@ -239,9 +239,9 @@ export default function ApiPage() {
                 </div>
               </div>
             ))}
-            {isLoadingKeys ? <p className="rounded-2xl border border-black/10 bg-white px-4 py-6 text-sm text-black/60">Loading API keys...</p> : null}
+            {isLoadingKeys ? <p className=" border border-black/10 bg-white px-4 py-6 text-sm text-black/60">Loading API keys...</p> : null}
             {!isLoadingKeys && apiKeys.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-black/15 bg-sand/60 px-5 py-8 text-center">
+              <div className=" border border-dashed border-black/15 bg-sand/60 px-5 py-8 text-center">
                 <h3 className="font-display text-lg text-black">No API keys yet</h3>
                 <p className="mt-2 text-sm text-black/60">Create your first key to get started!</p>
               </div>
@@ -253,7 +253,7 @@ export default function ApiPage() {
         <article className="p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 id="api-key-create-title" className="font-display text-2xl">Add API key</h2>
-            <button className="rounded-xl border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={closeCreateModal}>
+            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={closeCreateModal}>
               Close
             </button>
           </div>
@@ -263,7 +263,7 @@ export default function ApiPage() {
               <label className="grid gap-2 text-sm text-black/70">
                 <span className="font-semibold text-black">Key name</span>
                 <input
-                  className="rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/25"
+                  className=" border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-black/25"
                   value={newKeyName}
                   onChange={(event) => setNewKeyName(event.target.value)}
                   placeholder="Desktop client"
@@ -273,7 +273,7 @@ export default function ApiPage() {
               </label>
               <div>
                 <button
-                  className="rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" bg-ink px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   type="submit"
                   disabled={isCreatingKey || !newKeyName.trim()}
                 >
@@ -283,11 +283,11 @@ export default function ApiPage() {
             </form>
           ) : (
             <div className="mt-5 grid gap-4">
-              <div className="break-all rounded-2xl bg-black px-4 py-3 font-mono text-sm text-white">
+              <div className="break-all  bg-black px-4 py-3 font-mono text-sm text-white">
                 {latestApiKey}
               </div>
               <div className="flex items-center gap-3">
-                <button className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white" type="button" onClick={() => void handleCopyLatestApiKey()}>
+                <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white" type="button" onClick={() => void handleCopyLatestApiKey()}>
                   Copy key
                 </button>
               </div>
@@ -296,25 +296,25 @@ export default function ApiPage() {
         </article>
       </Modal>
 
-      <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <h2 className="font-display text-2xl">API Documentation</h2>
         <div className="mt-5 space-y-6">
           <div>
             <h3 className="font-display text-lg text-black">Base URL</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="rounded-xl border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}</code>
+              <code className=" border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-black">Chat completions</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="rounded-xl border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}/v1/chat/completions</code>
+              <code className=" border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}/v1/chat/completions</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-black">List models</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="rounded-xl border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}/v1/models</code>
+              <code className=" border border-black/10 bg-[#fffdf7] px-3 py-2 text-sm font-mono text-black">{BASE_URL}/v1/models</code>
             </div>
           </div>
           <div>
@@ -326,7 +326,7 @@ export default function ApiPage() {
             ) : (
               <ul className="mt-2 space-y-2">
                 {v1Models.map((model) => (
-                  <li key={model.id} className="rounded-xl border border-black/10 bg-[#fffdf7] px-3 py-2">
+                  <li key={model.id} className=" border border-black/10 bg-[#fffdf7] px-3 py-2">
                     <span className="text-sm font-mono text-black">{model.id}</span>
                     {model.description && (
                       <span className="ml-2 text-xs text-black/45">- {model.description}</span>
@@ -339,7 +339,7 @@ export default function ApiPage() {
         </div>
       </article>
 
-      <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <h2 className="font-display text-2xl">OpenCode config</h2>
         <p className="mt-2 text-sm text-black/60">
           Use this in your OpenCode config file to connect to LmPanel's OpenAI-compatible endpoint. Adjust the models and settings as needed.

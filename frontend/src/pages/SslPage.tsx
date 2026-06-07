@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -137,7 +137,7 @@ export default function SslPage() {
           Obtain a trusted certificate from Let&apos;s Encrypt using Cloudflare DNS validation. Your homelab can keep custom HTTPS ports; validation does not require port 80 on LmPanel.
         </p>
 
-        <div className="mt-4 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4 text-sm text-black/70">
+        <div className="mt-4  border border-black/10 bg-[#fffdf7] px-4 py-4 text-sm text-black/70">
           <p className="font-semibold text-black">Prerequisites</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
@@ -154,7 +154,7 @@ export default function SslPage() {
         </div>
 
         <div className="mt-5 grid gap-3">
-          <div className="rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
             <div className="text-sm font-semibold text-black">Certificate status</div>
             {isLoading ? (
               <p className="mt-2 text-sm text-black/65">Loading...</p>
@@ -203,12 +203,12 @@ export default function SslPage() {
             )}
           </div>
 
-          <div className="grid gap-3 rounded-2xl border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="grid gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-black">Let&apos;s Encrypt account email</span>
               <input
                 type="email"
-                className="max-w-md rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={localEmail}
                 onChange={(e) => setLocalEmail(e.target.value)}
                 disabled={isLoading || isSavingSettings}
@@ -225,7 +225,7 @@ export default function SslPage() {
               </p>
               <input
                 type="password"
-                className="max-w-md rounded-xl border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
                 value={cloudflareToken}
                 onChange={(e) => setCloudflareToken(e.target.value)}
                 disabled={isLoading || isSavingSettings}
@@ -237,7 +237,7 @@ export default function SslPage() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => void saveSettings()}
                 disabled={isLoading || isSavingSettings}
               >
@@ -246,7 +246,7 @@ export default function SslPage() {
               {status?.cloudflare_api_token_set ? (
                 <button
                   type="button"
-                  className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void clearCloudflareToken()}
                   disabled={isLoading || isSavingSettings}
                 >
@@ -259,7 +259,7 @@ export default function SslPage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => void runCertificateAction("issue")}
               disabled={!canOperate}
               title={!status?.letsencrypt_available ? "Configure URL, email, and Cloudflare token first" : undefined}
@@ -268,7 +268,7 @@ export default function SslPage() {
             </button>
             <button
               type="button"
-              className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => void runCertificateAction("renew")}
               disabled={!canOperate}
               title={!status?.letsencrypt_available ? "Configure URL, email, and Cloudflare token first" : undefined}
