@@ -29,12 +29,16 @@ Ensure Docker is installed and running in the system context and is using the co
 
 ### Quick Start
 
-**1. Clone or download the repository.**
+**1. Download Latest Release**
 
-```bash
-git clone https://github.com/michaelstaake/LmPanel.git
-cd LmPanel
-```
+The current release version is the most stable flavor of LmPanel. Download the latest release from the [Releases page](https://github.com/michaelstaake/LmPanel/releases) and extract the archive.
+
+Alternately, you can clone the repository to get the latest development version. You'll get the latest improvements before they make it to the release version, but it may be unstable or buggy.
+
+> ```bash
+> git clone https://github.com/michaelstaake/LmPanel.git
+> cd LmPanel
+> ```
 
 **2. Copy environment file.**
 
