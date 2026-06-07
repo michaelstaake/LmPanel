@@ -601,7 +601,7 @@ export default function StatusPage() {
               <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
             {isTokenStatsOpen && (
-              <div className="mt-3 grid gap-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-4">
                 {tokenCards.map((card) => (
                   <div key={card.label} className={`rounded-2xl border border-black/10 bg-white/80 p-4 ${card.className || ""}`}>
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
