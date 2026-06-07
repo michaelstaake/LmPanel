@@ -228,8 +228,6 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
             )}
           </div>
           <p className="mt-1 text-sm text-black/65">
-            {device.device_type.toUpperCase()}
-          </p>
         </div>
       </div>
 
@@ -251,8 +249,7 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
 
           <div className="flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
-            <p className="mt-1 text-sm text-black/65">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
-            <p className="mt-0.5 text-lg font-display text-ink">{memoryPercent !== null ? `${memoryPercent.toFixed(1)}%` : "N/A"}</p>
+            <p className="mt-1 text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
           </div>
         </div>
 
