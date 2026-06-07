@@ -893,7 +893,7 @@ export default function ChatPage() {
   }
 
   return (
-    <section className={`grid gap-4 ${isSidebarOpen ? "xl:grid-cols-[280px_minmax(0,1fr)]" : "xl:grid-cols-[72px_minmax(0,1fr)]"}`}>
+    <section className={`grid gap-0 ${isSidebarOpen ? "xl:grid-cols-[280px_minmax(0,1fr)]" : "xl:grid-cols-[72px_minmax(0,1fr)]"}`}>
       <aside
         className={` border border-black/10 bg-white/80 shadow-sm transition-all ${
           isSidebarOpen ? "hidden p-4 xl:block" : "hidden p-3 xl:block"
