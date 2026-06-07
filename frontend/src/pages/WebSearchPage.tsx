@@ -140,7 +140,7 @@ export default function WebSearchPage() {
   return (
     <SettingsLayout title="Web Search">
       <div className="grid gap-4">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="mt-2 font-display text-xl">Web Search</h2>

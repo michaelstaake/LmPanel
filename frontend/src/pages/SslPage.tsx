@@ -131,7 +131,7 @@ export default function SslPage() {
   return (
     <SettingsLayout title="SSL">
       <section className="grid gap-4">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
         <h2 className="font-display text-xl">SSL</h2>
         <p className="mt-2 text-sm text-black/65">
           Obtain a trusted certificate from Let&apos;s Encrypt using Cloudflare DNS validation. Your homelab can keep custom HTTPS ports; validation does not require port 80 on LmPanel.

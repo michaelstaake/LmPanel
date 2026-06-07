@@ -356,7 +356,7 @@ export default function LogsPage() {
     <SettingsLayout title="Logs">
       <div className="grid gap-4">
       {/* Tab switcher */}
-      <div className="flex gap-1 rounded-2xl border border-black/10 bg-white/80 p-1.5 shadow-sm backdrop-blur w-fit">
+      <div className="flex gap-1 rounded-2xl p-1.5 w-fit">
         <button
           type="button"
           onClick={() => setActiveTab("activity")}

@@ -76,7 +76,7 @@ export default function TermsAndPoliciesPage() {
     <SettingsLayout title="Terms and Policies">
       <form onSubmit={handleSave}>
         <section className="grid gap-4">
-        <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <article>
           <h2 className="font-display text-xl">Terms and Policies</h2>
           <p className="mt-1 text-sm text-black/65">
             When enabled, users will be prompted to accept the terms and policies before accessing the web interface.

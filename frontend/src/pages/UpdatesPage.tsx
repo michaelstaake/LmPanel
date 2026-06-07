@@ -117,7 +117,7 @@ export default function UpdatesPage() {
 
   return (
     <SettingsLayout title="Updates">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
         <h2 className="font-display text-xl">Update check</h2>
 
         <div className="mt-5 grid gap-3">

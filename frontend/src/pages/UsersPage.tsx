@@ -306,7 +306,7 @@ export default function UsersPage() {
   return (
     <SettingsLayout title="Users">
       <section className="grid gap-4">
-      <article className="rounded-3xl border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl">Users</h2>

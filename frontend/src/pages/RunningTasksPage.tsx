@@ -134,7 +134,7 @@ export default function RunningTasksPage() {
   return (
     <SettingsLayout title="Running Tasks">
       <div className="grid gap-4">
-      <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur">
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-black/80">Running tasks</h2>

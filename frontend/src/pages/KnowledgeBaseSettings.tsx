@@ -64,7 +64,7 @@ export default function KnowledgeBaseSettings() {
 
   return (
     <SettingsLayout title="Knowledge Base">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg">Knowledge Base</h2>

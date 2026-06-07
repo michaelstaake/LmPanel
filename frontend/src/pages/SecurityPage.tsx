@@ -144,7 +144,7 @@ export default function SecurityPage() {
   return (
     <SettingsLayout title="Security">
       <section className="grid gap-4">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
         <h2 className="font-display text-xl">Security</h2>
 
         <div className="mt-5 grid gap-3">

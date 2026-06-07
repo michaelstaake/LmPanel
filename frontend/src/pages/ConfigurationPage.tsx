@@ -292,7 +292,7 @@ export default function ConfigurationPage() {
   return (
     <SettingsLayout title="Configuration">
       <section className="grid gap-4">
-      <article className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article>
         <h2 className="font-display text-xl">Configuration</h2>
 
         <div className="mt-5 grid gap-3">
