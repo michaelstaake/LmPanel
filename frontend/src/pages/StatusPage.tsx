@@ -221,75 +221,40 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
+            <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
             <h3 className="font-display text-xl text-ink">{device.name}</h3>
             {isPooled && (
               <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
             )}
           </div>
-          <p className="mt-2 text-sm text-black/65">
-            {device.device_type.toUpperCase()} {device.display_suffix}
+          <p className="mt-1 text-sm text-black/65">
+            {device.device_type.toUpperCase()}
           </p>
- 
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4">
-        {!isCpuDevice && (
-          <section className=" border border-black/10 bg-[#f3efe2] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
-                <p className="mt-1 text-sm text-black/65">{hasGpuUsage ? formatWholePercent(gpuUsagePercent) : "N/A"}</p>
-              </div>
-              <p className="font-display text-2xl text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
+      <div className="mt-4 grid gap-3">
+        <div className="flex gap-4">
+          {!isCpuDevice && (
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
+              <p className="mt-1 text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
             </div>
-            <div className="mt-4 h-4 overflow-hidden  bg-black/10">
-              {hasGpuUsage ? (
-                <div className="h-full  bg-black" style={{ width: `${gpuUsagePercent}%` }} />
-              ) : (
-                <div className="h-full  bg-black/25" title="GPU usage unavailable" />
-              )}
-            </div>
-          </section>
-        )}
+          )}
 
-        {isCpuDevice && hasCpuUsage && (
-          <section className=" border border-black/10 bg-[#f3efe2] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
-                <p className="mt-1 text-sm text-black/65">{formatWholePercent(cpuUsagePercent)}</p>
-              </div>
-              <p className="font-display text-2xl text-ink">{formatWholePercent(cpuUsagePercent)}</p>
+          {isCpuDevice && hasCpuUsage && (
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
+              <p className="mt-1 text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
             </div>
-            <div className="mt-4 h-4 overflow-hidden  bg-black/10">
-              <div className="h-full  bg-black" style={{ width: `${cpuUsagePercent}%` }} />
-            </div>
-          </section>
-        )}
+          )}
 
-        <section className=" border border-black/10 bg-[#f3efe2] p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
-              <p className="mt-1 text-sm text-black/65">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
-            </div>
-            <p className="font-display text-2xl text-ink">{memoryPercent !== null ? `${memoryPercent.toFixed(1)}%` : "N/A"}</p>
+          <div className="flex-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
+            <p className="mt-1 text-sm text-black/65">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
+            <p className="mt-0.5 text-lg font-display text-ink">{memoryPercent !== null ? `${memoryPercent.toFixed(1)}%` : "N/A"}</p>
           </div>
-          <div className="mt-4 flex h-4 overflow-hidden  bg-black/10">
-            {memoryPercent !== null ? memoryBarSegments.map((segment, index) => (
-              <div
-                key={segment.key}
-                className={`h-full ${memoryBarSegments.length === 1 ? "" : index === 0 ? "-l-full" : index === memoryBarSegments.length - 1 ? "-r-full" : ""}`}
-                style={{
-                  width: `${segment.width}%`,
-                  backgroundColor: segment.backgroundColor,
-                }}
-                title={segment.title}
-              />
-            )) : <div className="h-full w-full  bg-black/25" title="Memory capacity unavailable" />}
-          </div>
-        </section>
+        </div>
 
         {device.models.length > 0 && (
           <div className="space-y-2">
