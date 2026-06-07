@@ -179,7 +179,7 @@ function getSystemHealth(activeModels: number, memoryUsagePercent: number | null
   };
 }
 
-function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: DeviceStatusRecord; poolName: string | null; modelColors: Map<number, string>; isAdmin: boolean }) {
+function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRecord; poolName: string | null; modelColors: Map<number, string> }) {
   const isCpuDevice = device.device_type.toLowerCase() === "cpu" || device.vendor.toLowerCase() === "cpu";
   const isPooled = poolName !== null;
   const gpuUsagePercent = clampPercent(device.gpu_usage_percent);
@@ -253,10 +253,9 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
         {device.models.length > 0 && (
           <div className="space-y-2">
             {device.models.map((model) => (
-              <div key={`${device.id}-legend-${model.model_id}`} className="flex flex-wrap items-center gap-1.5">
+              <div key={`${device.id}-legend-${model.model_id}`} className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 shrink-0 " style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
                 <span className="text-sm font-semibold text-ink">{model.alias}</span>
-                {isAdmin && <span className="mt-0.5 block w-fit text-xs text-black/50">{model.file_name}</span>}
               </div>
             ))}
           </div>
@@ -642,7 +641,7 @@ export default function StatusPage() {
         <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading...</div>
       ) : visibleDevices.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} isAdmin={user?.is_admin ?? false} />)}
+          {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} />)}
         </div>
       ) : (
         <div className=" border border-dashed border-black/15 bg-white/60 px-4 py-8 text-sm text-black/55 shadow-sm">No ready devices are available.</div>
