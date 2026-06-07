@@ -85,133 +85,71 @@ def _set_upload_job_error(task_id: str, error: str) -> None:
     task_manager.fail_task(task_id, error)
 
 
-def _set_upload_job_cancelled(task_id: str) -> None:
-    task_manager.mark_cancelled(task_id)
+def _estimate_upload_total_bytes(uploads: list[UploadFile]) -> int | None:
+    total = 0
+    for upload in uploads:
+        size = upload.size
+        if size is None:
+            return None
+        total += size
+    return total if total > 0 else None
 
 
-async def _run_upload_job(
-    task_id: str,
-    file_payloads: list[tuple[str, bytes]],
-    primary_file_name: str,
-    model_dir_name: str,
-    model_dir: Path,
-    max_bytes: int,
-) -> None:
-    db = SessionLocal()
-    total_bytes = sum(len(content) for _, content in file_payloads)
-    written = 0
-
-    try:
-        model_dir.mkdir(parents=True, exist_ok=False)
-        for file_name, file_content in file_payloads:
-            destination = model_dir / file_name
-            offset = 0
-            with destination.open("wb") as output:
-                while offset < len(file_content):
-                    chunk = file_content[offset:offset + UPLOAD_CHUNK_BYTES]
-                    offset += len(chunk)
-                    written += len(chunk)
-                    if written > max_bytes:
-                        _remove_model_dir(model_dir)
-                        _set_upload_job_error(task_id, f"Uploaded file exceeds the {get_settings().max_upload_size_mb} MB limit")
-                        return
-                    output.write(chunk)
-                    task_manager.update_task(
-                        task_id,
-                        progress=min(1.0, written / total_bytes) if total_bytes > 0 else 0.0,
-                    )
-    except asyncio.CancelledError:
-        _remove_model_dir(model_dir)
-        _set_upload_job_cancelled(task_id)
-        raise
-    except OSError as exc:
-        _remove_model_dir(model_dir)
-        _set_upload_job_error(task_id, f"Failed to store uploaded model: {exc}")
-        return
-
-    primary_destination = model_dir / primary_file_name
-    try:
-        model = ModelConfig(
-            priority=_next_model_priority(db),
-            file_name=primary_file_name,
-            model_dir_name=model_dir_name,
-            file_path=str(primary_destination.resolve()),
-            alias=_build_unique_alias(db, strip_shard_suffix(primary_file_name)),
-            context_length=get_settings().default_context_length,
-            gpu_layers=get_settings().default_gpu_layers,
-            threads=get_settings().default_threads,
-            temperature=get_settings().default_temperature,
-            top_p=get_settings().default_top_p,
-            top_k=get_settings().default_top_k,
-            presence_penalty=get_settings().default_presence_penalty,
-            repetition_penalty=get_settings().default_repetition_penalty,
-            mmproj_file_name=_detect_mmproj_file_name(model_dir, primary_file_name),
-        )
-        try:
-            db.add(model)
-            db.commit()
-            db.refresh(model)
-        except SQLAlchemyError:
-            db.rollback()
-            _remove_model_dir(model_dir)
-            _set_upload_job_error(task_id, "Uploaded model could not be registered")
-            return
-
-        task_manager.complete_task(task_id)
-        log_event(
-            db,
-            "model.uploaded",
-            details={"file_name": primary_file_name, "alias": model.alias, "files": [name for name, _ in file_payloads]},
-        )
-    finally:
-        db.close()
+def _upload_progress(written: int, total: int | None) -> float:
+    if not total:
+        return 0.0
+    return min(1.0, written / total)
 
 
-async def _store_uploaded_model(
+async def _stream_upload_file(
     upload: UploadFile,
-    db: Session,
-    file_name: str,
-    model_dir_name: str,
-    model_dir: Path,
     destination: Path,
     max_bytes: int,
-) -> ModelConfig:
+    bytes_already_written: int,
+    total_bytes: int | None,
+    task_id: str,
+) -> int:
     settings = get_settings()
     written = 0
-
     try:
-        model_dir.mkdir(parents=True, exist_ok=False)
         with destination.open("wb") as output:
             while True:
                 chunk = await upload.read(UPLOAD_CHUNK_BYTES)
                 if not chunk:
                     break
                 written += len(chunk)
-                if written > max_bytes:
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"Uploaded file exceeds the {settings.max_upload_size_mb} MB limit",
+                if bytes_already_written + written > max_bytes:
+                    raise ValueError(
+                        f"Uploaded file exceeds the {settings.max_upload_size_mb} MB limit",
                     )
                 output.write(chunk)
-    except HTTPException:
-        _remove_model_dir(model_dir)
-        raise
-    except OSError as exc:
-        _remove_model_dir(model_dir)
-        raise HTTPException(status_code=500, detail="Failed to store uploaded model") from exc
+                task_manager.update_task(
+                    task_id,
+                    progress=_upload_progress(bytes_already_written + written, total_bytes),
+                )
     finally:
         await upload.close()
 
     if written == 0:
-        _remove_model_dir(model_dir)
-        raise HTTPException(status_code=400, detail="Uploaded file was empty")
+        raise ValueError("Uploaded file was empty")
+    return written
 
+
+def _register_uploaded_model(
+    db: Session,
+    primary_file_name: str,
+    model_dir_name: str,
+    model_dir: Path,
+    uploaded_file_names: list[str],
+) -> ModelConfig:
+    settings = get_settings()
+    primary_destination = model_dir / primary_file_name
     model = ModelConfig(
         priority=_next_model_priority(db),
-        file_name=file_name,
+        file_name=primary_file_name,
         model_dir_name=model_dir_name,
-        file_path=str(destination.resolve()),
-        alias=_build_unique_alias(db, Path(file_name).stem),
+        file_path=str(primary_destination.resolve()),
+        alias=_build_unique_alias(db, strip_shard_suffix(primary_file_name)),
         context_length=settings.default_context_length,
         gpu_layers=settings.default_gpu_layers,
         threads=settings.default_threads,
@@ -220,7 +158,7 @@ async def _store_uploaded_model(
         top_k=settings.default_top_k,
         presence_penalty=settings.default_presence_penalty,
         repetition_penalty=settings.default_repetition_penalty,
-        mmproj_file_name=_detect_mmproj_file_name(model_dir, file_name),
+        mmproj_file_name=_detect_mmproj_file_name(model_dir, primary_file_name),
     )
     try:
         db.add(model)
@@ -228,10 +166,13 @@ async def _store_uploaded_model(
         db.refresh(model)
     except SQLAlchemyError as exc:
         db.rollback()
-        _remove_model_dir(model_dir)
         raise HTTPException(status_code=500, detail="Uploaded model could not be registered") from exc
 
-    log_event(db, "model.uploaded", details={"file_name": file_name, "alias": model.alias})
+    log_event(
+        db,
+        "model.uploaded",
+        details={"file_name": primary_file_name, "alias": model.alias, "files": uploaded_file_names},
+    )
     return model
 
 
@@ -421,35 +362,65 @@ async def upload_model(
             raise HTTPException(status_code=409, detail=f"A model file named {upload_name} already exists")
 
     max_bytes = max(1, settings.max_upload_size_mb) * 1024 * 1024
-    file_payloads: list[tuple[str, bytes]] = []
-    for upload, upload_name in zip(uploads, normalized_names, strict=True):
-        file_content = await upload.read()
-        await upload.close()
-        file_payloads.append((upload_name, file_content))
-
     upload_task_id = str(uuid.uuid4())
     upload_description = (
         f"Uploading model: {primary_file_name}"
-        if len(file_payloads) == 1
-        else f"Uploading sharded model: {primary_file_name} ({len(file_payloads)} files)"
-    )
-    upload_task = asyncio.create_task(
-        _run_upload_job(
-            upload_task_id,
-            file_payloads,
-            primary_file_name,
-            model_dir_name,
-            model_dir,
-            max_bytes,
-        )
+        if len(uploads) == 1
+        else f"Uploading sharded model: {primary_file_name} ({len(uploads)} files)"
     )
     task_manager.add_task(
         task_id=upload_task_id,
         task_type="model_upload",
         description=upload_description,
-        async_task=upload_task,
         metadata={"file_name": primary_file_name, "files": normalized_names},
     )
+
+    total_bytes = _estimate_upload_total_bytes(uploads)
+    written = 0
+
+    try:
+        model_dir.mkdir(parents=True, exist_ok=False)
+        for upload, upload_name in zip(uploads, normalized_names, strict=True):
+            destination = model_dir / upload_name
+            file_written = await _stream_upload_file(
+                upload,
+                destination,
+                max_bytes,
+                written,
+                total_bytes,
+                upload_task_id,
+            )
+            written += file_written
+    except ValueError as exc:
+        _remove_model_dir(model_dir)
+        _set_upload_job_error(upload_task_id, str(exc))
+        status_code = 413 if "exceeds" in str(exc) else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+    except OSError as exc:
+        _remove_model_dir(model_dir)
+        error = f"Failed to store uploaded model: {exc}"
+        _set_upload_job_error(upload_task_id, error)
+        raise HTTPException(status_code=500, detail=error) from exc
+
+    try:
+        _register_uploaded_model(
+            db,
+            primary_file_name,
+            model_dir_name,
+            model_dir,
+            normalized_names,
+        )
+    except HTTPException as exc:
+        _remove_model_dir(model_dir)
+        _set_upload_job_error(upload_task_id, str(exc.detail))
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        _remove_model_dir(model_dir)
+        _set_upload_job_error(upload_task_id, "Uploaded model could not be registered")
+        raise HTTPException(status_code=500, detail="Uploaded model could not be registered")
+
+    task_manager.complete_task(upload_task_id)
     return {"status": "ok", "task_id": upload_task_id}
 
 

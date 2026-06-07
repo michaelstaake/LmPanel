@@ -220,13 +220,16 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
   }, []);
 
   const transitionToProcessing = useCallback(() => {
-    const title = state.uploadMode === "files" ? "Processing files" : "Processing model...";
+    const title = state.uploadMode === "files" ? "Processing files" : "Finishing upload...";
+    const detail = state.uploadMode === "files"
+      ? "Saving uploaded files to the server."
+      : "Saving the model to the server.";
     showInfo(title, {
       id: "models-upload-info",
       content: (
         <div className="flex flex-col gap-2">
           <p className="font-semibold">{title}</p>
-          <p className="text-sm text-blue-700/80">This could take quite a long time, please be patient.</p>
+          <p className="text-sm text-blue-700/80">{detail}</p>
           {state.uploadFileName ? (
             <div className="flex items-center gap-2 text-xs text-blue-700/70">
               <svg className="h-3.5 w-3.5 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -434,11 +437,14 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
       ? Math.round((elapsedSeconds / percent) * (100 - percent))
       : null;
     const title = state.uploadMode === "files" ? "Uploading files" : "Uploading model";
-    const processingTitle = state.uploadMode === "files" ? "Processing files" : "Processing model...";
+    const processingTitle = state.uploadMode === "files" ? "Processing files" : "Finishing upload...";
+    const processingDetail = state.uploadMode === "files"
+      ? "Saving uploaded files to the server."
+      : "Saving the model to the server.";
     const progressContent = isUploadBytesComplete ? (
       <div className="flex flex-col gap-2">
         <p className="font-semibold">{processingTitle}</p>
-        <p className="text-sm text-blue-700/80">This could take quite a long time, please be patient.</p>
+        <p className="text-sm text-blue-700/80">{processingDetail}</p>
         {state.uploadFileName ? (
           <div className="flex items-center gap-2 text-xs text-blue-700/70">
             <svg className="h-3.5 w-3.5 animate-spin text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
