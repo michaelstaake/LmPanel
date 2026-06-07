@@ -230,22 +230,22 @@ function DeviceCard({ device, poolName, modelColors, isAdmin }: { device: Device
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3">
-        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-          {!isCpuDevice && (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
-              <p className="text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
-            </>
-          )}
+      <div className="mt-4 space-y-3">
+        {!isCpuDevice && (
+          <div className="flex items-baseline justify-between border-b border-black/5 pb-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
+            <p className="text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
+          </div>
+        )}
 
-          {isCpuDevice && hasCpuUsage && (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
-              <p className="text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
-            </>
-          )}
+        {isCpuDevice && hasCpuUsage && (
+          <div className="flex items-baseline justify-between border-b border-black/5 pb-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
+            <p className="text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
+          </div>
+        )}
 
+        <div className="flex items-baseline justify-between border-b border-black/5 pb-1">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
           <p className="text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
         </div>
