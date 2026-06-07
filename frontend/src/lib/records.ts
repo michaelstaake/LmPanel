@@ -111,6 +111,9 @@ export type ModelRecord = {
   flash_attention_enabled: boolean;
   memory_mapping_enabled: boolean;
   mmproj_file_name: string | null;
+  shard_count: number | null;
+  shards_complete: boolean;
+  missing_shards: string[];
   assignment_mode: string;
   pinned_device_id: number | null;
   pinned_pool_id: number | null;

@@ -19,6 +19,15 @@ from app.core.config import get_settings
 from app.core.db import SessionLocal, get_db
 from app.core.device_manager import is_supported_vendor
 from app.core.gguf import read_gguf_max_context_length
+from app.core.gguf_shards import (
+    collect_shard_files,
+    iter_model_gguf_files,
+    parse_gguf_shard_name,
+    resolve_primary_shard,
+    strip_shard_suffix,
+    validate_shard_set,
+    validate_upload_shard_set,
+)
 from app.core.gpu_pool_manager import get_pooled_device_ids, is_pooled_device
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
 from app.models.device import Device
@@ -82,30 +91,35 @@ def _set_upload_job_cancelled(task_id: str) -> None:
 
 async def _run_upload_job(
     task_id: str,
-    file_content: bytes,
-    file_name: str,
+    file_payloads: list[tuple[str, bytes]],
+    primary_file_name: str,
     model_dir_name: str,
     model_dir: Path,
-    destination: Path,
     max_bytes: int,
 ) -> None:
     db = SessionLocal()
+    total_bytes = sum(len(content) for _, content in file_payloads)
     written = 0
-    offset = 0
 
     try:
         model_dir.mkdir(parents=True, exist_ok=False)
-        with destination.open("wb") as output:
-            while offset < len(file_content):
-                chunk = file_content[offset:offset + UPLOAD_CHUNK_BYTES]
-                offset += len(chunk)
-                written += len(chunk)
-                if written > max_bytes:
-                    _remove_model_dir(model_dir)
-                    _set_upload_job_error(task_id, f"Uploaded file exceeds the {get_settings().max_upload_size_mb} MB limit")
-                    return
-                output.write(chunk)
-                task_manager.update_task(task_id, progress=min(1.0, written / max_bytes))
+        for file_name, file_content in file_payloads:
+            destination = model_dir / file_name
+            offset = 0
+            with destination.open("wb") as output:
+                while offset < len(file_content):
+                    chunk = file_content[offset:offset + UPLOAD_CHUNK_BYTES]
+                    offset += len(chunk)
+                    written += len(chunk)
+                    if written > max_bytes:
+                        _remove_model_dir(model_dir)
+                        _set_upload_job_error(task_id, f"Uploaded file exceeds the {get_settings().max_upload_size_mb} MB limit")
+                        return
+                    output.write(chunk)
+                    task_manager.update_task(
+                        task_id,
+                        progress=min(1.0, written / total_bytes) if total_bytes > 0 else 0.0,
+                    )
     except asyncio.CancelledError:
         _remove_model_dir(model_dir)
         _set_upload_job_cancelled(task_id)
@@ -115,13 +129,14 @@ async def _run_upload_job(
         _set_upload_job_error(task_id, f"Failed to store uploaded model: {exc}")
         return
 
+    primary_destination = model_dir / primary_file_name
     try:
         model = ModelConfig(
             priority=_next_model_priority(db),
-            file_name=file_name,
+            file_name=primary_file_name,
             model_dir_name=model_dir_name,
-            file_path=str(destination.resolve()),
-            alias=_build_unique_alias(db, Path(file_name).stem),
+            file_path=str(primary_destination.resolve()),
+            alias=_build_unique_alias(db, strip_shard_suffix(primary_file_name)),
             context_length=get_settings().default_context_length,
             gpu_layers=get_settings().default_gpu_layers,
             threads=get_settings().default_threads,
@@ -130,20 +145,24 @@ async def _run_upload_job(
             top_k=get_settings().default_top_k,
             presence_penalty=get_settings().default_presence_penalty,
             repetition_penalty=get_settings().default_repetition_penalty,
-            mmproj_file_name=_detect_mmproj_file_name(model_dir, file_name),
+            mmproj_file_name=_detect_mmproj_file_name(model_dir, primary_file_name),
         )
         try:
             db.add(model)
             db.commit()
             db.refresh(model)
-        except SQLAlchemyError as exc:
+        except SQLAlchemyError:
             db.rollback()
             _remove_model_dir(model_dir)
             _set_upload_job_error(task_id, "Uploaded model could not be registered")
             return
 
         task_manager.complete_task(task_id)
-        log_event(db, "model.uploaded", details={"file_name": file_name, "alias": model.alias})
+        log_event(
+            db,
+            "model.uploaded",
+            details={"file_name": primary_file_name, "alias": model.alias, "files": [name for name, _ in file_payloads]},
+        )
     finally:
         db.close()
 
@@ -332,7 +351,7 @@ def scan_models_dir(db: Session) -> tuple[int, int]:
             file_name=file_name,
             model_dir_name=model_dir_name,
             file_path=str(file_path.resolve()),
-            alias=_build_unique_alias(db, os.path.splitext(file_name)[0]),
+            alias=_build_unique_alias(db, strip_shard_suffix(file_name)),
             context_length=settings.default_context_length,
             gpu_layers=settings.default_gpu_layers,
             threads=settings.default_threads,
@@ -370,50 +389,66 @@ def reorder_models(payload: ModelReorderRequest, _: User = Depends(get_admin_use
 
 @router.post("/upload")
 async def upload_model(
-    file: UploadFile = File(...),
+    file: UploadFile | None = File(None),
+    files: list[UploadFile] | None = File(None),
     _: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    file_name = Path(file.filename or "").name
-    if not file_name:
+    uploads = list(files or [])
+    if file is not None:
+        uploads.insert(0, file)
+    if not uploads:
+        raise HTTPException(status_code=400, detail="No files were provided")
+
+    upload_names = [Path(upload.filename or "").name for upload in uploads]
+    if any(not name for name in upload_names):
         raise HTTPException(status_code=400, detail="Missing file name")
-    if Path(file_name).suffix.lower() != ".gguf":
-        raise HTTPException(status_code=400, detail="Only .gguf model files are supported")
+
+    try:
+        primary_file_name, normalized_names = validate_upload_shard_set(upload_names)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     settings = get_settings()
     models_dir = Path(settings.models_dir)
     models_dir.mkdir(parents=True, exist_ok=True)
-    model_dir_name = _build_unique_model_dir_name(db, Path(file_name).stem)
+    model_dir_name = _build_unique_model_dir_name(db, strip_shard_suffix(primary_file_name))
     model_dir = models_dir / model_dir_name
-    destination = model_dir / file_name
 
-    existing_model = db.query(ModelConfig).filter(ModelConfig.file_name == file_name).first()
-    if existing_model or destination.exists():
-        raise HTTPException(status_code=409, detail="A model with that file name already exists")
+    for upload_name in normalized_names:
+        existing_model = db.query(ModelConfig).filter(ModelConfig.file_name == upload_name).first()
+        if existing_model or (model_dir / upload_name).exists():
+            raise HTTPException(status_code=409, detail=f"A model file named {upload_name} already exists")
 
     max_bytes = max(1, settings.max_upload_size_mb) * 1024 * 1024
-
-    file_content = await file.read()
-    await file.seek(0)
+    file_payloads: list[tuple[str, bytes]] = []
+    for upload, upload_name in zip(uploads, normalized_names, strict=True):
+        file_content = await upload.read()
+        await upload.close()
+        file_payloads.append((upload_name, file_content))
 
     upload_task_id = str(uuid.uuid4())
+    upload_description = (
+        f"Uploading model: {primary_file_name}"
+        if len(file_payloads) == 1
+        else f"Uploading sharded model: {primary_file_name} ({len(file_payloads)} files)"
+    )
     upload_task = asyncio.create_task(
         _run_upload_job(
             upload_task_id,
-            file_content,
-            file_name,
+            file_payloads,
+            primary_file_name,
             model_dir_name,
             model_dir,
-            destination,
             max_bytes,
         )
     )
     task_manager.add_task(
         task_id=upload_task_id,
         task_type="model_upload",
-        description=f"Uploading model: {file_name}",
+        description=upload_description,
         async_task=upload_task,
-        metadata={"file_name": file_name},
+        metadata={"file_name": primary_file_name, "files": normalized_names},
     )
     return {"status": "ok", "task_id": upload_task_id}
 
@@ -698,6 +733,7 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
         invalidate_v1_models_cache()
 
         _ensure_model_vision_assets(model)
+        _ensure_model_shard_assets(model)
 
         resolution = await _resolve_device_for_model(db, model, inference)
         if resolution is None:
@@ -729,6 +765,7 @@ async def activate_model(model_id: int, _: User = Depends(get_admin_user), db: S
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
     _ensure_model_vision_assets(model)
+    _ensure_model_shard_assets(model)
 
     resolution = await _resolve_device_for_model(db, model, inference)
     if resolution is None:
@@ -808,7 +845,7 @@ def delete_model(model_id: int, _: User = Depends(get_admin_user), db: Session =
 
 async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: InferenceManager) -> Device | PoolActivationTarget | None:
     supported_vendors = [vendor for vendor in ["cpu", "nvidia", "vulkan", "rocm"] if is_supported_vendor(vendor)]
-    model_size_mb = _estimate_model_size_mb(model.file_path)
+    model_size_mb = _estimate_model_size_mb(model)
     memory_metrics = await inference.get_device_memory_mb()
 
     # POOL mode — model is pinned to the GPU pool
@@ -1006,9 +1043,21 @@ def _build_pool_target(db: Session, pool: GpuPool, require_enabled: bool) -> Poo
     return PoolActivationTarget(pool_id=pool.id, pool_name=pool.name, vendor=pool.vendor, devices=pool_devices, split_mode=pool.split_mode)
 
 
-def _estimate_model_size_mb(file_path: str) -> int:
+def _estimate_model_size_mb(model: ModelConfig) -> int:
+    model_dir = _model_directory_path(model)
+    shard_paths = collect_shard_files(model_dir, model.file_name)
+    if len(shard_paths) > 1 or parse_gguf_shard_name(model.file_name) is not None:
+        total_bytes = 0
+        for path in shard_paths:
+            try:
+                total_bytes += path.stat().st_size
+            except OSError:
+                continue
+        if total_bytes > 0:
+            return int(total_bytes / (1024 * 1024))
+
     try:
-        return int(os.path.getsize(file_path) / (1024 * 1024))
+        return int(os.path.getsize(model.file_path) / (1024 * 1024))
     except OSError:
         return 0
 
@@ -1039,6 +1088,7 @@ def _serialize_model(model: ModelConfig) -> dict:
         file_size = None
     max_context_length = read_gguf_max_context_length(model.file_path)
     directory_files, directory_size = _list_model_directory_files(model)
+    shard_validation = validate_shard_set(_model_directory_path(model), model.file_name)
     return {
         "id": model.id,
         "priority": model.priority,
@@ -1069,6 +1119,9 @@ def _serialize_model(model: ModelConfig) -> dict:
         "flash_attention_enabled": model.flash_attention_enabled,
         "memory_mapping_enabled": model.memory_mapping_enabled,
         "mmproj_file_name": model.mmproj_file_name,
+        "shard_count": shard_validation.total_shards,
+        "shards_complete": shard_validation.is_complete,
+        "missing_shards": shard_validation.missing_names,
         "directory_files": directory_files,
         "directory_size": directory_size,
         "assignment_mode": model.assignment_mode,
@@ -1083,13 +1136,13 @@ def _iter_model_files(models_dir: Path) -> list[tuple[str, str, Path]]:
     for child in sorted(models_dir.iterdir(), key=lambda item: item.name.lower()):
         if not child.is_dir():
             continue
-        gguf_files = sorted(
-            (entry for entry in child.iterdir() if entry.is_file() and entry.suffix.lower() == ".gguf" and "mmproj" not in entry.name.lower()),
-            key=lambda item: item.name.lower(),
-        )
+        gguf_files = iter_model_gguf_files(child)
         if not gguf_files:
             continue
-        discovered.append((child.name, gguf_files[0].name, gguf_files[0]))
+        primary = resolve_primary_shard(gguf_files)
+        if primary is None:
+            continue
+        discovered.append((child.name, primary.name, primary))
     return discovered
 
 
@@ -1137,6 +1190,13 @@ def _is_allowed_asset_file(file_name: str) -> bool:
 def _ensure_model_vision_assets(model: ModelConfig) -> None:
     if model.vision_enabled and not model.mmproj_file_name:
         raise HTTPException(status_code=409, detail="Vision-enabled models require an mmproj file in the model directory")
+
+
+def _ensure_model_shard_assets(model: ModelConfig) -> None:
+    validation = validate_shard_set(_model_directory_path(model), model.file_name)
+    if validation.total_shards and not validation.is_complete:
+        missing = ", ".join(validation.missing_names)
+        raise HTTPException(status_code=409, detail=f"Incomplete sharded model; missing: {missing}")
 
 
 def _build_unique_alias(db: Session, base_alias: str) -> str:

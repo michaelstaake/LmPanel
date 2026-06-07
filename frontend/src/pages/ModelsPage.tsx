@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useBackgroundProgress } from "../context/BackgroundProgressContext";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
+import { formatShardStatus, validateModelUploadFiles } from "../lib/ggufShards";
 import { AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
 import Modal from "../components/ui/Modal";
 
@@ -319,6 +320,9 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         directory_files: currentModel.directory_files,
         directory_size: currentModel.directory_size,
         mmproj_file_name: currentModel.mmproj_file_name,
+        shard_count: currentModel.shard_count,
+        shards_complete: currentModel.shards_complete,
+        missing_shards: currentModel.missing_shards,
       };
     });
   }, [models, settingsModelId]);
@@ -377,17 +381,15 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         mmproj_file_name: model.mmproj_file_name,
         directory_files: model.directory_files,
         directory_size: model.directory_size,
+        shard_count: model.shard_count,
+        shards_complete: model.shards_complete,
+        missing_shards: model.missing_shards,
       };
     });
   }
 
   function handleUploadSelection(fileList: FileList | null) {
-    const nextFiles = Array.from(fileList ?? []);
-    if (uploadMode === "model") {
-      setSelectedUploadFiles(nextFiles.slice(0, 1));
-      return;
-    }
-    setSelectedUploadFiles(nextFiles);
+    setSelectedUploadFiles(Array.from(fileList ?? []));
   }
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
@@ -406,10 +408,22 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       return;
     }
 
-    const formData = new FormData();
-    const filesToUpload = uploadMode === "model" ? selectedUploadFiles.slice(0, 1) : selectedUploadFiles;
+    const filesToUpload = selectedUploadFiles;
     if (uploadMode === "model") {
-      formData.append("file", filesToUpload[0]);
+      const validationError = validateModelUploadFiles(filesToUpload.map((file) => file.name));
+      if (validationError) {
+        showError(validationError, { id: "models-error" });
+        return;
+      }
+    }
+
+    const formData = new FormData();
+    if (uploadMode === "model") {
+      if (filesToUpload.length === 1) {
+        formData.append("file", filesToUpload[0]);
+      } else {
+        filesToUpload.forEach((file) => formData.append("files", file));
+      }
     } else {
       filesToUpload.forEach((file) => formData.append("files", file));
     }
@@ -445,7 +459,12 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
           if (taskResult.status === "error") {
             showError(taskResult.error ?? "Upload processing failed", { id: "models-error" });
           } else {
-            showSuccess(`Uploaded ${filesToUpload[0]?.name}.`, { id: "models-success" });
+            showSuccess(
+              filesToUpload.length === 1
+                ? `Uploaded ${filesToUpload[0]?.name}.`
+                : `Uploaded ${filesToUpload.length} shard files for ${filesToUpload[0]?.name}.`,
+              { id: "models-success" },
+            );
             await refreshData(token);
           }
         } catch (pollError) {
@@ -940,6 +959,17 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
             <div className="mt-5 grid gap-5">
               <section>
+                {formatShardStatus(modalDraft.shard_count, modalDraft.shards_complete, modalDraft.missing_shards) ? (
+                  <div
+                    className={`mb-3 border px-3 py-2 text-sm ${
+                      modalDraft.shards_complete
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : "border-amber-200 bg-amber-50 text-amber-900"
+                    }`}
+                  >
+                    {formatShardStatus(modalDraft.shard_count, modalDraft.shards_complete, modalDraft.missing_shards)}
+                  </div>
+                ) : null}
                 <div className="overflow-hidden  border border-black/10">
                   <table className="w-full text-sm">
                     <thead>
@@ -1235,7 +1265,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
           <p className="mt-1 text-sm text-black/55">
             {uploadMode === "files"
               ? `Select additional files to store in ${uploadContextModel?.model_dir_name ?? "this model folder"}.`
-              : "Select a `.gguf` model file to upload into the models library."}
+              : "Select one `.gguf` file, or all shards of a split model (`*-00001-of-00002.gguf`, etc.)."}
           </p>
 
           <div className="mt-5 grid gap-3">
@@ -1245,7 +1275,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               className="block w-full  border border-black/15 bg-white px-3 py-2 text-sm file:mr-3 file: file:border-0 file:bg-amber file:px-3 file:py-2 file:font-semibold disabled:cursor-not-allowed disabled:opacity-60"
               type="file"
               accept={uploadMode === "files" ? MODEL_ASSET_ACCEPT : ".gguf"}
-              multiple={uploadMode === "files"}
+              multiple
               onChange={(event) => handleUploadSelection(event.target.files)}
               disabled={isUploading}
             />
