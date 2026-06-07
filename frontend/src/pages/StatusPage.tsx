@@ -218,15 +218,13 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
 
   return (
     <article className="overflow-hidden -[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-display text-xl text-ink">{device.name}</h3>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
-            {isPooled && (
-              <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
-            )}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-display text-xl text-ink">{device.name}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
+          {isPooled && (
+            <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
+          )}
         </div>
       </div>
 
