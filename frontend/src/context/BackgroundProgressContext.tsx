@@ -223,7 +223,7 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
     const title = state.uploadMode === "files" ? "Processing files" : "Finishing upload...";
     const detail = state.uploadMode === "files"
       ? "Saving uploaded files to the server."
-      : "Saving the model to the server.";
+      : "Waiting for the server to finish receiving the file.";
     showInfo(title, {
       id: "models-upload-info",
       content: (
@@ -440,7 +440,7 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
     const processingTitle = state.uploadMode === "files" ? "Processing files" : "Finishing upload...";
     const processingDetail = state.uploadMode === "files"
       ? "Saving uploaded files to the server."
-      : "Saving the model to the server.";
+      : "Waiting for the server to finish receiving the file.";
     const progressContent = isUploadBytesComplete ? (
       <div className="flex flex-col gap-2">
         <p className="font-semibold">{processingTitle}</p>

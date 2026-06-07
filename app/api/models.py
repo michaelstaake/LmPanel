@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -34,6 +34,7 @@ from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
 from app.models.user import User
+from app.core.model_upload_stream import stream_model_upload
 from app.core.task_manager import task_manager
 from app.core.v1_models_cache import invalidate_v1_models_cache
 from app.utils.schemas import ModelReorderRequest, ModelUpdateRequest
@@ -85,54 +86,20 @@ def _set_upload_job_error(task_id: str, error: str) -> None:
     task_manager.fail_task(task_id, error)
 
 
-def _estimate_upload_total_bytes(uploads: list[UploadFile]) -> int | None:
-    total = 0
-    for upload in uploads:
-        size = upload.size
-        if size is None:
-            return None
-        total += size
-    return total if total > 0 else None
+def _parse_content_length(request: Request) -> int | None:
+    raw = request.headers.get("content-length")
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
 
 
 def _upload_progress(written: int, total: int | None) -> float:
     if not total:
         return 0.0
     return min(1.0, written / total)
-
-
-async def _stream_upload_file(
-    upload: UploadFile,
-    destination: Path,
-    max_bytes: int,
-    bytes_already_written: int,
-    total_bytes: int | None,
-    task_id: str,
-) -> int:
-    settings = get_settings()
-    written = 0
-    try:
-        with destination.open("wb") as output:
-            while True:
-                chunk = await upload.read(UPLOAD_CHUNK_BYTES)
-                if not chunk:
-                    break
-                written += len(chunk)
-                if bytes_already_written + written > max_bytes:
-                    raise ValueError(
-                        f"Uploaded file exceeds the {settings.max_upload_size_mb} MB limit",
-                    )
-                output.write(chunk)
-                task_manager.update_task(
-                    task_id,
-                    progress=_upload_progress(bytes_already_written + written, total_bytes),
-                )
-    finally:
-        await upload.close()
-
-    if written == 0:
-        raise ValueError("Uploaded file was empty")
-    return written
 
 
 def _register_uploaded_model(
@@ -330,77 +297,92 @@ def reorder_models(payload: ModelReorderRequest, _: User = Depends(get_admin_use
 
 @router.post("/upload")
 async def upload_model(
-    file: UploadFile | None = File(None),
-    files: list[UploadFile] | None = File(None),
+    request: Request,
     _: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    uploads = list(files or [])
-    if file is not None:
-        uploads.insert(0, file)
-    if not uploads:
-        raise HTTPException(status_code=400, detail="No files were provided")
+    from starlette.formparsers import MultiPartException
 
-    upload_names = [Path(upload.filename or "").name for upload in uploads]
+    settings = get_settings()
+    models_dir = Path(settings.models_dir)
+    models_dir.mkdir(parents=True, exist_ok=True)
+    max_bytes = max(1, settings.max_upload_size_mb) * 1024 * 1024
+    upload_task_id = str(uuid.uuid4())
+    staging_dir = models_dir / f".upload-{upload_task_id}"
+    total_bytes = _parse_content_length(request)
+
+    task_manager.add_task(
+        task_id=upload_task_id,
+        task_type="model_upload",
+        description="Uploading model",
+        metadata={},
+    )
+
+    def on_progress(written: int) -> None:
+        task_manager.update_task(
+            upload_task_id,
+            progress=_upload_progress(written, total_bytes),
+        )
+
+    try:
+        result = await stream_model_upload(
+            request,
+            model_dir=staging_dir,
+            max_bytes=max_bytes,
+            on_progress=on_progress,
+        )
+    except MultiPartException as exc:
+        _remove_model_dir(staging_dir)
+        detail = exc.message
+        _set_upload_job_error(upload_task_id, detail)
+        status_code = 413 if "size limit" in detail.lower() else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    except OSError as exc:
+        _remove_model_dir(staging_dir)
+        error = f"Failed to store uploaded model: {exc}"
+        _set_upload_job_error(upload_task_id, error)
+        raise HTTPException(status_code=500, detail=error) from exc
+
+    upload_names = [streamed.filename for streamed in result.files]
     if any(not name for name in upload_names):
+        _remove_model_dir(staging_dir)
+        _set_upload_job_error(upload_task_id, "Missing file name")
         raise HTTPException(status_code=400, detail="Missing file name")
 
     try:
         primary_file_name, normalized_names = validate_upload_shard_set(upload_names)
     except ValueError as exc:
+        _remove_model_dir(staging_dir)
+        _set_upload_job_error(upload_task_id, str(exc))
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    settings = get_settings()
-    models_dir = Path(settings.models_dir)
-    models_dir.mkdir(parents=True, exist_ok=True)
     model_dir_name = _build_unique_model_dir_name(db, strip_shard_suffix(primary_file_name))
     model_dir = models_dir / model_dir_name
 
     for upload_name in normalized_names:
         existing_model = db.query(ModelConfig).filter(ModelConfig.file_name == upload_name).first()
         if existing_model or (model_dir / upload_name).exists():
+            _remove_model_dir(staging_dir)
+            _set_upload_job_error(upload_task_id, f"A model file named {upload_name} already exists")
             raise HTTPException(status_code=409, detail=f"A model file named {upload_name} already exists")
 
-    max_bytes = max(1, settings.max_upload_size_mb) * 1024 * 1024
-    upload_task_id = str(uuid.uuid4())
-    upload_description = (
-        f"Uploading model: {primary_file_name}"
-        if len(uploads) == 1
-        else f"Uploading sharded model: {primary_file_name} ({len(uploads)} files)"
-    )
-    task_manager.add_task(
-        task_id=upload_task_id,
-        task_type="model_upload",
-        description=upload_description,
-        metadata={"file_name": primary_file_name, "files": normalized_names},
-    )
-
-    total_bytes = _estimate_upload_total_bytes(uploads)
-    written = 0
-
     try:
-        model_dir.mkdir(parents=True, exist_ok=False)
-        for upload, upload_name in zip(uploads, normalized_names, strict=True):
-            destination = model_dir / upload_name
-            file_written = await _stream_upload_file(
-                upload,
-                destination,
-                max_bytes,
-                written,
-                total_bytes,
-                upload_task_id,
-            )
-            written += file_written
-    except ValueError as exc:
-        _remove_model_dir(model_dir)
-        _set_upload_job_error(upload_task_id, str(exc))
-        status_code = 413 if "exceeds" in str(exc) else 400
-        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+        staging_dir.rename(model_dir)
     except OSError as exc:
-        _remove_model_dir(model_dir)
+        _remove_model_dir(staging_dir)
         error = f"Failed to store uploaded model: {exc}"
         _set_upload_job_error(upload_task_id, error)
         raise HTTPException(status_code=500, detail=error) from exc
+
+    task_manager.update_task(
+        upload_task_id,
+        description=(
+            f"Uploading model: {primary_file_name}"
+            if len(normalized_names) == 1
+            else f"Uploading sharded model: {primary_file_name} ({len(normalized_names)} files)"
+        ),
+        metadata={"file_name": primary_file_name, "files": normalized_names},
+    )
 
     try:
         _register_uploaded_model(
