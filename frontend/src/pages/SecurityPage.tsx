@@ -303,7 +303,7 @@ export default function SecurityPage() {
           <div className="surface-muted py-4 px-4">
             <div className="text-sm font-semibold text-sand">Brute Force Protection</div>
             <p className="mt-1 text-sm text-sand/65">
-              Automatically block IP addresses and usernames after repeated failed login attempts to prevent brute force attacks.
+              Automatically block IP addresses after repeated failed login attempts to prevent brute force attacks.
             </p>
 
             <div className="mt-4 grid gap-3">

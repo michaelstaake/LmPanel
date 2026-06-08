@@ -4,13 +4,13 @@ import { useToast } from "../../context/ToastContext";
 
 const TOAST_STYLES = {
   success: {
-    cardClassName: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200",
+    cardClassName: "border-emerald-500 bg-emerald-900 text-emerald-100",
   },
   error: {
-    cardClassName: "border-rose-500/40 bg-rose-500/15 text-rose-200",
+    cardClassName: "border-rose-500 bg-rose-900 text-rose-100",
   },
   info: {
-    cardClassName: "border-blue-500/40 bg-blue-500/15 text-blue-200",
+    cardClassName: "border-blue-500 bg-blue-900 text-blue-100",
   },
 } as const;
 
@@ -79,7 +79,7 @@ export default function ToastViewport() {
   }
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-x-3 top-3 z-[120] flex flex-col gap-3 sm:left-auto sm:right-4 sm:w-full sm:max-w-md">
+    <div className="fixed inset-x-3 top-3 z-[120] flex flex-col gap-3 sm:left-auto sm:right-4 sm:w-full sm:max-w-md">
       {toasts.map((toast) => {
         const style = TOAST_STYLES[toast.kind];
 
@@ -91,7 +91,8 @@ export default function ToastViewport() {
             }}
             role={toast.kind === "error" ? "alert" : "status"}
             aria-live={toast.kind === "error" ? "assertive" : "polite"}
-            className={`pointer-events-none  border p-4 shadow-lg shadow-black/10 backdrop-blur transition duration-200 animate-[toast-in_180ms_ease-out] ${hoveredToastId === toast.id ? "opacity-55" : "opacity-85"} ${style.cardClassName}`}
+            className={`cursor-pointer border p-4 shadow-lg shadow-black/10 transition duration-200 animate-[toast-in_180ms_ease-out] ${hoveredToastId === toast.id ? "opacity-80" : "opacity-100"} ${style.cardClassName}`}
+            onClick={() => dismissToast(toast.id)}
           >
             {toast.content ?? <p className="min-w-0 text-sm leading-6">{toast.message}</p>}
           </section>

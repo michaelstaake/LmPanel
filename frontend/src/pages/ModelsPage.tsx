@@ -1340,13 +1340,11 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         <form className="p-6" onSubmit={handleFetch}>
           <h2 id="model-fetch-modal-title" className="font-display text-xl">Fetch Model File</h2>
           <p className="mt-1 text-sm text-sand/55">
-            Enter a URL to download a `.gguf` model file directly to the server.
+            Enter a URL to download a `.gguf` model file directly to the server. Adding models to your LmPanel server this way only works with single GGUF file models - to add a sharded GGUF file use the file upload feature.
           </p>
 
           <div className="mt-5 grid gap-3">
             <label className="grid gap-1 text-sm text-sand/70">
-              <span>Model URL</span>
-              <span className="text-xs text-sand/45">Must point to a .gguf file.</span>
               <input
                 className=" field px-3 py-2 text-sm"
                 type="url"
