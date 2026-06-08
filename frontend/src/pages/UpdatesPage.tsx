@@ -120,7 +120,7 @@ export default function UpdatesPage() {
       <article>
         <h2 className="font-display text-xl">Update check</h2>
 
-        <div className="mt-5 grid gap-3">
+        <div className="grid gap-3">
           <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
 
             <div className="mt-4 grid gap-3">
