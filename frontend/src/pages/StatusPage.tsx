@@ -243,7 +243,7 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
           </div>
         )}
 
-        <div className={`flex items-baseline justify-between ${device.models.length > 0 ? 'border-b pb-1' : ''}`}>
+        <div className="flex items-baseline justify-between border-t border-b border-white/5 pt-2 pb-1">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Memory</p>
           <p className="text-lg font-display text-sand">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
         </div>
