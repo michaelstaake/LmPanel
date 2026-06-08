@@ -6,6 +6,8 @@ const config: Config = {
     extend: {
       colors: {
         canvas: "#0d0d0d",
+        panel: "#141414",
+        field: "#1a1a1a",
         ink: "#101820",
         mint: "#54f2c3",
         sand: "#f5f2e8",

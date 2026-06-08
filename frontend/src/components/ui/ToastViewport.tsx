@@ -4,13 +4,13 @@ import { useToast } from "../../context/ToastContext";
 
 const TOAST_STYLES = {
   success: {
-    cardClassName: "border-emerald-200 bg-emerald-50/95 text-emerald-900",
+    cardClassName: "border-emerald-500/40 bg-emerald-500/15 text-emerald-200",
   },
   error: {
-    cardClassName: "border-rose-200 bg-rose-50/95 text-rose-900",
+    cardClassName: "border-rose-500/40 bg-rose-500/15 text-rose-200",
   },
   info: {
-    cardClassName: "border-blue-200 bg-blue-50/95 text-blue-900",
+    cardClassName: "border-blue-500/40 bg-blue-500/15 text-blue-200",
   },
 } as const;
 

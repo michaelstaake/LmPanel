@@ -290,7 +290,7 @@ export default function UsageLimitsPage() {
 
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
-      <section className="-[28px] p-6">
+      <section className="surface p-6">
         <h2 className="font-display text-2xl text-sand">Usage Limits</h2>
         <p className="mt-2 max-w-3xl text-sm text-sand/60">
           Set per-account limits for standard users. Admin users are not limited. Use zero to disable a time window.
@@ -310,7 +310,7 @@ export default function UsageLimitsPage() {
                 step={1}
                 value={draft[period.key]}
                 onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                className="mt-1 w-full  border border-white/10 bg-white/10 px-3 py-2 text-sand.5 text-sand outline-none focus:border-white/30"
+                className="field mt-1 w-full px-3 py-2"
               />
               <p className="mt-1 text-xs text-sand/50">0 = unlimited for this window</p>
             </div>
@@ -338,7 +338,7 @@ export default function UsageLimitsPage() {
                   step={1}
                   value={draft[period.key]}
                   onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                  className="mt-1 w-full  border border-white/10 bg-white/10 px-3 py-2 text-sand.5 text-sand outline-none focus:border-white/30"
+                  className="field mt-1 w-full px-3 py-2"
                 />
                 <p className="mt-1 text-xs text-sand/50">0 = unlimited for this window</p>
               </div>

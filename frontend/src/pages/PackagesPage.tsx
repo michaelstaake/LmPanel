@@ -421,7 +421,7 @@ export default function PackagesPage() {
   return (
     <SettingsLayout title="Packages">
       <section className="grid gap-4">
-      <article>
+      <article className="surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl">Packages</h2>
@@ -431,7 +431,7 @@ export default function PackagesPage() {
             </p>
           </div>
           <button
-            className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
+            className=" btn-secondary px-4 py-3 text-sm font-semibold"
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
           >
@@ -441,13 +441,13 @@ export default function PackagesPage() {
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {packages.map((pkg) => (
-            <div key={pkg.id} className=" p-4">
+            <div key={pkg.id} className="surface-muted p-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-lg text-sand">{pkg.name}</h3>
                 {pkg.is_admin_package ? (
-                  <span className=" bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Admin</span>
+                  <span className="badge-warning px-2.5 py-1 text-xs font-semibold">Admin</span>
                 ) : pkg.is_default_package ? (
-                  <span className=" bg-sky-100 px-2.5 py-1 text-xs font-semibold text-sky-800">Default</span>
+                  <span className="badge-info px-2.5 py-1 text-xs font-semibold">Default</span>
                 ) : null}
               </div>
 
@@ -455,7 +455,7 @@ export default function PackagesPage() {
                 {!pkg.is_admin_package ? (
                   <>
                     <button
-                      className=" border border-white/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10"
+                      className="btn-secondary px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10"
                       type="button"
                       onClick={() => openEditModal(pkg)}
                     >
@@ -477,7 +477,7 @@ export default function PackagesPage() {
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sand/40">Tokens</p>
                 {TOKEN_PERIOD_FIELDS.map((period) => (
-                  <div key={period.key} className=" bg-sand/60 px-2 py-1.5 text-center">
+                  <div key={period.key} className="surface-muted px-2 py-1.5 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-sand/50">{period.label}</div>
                     <div className="text-sm font-semibold text-sand">
                       {pkg[period.key] === 0 ? "Unlimited" : pkg[period.key].toLocaleString()}
@@ -486,7 +486,7 @@ export default function PackagesPage() {
                 ))}
                 <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sand/40">Web Search</p>
                 {TOOL_PERIOD_FIELDS.map((period) => (
-                  <div key={period.key} className=" bg-sand/60 px-2 py-1.5 text-center">
+                  <div key={period.key} className="surface-muted px-2 py-1.5 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-sand/50">{period.label}</div>
                     <div className="text-sm font-semibold text-sand">
                       {pkg[period.key] === 0 ? "Unlimited" : pkg[period.key].toLocaleString()}
@@ -496,7 +496,7 @@ export default function PackagesPage() {
               </div>
             </div>
           ))}
-          {isLoading ? <p className=" border border-white/10 bg-white px-4 py-6 text-sm text-sand/60">Loading packages...</p> : null}
+          {isLoading ? <p className="surface-muted px-4 py-6 text-sm text-sand/60">Loading packages...</p> : null}
           {!isLoading && packages.length === 0 ? (
             <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">No packages created yet.</p>
           ) : null}
@@ -510,7 +510,7 @@ export default function PackagesPage() {
             <div>
               <h2 id="package-create-title" className="font-display text-2xl">Add package</h2>
             </div>
-            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCreateModalOpen(false)}>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Close
             </button>
           </div>
@@ -520,7 +520,7 @@ export default function PackagesPage() {
               <label className="grid gap-1 text-sm text-sand/70">
                 Name
                 <input
-                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                  className=" field px-3 py-2 text-sm"
                   value={createDraft.name}
                   onChange={(event) => {
                     setCreateDraft((current) => ({ ...current, name: event.target.value }));
@@ -536,7 +536,7 @@ export default function PackagesPage() {
                   {TOKEN_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
                       <label className="block text-xs text-sand/70">{period.label}</label>
-                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <input className="w-full  btn-secondary px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
                       <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
@@ -548,7 +548,7 @@ export default function PackagesPage() {
                   {TOOL_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
                       <label className="block text-xs text-sand/70">{period.label}</label>
-                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <input className="w-full  btn-secondary px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
                       <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
@@ -571,7 +571,7 @@ export default function PackagesPage() {
             <div>
               <h2 id="package-edit-title" className="font-display text-2xl">Edit package</h2>
             </div>
-            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsEditModalOpen(false)}>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsEditModalOpen(false)}>
               Close
             </button>
           </div>
@@ -581,7 +581,7 @@ export default function PackagesPage() {
               <label className="grid gap-1 text-sm text-sand/70">
                 Name
                 <input
-                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-sand/50"
+                  className=" field px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-sand/50"
                   value={editDraft.name}
                   onChange={(event) => {
                     setEditDraft((current) => ({ ...current, name: event.target.value }));
@@ -601,7 +601,7 @@ export default function PackagesPage() {
                   {TOKEN_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
                       <label className="block text-xs text-sand/70">{period.label}</label>
-                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <input className="w-full  btn-secondary px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
                       <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
@@ -613,7 +613,7 @@ export default function PackagesPage() {
                   {TOOL_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
                       <label className="block text-xs text-sand/70">{period.label}</label>
-                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <input className="w-full  btn-secondary px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
                       <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
@@ -651,7 +651,7 @@ export default function PackagesPage() {
 
           <div className="mt-6 flex justify-end gap-3">
             <button
-              className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
+              className=" btn-secondary px-4 py-3 text-sm font-semibold"
               type="button"
               onClick={() => setIsDeleteModalOpen(false)}
             >

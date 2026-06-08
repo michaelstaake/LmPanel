@@ -14,6 +14,53 @@ body {
   color: #f5f2e8;
 }
 
+@layer components {
+  .surface {
+    @apply border border-white/15 bg-panel;
+  }
+
+  .surface-muted {
+    @apply border border-white/10 bg-white/5;
+  }
+
+  .field {
+    @apply border border-white/15 bg-field text-sand placeholder:text-sand/40 focus:border-white/30 focus:outline-none focus:ring-2 focus:ring-sand/20;
+  }
+
+  select.field option {
+    background-color: #1a1a1a;
+    color: #f5f2e8;
+  }
+
+  .btn-secondary {
+    @apply border border-white/15 bg-white/10 text-sand transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-icon {
+    @apply flex items-center justify-center border border-white/15 bg-white/10 text-sand transition hover:bg-white/15 disabled:opacity-50;
+  }
+
+  .btn-danger {
+    @apply border border-rose-500/40 bg-rose-500/15 text-rose-300 transition hover:bg-rose-500/25 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .badge-success {
+    @apply border border-emerald-500/40 bg-emerald-500/15 text-emerald-300;
+  }
+
+  .badge-accent {
+    @apply border border-violet-500/40 bg-violet-500/15 text-violet-300;
+  }
+
+  .badge-warning {
+    @apply border border-amber-500/40 bg-amber-500/15 text-amber-300;
+  }
+
+  .badge-info {
+    @apply border border-sky-500/40 bg-sky-500/15 text-sky-300;
+  }
+}
+
 .markdown-content h1 {
   font-size: 1.75rem;
   font-weight: 700;

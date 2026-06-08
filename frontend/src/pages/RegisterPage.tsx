@@ -106,19 +106,19 @@ export default function RegisterPage() {
         <form className="mt-6 grid gap-4" onSubmit={handleRegister}>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Username</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" value={registerUsername} onChange={(event) => setRegisterUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
+            <input className=" field px-4 py-3 text-sm" value={registerUsername} onChange={(event) => setRegisterUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
           </label>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Email</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="email" value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} autoComplete="email" />
+            <input className=" field px-4 py-3 text-sm" type="email" value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} autoComplete="email" />
           </label>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Password</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={registerPassword} onChange={(event) => setRegisterPassword(event.target.value)} autoComplete="new-password" />
+            <input className=" field px-4 py-3 text-sm" type="password" value={registerPassword} onChange={(event) => setRegisterPassword(event.target.value)} autoComplete="new-password" />
           </label>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Confirm Password</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={registerConfirmPassword} onChange={(event) => setRegisterConfirmPassword(event.target.value)} autoComplete="new-password" />
+            <input className=" field px-4 py-3 text-sm" type="password" value={registerConfirmPassword} onChange={(event) => setRegisterConfirmPassword(event.target.value)} autoComplete="new-password" />
           </label>
           {cloudflareTurnstileEnabled && cloudflareTurnstileSiteKey ? (
             <div ref={turnstileRef} className="mt-2 w-64 min-h-[74px]" />

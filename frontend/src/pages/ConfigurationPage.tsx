@@ -210,8 +210,8 @@ export default function ConfigurationPage() {
       <article>
         <h2 className="font-display text-xl text-sand">Configuration</h2>
 
-        <div className="mt-5 grid gap-6">
-          <div className="flex flex-col gap-2">
+        <div className="mt-5 grid gap-4">
+          <div className="surface-muted flex flex-col gap-2 px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-sand">Site name</div>
               <p className="mt-1 text-sm text-sand/65">
@@ -221,7 +221,7 @@ export default function ConfigurationPage() {
             <div className="mt-2 max-w-md">
               <input
                 type="text"
-                className="w-full border border-white/15 bg-white/10 px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                className="field w-full px-3 py-2 text-sm"
                 value={localSitename}
                 onChange={(e) => setLocalSitename(e.target.value)}
                 onBlur={() => commitSitename(localSitename)}
@@ -235,7 +235,7 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="surface-muted flex flex-col gap-2 px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-sand">URL</div>
               <p className="mt-1 text-sm text-sand/65">
@@ -245,7 +245,7 @@ export default function ConfigurationPage() {
             <div className="mt-2 max-w-xl">
               <input
                 type="url"
-                className="w-full border border-white/15 bg-white/10 px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                className="field w-full px-3 py-2 text-sm"
                 value={localPublicUrl}
                 onChange={(e) => setLocalPublicUrl(e.target.value)}
                 onBlur={() => commitPublicUrl(localPublicUrl)}
@@ -259,7 +259,7 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="surface-muted flex flex-col gap-3 px-4 py-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <div className="text-sm font-semibold text-sand">Favicon</div>
@@ -268,7 +268,7 @@ export default function ConfigurationPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-sand transition hover:bg-white/15">
+                <label className="btn-secondary inline-flex cursor-pointer items-center px-3 py-2 text-sm font-semibold">
                   <span>{isUploadingFavicon ? "Uploading..." : "Upload favicon"}</span>
                   <input
                     ref={faviconInputRef}
@@ -286,7 +286,7 @@ export default function ConfigurationPage() {
                 </label>
                 <button
                   type="button"
-                  className="border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-sand transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void deleteFavicon()}
                   disabled={isLoading || isUploadingFavicon || !settings.favicon_path}
                 >
@@ -307,7 +307,7 @@ export default function ConfigurationPage() {
               <p className="text-sm text-sand/65">No favicon uploaded.</p>
             )}
           </div>
-          <label className="flex items-start justify-between gap-4">
+          <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-sand">Users can register</div>
               <p className="mt-1 text-sm text-sand/65">

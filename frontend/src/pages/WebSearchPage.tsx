@@ -152,7 +152,7 @@ export default function WebSearchPage() {
           <div className="flex items-center gap-2">
             <label className="text-sm font-semibold text-sand/70">Active provider</label>
             <select
-              className={` border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-sand/40" : ""}`}
+              className={` field px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-sand/40" : ""}`}
               value={activeProviderType ?? ""}
               disabled={settingActive || (dropdownProviders.length === 0 && !activeIsUnavailable)}
               onChange={(event) => void handleSetActive(event.target.value === "" ? null : event.target.value)}
@@ -190,7 +190,7 @@ export default function WebSearchPage() {
               return (
                 <article
                   key={provider.provider_type}
-                  className=" p-5"
+                  className="surface p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
@@ -227,7 +227,7 @@ export default function WebSearchPage() {
                           : "Enter your API key."}
                       </span>
                       <input
-                        className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                        className=" field px-3 py-2 text-sm"
                         type="password"
                         autoComplete="new-password"
                         placeholder={provider.api_key_set ? "••••••••  (key already set)" : "Enter API key"}
@@ -240,7 +240,7 @@ export default function WebSearchPage() {
                       <span>Number of Results</span>
                       <span className="text-xs text-sand/45">Results returned per search query (1–20).</span>
                       <input
-                        className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                        className=" field px-3 py-2 text-sm"
                         type="number"
                         min={1}
                         max={20}

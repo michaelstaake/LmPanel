@@ -146,11 +146,11 @@ export default function RunningTasksPage() {
       </div>
 
       {loading ? (
-        <div className=" p-6">
+        <div className="surface p-6">
           <p className="text-center text-sm text-sand/50">Loading running tasks…</p>
         </div>
       ) : tasks.length === 0 ? (
-        <div className=" p-6">
+        <div className="surface p-6">
           <p className="text-center text-sm text-sand/50">No active tasks.</p>
         </div>
       ) : (
@@ -162,7 +162,7 @@ export default function RunningTasksPage() {
                 <button
                   type="button"
                   onClick={() => toggleGroup(username)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-sand/80/[0.02]"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-white/5"
                 >
                   <span className="text-sm font-semibold text-sand/70">{username}</span>
                   <span className=" bg-white/10 px-2 py-0.5 text-xs font-semibold text-sand/50">{groupTasks.length}</span>

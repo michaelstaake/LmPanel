@@ -144,7 +144,7 @@ export default function ProfilePage() {
 
   return (
     <section className="grid gap-4">
-      <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className="surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">{roleLabel}</p>
@@ -157,21 +157,21 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setEmailModalOpen(true)}
-              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
+              className="btn-secondary shrink-0 px-4 py-3 text-sm font-semibold"
             >
               Update email
             </button>
             <button
               type="button"
               onClick={() => setPasswordModalOpen(true)}
-              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
+              className="btn-secondary shrink-0 px-4 py-3 text-sm font-semibold"
             >
               Update password
             </button>
             <button
               type="button"
               onClick={logout}
-              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
+              className="btn-secondary shrink-0 px-4 py-3 text-sm font-semibold"
             >
               Log out
             </button>
@@ -180,7 +180,7 @@ export default function ProfilePage() {
       </article>
 
       {(showAccountUsage || showAccountToolUsage) && (
-        <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+        <article className="surface p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">Your Usage{packageLabel}</p>
           <p className="mt-1 text-sm text-sand/60">
             {adminUsage
@@ -199,7 +199,7 @@ export default function ProfilePage() {
               <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">Token Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountUsage.periods.map((period) => (
-                  <div key={period.id} className=" p-4">
+                  <div key={period.id} className="surface-muted p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
@@ -233,7 +233,7 @@ export default function ProfilePage() {
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-sand/45 ${showAccountUsage ? "mt-6" : "mt-4"}`}>Web Search Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountToolUsage.periods.map((period) => (
-                  <div key={period.id} className=" p-4">
+                  <div key={period.id} className="surface-muted p-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
@@ -281,7 +281,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-sand/70">
               <span className="mb-2 block font-semibold text-sand">Email</span>
               <input
-                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
+                className="w-full  field px-4 py-3 outline-none transition focus:border-white/25"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -317,7 +317,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-sand/70">
               <span className="mb-2 block font-semibold text-sand">New password</span>
               <input
-                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
+                className="w-full  field px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -328,7 +328,7 @@ export default function ProfilePage() {
             <label className="block text-sm text-sand/70">
               <span className="mb-2 block font-semibold text-sand">Confirm new password</span>
               <input
-                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
+                className="w-full  field px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}

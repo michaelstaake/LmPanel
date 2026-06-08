@@ -282,7 +282,7 @@ export default function KnowledgeBasePage() {
             </button>
 
             {openMenuId === "all" && (
-              <div className="absolute right-2 z-50 mt-1 w-40  border border-white/10 bg-white py-1 shadow-lg">
+              <div className="absolute right-2 z-50 mt-1 w-40  surface py-1 shadow-lg">
                 <button
                   type="button"
                   onMouseDown={(e) => e.stopPropagation()}
@@ -335,7 +335,7 @@ export default function KnowledgeBasePage() {
                 </button>
 
                 {openMenuId === `cat-${cat.id}` && (
-                  <div className="absolute right-2 z-50 mt-1 w-40  border border-white/10 bg-white py-1 shadow-lg">
+                  <div className="absolute right-2 z-50 mt-1 w-40  surface py-1 shadow-lg">
                     <button
                       type="button"
                       onMouseDown={(e) => e.stopPropagation()}
@@ -389,7 +389,7 @@ export default function KnowledgeBasePage() {
                   <select
                     value={draftCategoryId ?? ""}
                     onChange={(e) => setDraftCategoryId(Number(e.target.value))}
-                    className="w-full  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                    className="w-full  field px-3 py-2 text-sm"
                     required
                   >
                     <option value="" disabled>
@@ -408,7 +408,7 @@ export default function KnowledgeBasePage() {
                     type="text"
                     value={draftTitle}
                     onChange={(e) => setDraftTitle(e.target.value)}
-                    className="w-full  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                    className="w-full  field px-3 py-2 text-sm"
                     placeholder="Document title"
                     autoFocus
                     required
@@ -495,7 +495,7 @@ export default function KnowledgeBasePage() {
                         <i className="bi bi-three-dots-vertical"></i>
                       </button>
                       {openMenuId === `doc-${doc.id}` && (
-                        <div className="absolute right-0 z-50 mt-1 w-40  border border-white/10 bg-white py-1 shadow-lg">
+                        <div className="absolute right-0 z-50 mt-1 w-40  surface py-1 shadow-lg">
                           <button
                             type="button"
                             onMouseDown={(e) => e.stopPropagation()}
@@ -534,7 +534,7 @@ export default function KnowledgeBasePage() {
             <div>
               <h2 id="category-edit-title" className="font-display text-2xl">Edit Category</h2>
             </div>
-            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCategoryModalOpen(false)}>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCategoryModalOpen(false)}>
               Close
             </button>
           </div>
@@ -542,7 +542,7 @@ export default function KnowledgeBasePage() {
             <label className="grid gap-1 text-sm text-sand/70">
               Category Name
               <input
-                className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                className=" field px-3 py-2 text-sm"
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
                 autoFocus
@@ -563,7 +563,7 @@ export default function KnowledgeBasePage() {
             <div>
               <h2 id="category-create-title" className="font-display text-2xl">Add Category</h2>
             </div>
-            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCategoryCreateModalOpen(false)}>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCategoryCreateModalOpen(false)}>
               Close
             </button>
           </div>
@@ -571,7 +571,7 @@ export default function KnowledgeBasePage() {
             <label className="grid gap-1 text-sm text-sand/70">
               Category Name
               <input
-                className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                className=" field px-3 py-2 text-sm"
                 value={categoryName}
                 onChange={(e) => setCategoryName(e.target.value)}
                 autoFocus

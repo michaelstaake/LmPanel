@@ -24,7 +24,7 @@ export default function TermsAcceptancePage() {
           Please review and accept the terms and policies to continue.
         </p>
 
-        <div className="mt-4 max-h-[50vh] overflow-y-auto  p-5">
+        <div className="surface-muted mt-4 max-h-[50vh] overflow-y-auto p-5">
           {isTermsEnabled && termsSettings.terms_content ? (
             <MarkdownRenderer content={termsSettings.terms_content} />
           ) : (
@@ -38,7 +38,7 @@ export default function TermsAcceptancePage() {
             onClick={() => {
               declineTerms();
             }}
-            className=" border border-white/10 bg-white px-5 py-3 text-sm font-semibold text-sand transition hover:border-white/20 hover:bg-white/10"
+            className="btn-secondary px-5 py-3 text-sm font-semibold text-sand transition hover:border-white/20 hover:bg-white/10"
           >
             Decline
           </button>

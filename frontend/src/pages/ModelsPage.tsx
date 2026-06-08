@@ -845,7 +845,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
   return (
     <section className="grid gap-4">
-      <article className="">
+      <article className="surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="mt-2 font-display text-xl">{setupMode ? "Step 3: Models" : "Models"}</h2>
@@ -886,14 +886,14 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             const activationButtonClassName = isActivationLoading
               ? "border-sky-300 bg-sky-100 text-sky-800"
               : model.activated
-                ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
                 : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10";
             const activationButtonLabel = isActivationLoading ? "Loading..." : model.activated ? "Enabled" : "Disabled";
 
             return (
               <article
                 key={model.id}
-                className={` p-4 transition-shadow ${draggedModelId === model.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
+                className={`surface-muted p-4 transition-shadow ${draggedModelId === model.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
                 draggable={!isReordering}
                 onDragStart={(event) => handleDragStart(event, model.id)}
                 onDragOver={handleDragOver}
@@ -922,7 +922,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       {activationButtonLabel}
                     </button>
                     <button
-                      className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-white/10"
+                      className="cursor-pointer  btn-secondary px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-white/10"
                       type="button"
                       onClick={() => openSettingsModal(model)}
                     >
@@ -1008,12 +1008,12 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Name</span>
                     <span className="text-xs text-sand/45">Used in API requests and displayed on the front end.</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.alias} onChange={(event) => updateModalDraft({ alias: event.target.value })} />
+                    <input className=" field px-3 py-2 text-sm" value={modalDraft.alias} onChange={(event) => updateModalDraft({ alias: event.target.value })} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Description</span>
                     <span className="text-xs text-sand/45">Optional, displayed on the front end.</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.description} onChange={(event) => updateModalDraft({ description: event.target.value })} />
+                    <input className=" field px-3 py-2 text-sm" value={modalDraft.description} onChange={(event) => updateModalDraft({ description: event.target.value })} />
                   </label>
                 </div>
               </section>
@@ -1025,7 +1025,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span>Device</span>
                     <span className="text-xs text-sand/45">Auto lets LmPanel choose the most sensible device.</span>
                     <select
-                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                      className=" field px-3 py-2 text-sm"
                       value={getDeviceDropdownValue(modalDraft, assignmentTargets)}
                       onChange={(event) => {
                         const value = event.target.value;
@@ -1049,7 +1049,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>CPU threads</span>
                     <span className="text-xs text-sand/45">CPU worker threads for this model.</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
                   </label>
                 </div>
               </section>
@@ -1061,7 +1061,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span>Mode</span>
                     <span className="text-xs text-sand/45">Auto uses the model default limit.</span>
                     <select
-                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                      className=" field px-3 py-2 text-sm"
                       value={modalContextLengthMode}
                       onChange={(event) => updateModalContextLengthMode(event.target.value as ContextLengthMode)}
                     >
@@ -1076,7 +1076,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span>Context Length</span>
                     <span className="text-xs text-sand/45">Larger context lengths may increase memory usage.</span>
                     <input
-                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:bg-white/10 disabled:text-sand/45"
+                      className=" field px-3 py-2 text-sm disabled:bg-white/10 disabled:text-sand/45"
                       type="number"
                       min={256}
                       value={modalNumericDrafts.context_length ?? String(modalDraft.context_length)}
@@ -1095,7 +1095,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span>Thinking capability</span>
                     <span className="text-xs text-sand/45">Auto detects hybrid models (Qwen, Gemma). Override if detection is wrong.</span>
                     <select
-                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                      className=" field px-3 py-2 text-sm"
                       value={modalDraft.thinking_capability}
                       onChange={(event) => updateModalDraft({ thinking_capability: event.target.value })}
                     >
@@ -1182,23 +1182,23 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Temperature</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top P</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top K</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Presence Penalty</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70 md:col-span-2">
                     <span>Repetition Penalty</span>
-                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
                   </label>
                 </div>
               </section>
@@ -1223,12 +1223,12 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>System Prompt</span>
                     <span className="text-xs text-sand/45">Default instructions sent with each chat.</span>
-                    <textarea className="min-h-24  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.system_prompt} onChange={(event) => updateModalDraft({ system_prompt: event.target.value })} />
+                    <textarea className="min-h-24  field px-3 py-2 text-sm" value={modalDraft.system_prompt} onChange={(event) => updateModalDraft({ system_prompt: event.target.value })} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Chat Template</span>
                     <span className="text-xs text-sand/45">Formats messages for this model.</span>
-                    <textarea className="min-h-24  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.chat_template} onChange={(event) => updateModalDraft({ chat_template: event.target.value })} />
+                    <textarea className="min-h-24  field px-3 py-2 text-sm" value={modalDraft.chat_template} onChange={(event) => updateModalDraft({ chat_template: event.target.value })} />
                   </label>
                 </div>
               </section>
@@ -1238,7 +1238,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  className=" border border-rose-200 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" btn-danger px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void deleteModalModel()}
                   disabled={isSavingModal || isDeletingModal || modalDraft.activated}
                   title={modalDraft.activated ? "Disable this model before deleting it." : undefined}
@@ -1287,7 +1287,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             <input
               ref={uploadInputRef}
               id="model-upload-input"
-              className="block w-full  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm file:mr-3 file: file:border-0 file:bg-amber file:px-3 file:py-2 file:font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              className="block w-full  field px-3 py-2 text-sm file:mr-3 file: file:border-0 file:bg-amber file:px-3 file:py-2 file:font-semibold disabled:cursor-not-allowed disabled:opacity-60"
               type="file"
               accept={uploadMode === "files" ? MODEL_ASSET_ACCEPT : ".gguf"}
               multiple
@@ -1348,7 +1348,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               <span>Model URL</span>
               <span className="text-xs text-sand/45">Must point to a .gguf file.</span>
               <input
-                className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
+                className=" field px-3 py-2 text-sm"
                 type="url"
                 placeholder="https://example.com/model.gguf"
                 value={fetchUrlInput}

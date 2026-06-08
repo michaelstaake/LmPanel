@@ -56,7 +56,7 @@ export default function KnowledgeBaseSettings() {
 
   if (isLoading) {
     return (
-      <section className=" p-5 text-sm text-sand/60">
+      <section className="surface p-5 text-sm text-sand/60">
         Loading...
       </section>
     );

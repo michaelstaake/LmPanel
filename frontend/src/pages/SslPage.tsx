@@ -154,7 +154,7 @@ export default function SslPage() {
         </div>
 
         <div className="mt-5 grid gap-3">
-          <div className=" py-4">
+          <div className="surface-muted px-4 py-4">
             <div className="text-sm font-semibold text-sand">Certificate status</div>
             {isLoading ? (
               <p className="mt-2 text-sm text-sand/65">Loading...</p>
@@ -208,7 +208,7 @@ export default function SslPage() {
               <span className="text-sm font-semibold text-sand">Let&apos;s Encrypt account email</span>
               <input
                 type="email"
-                className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                className="max-w-md  field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 value={localEmail}
                 onChange={(e) => setLocalEmail(e.target.value)}
                 disabled={isLoading || isSavingSettings}
@@ -225,7 +225,7 @@ export default function SslPage() {
               </p>
               <input
                 type="password"
-                className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                className="max-w-md  field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 value={cloudflareToken}
                 onChange={(e) => setCloudflareToken(e.target.value)}
                 disabled={isLoading || isSavingSettings}
@@ -246,7 +246,7 @@ export default function SslPage() {
               {status?.cloudflare_api_token_set ? (
                 <button
                   type="button"
-                  className=" border border-white/10 bg-white px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-secondary px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void clearCloudflareToken()}
                   disabled={isLoading || isSavingSettings}
                 >
@@ -268,7 +268,7 @@ export default function SslPage() {
             </button>
             <button
               type="button"
-              className=" border border-white/10 bg-white px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-secondary px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => void runCertificateAction("renew")}
               disabled={!canOperate}
               title={!status?.letsencrypt_available ? "Configure URL, email, and Cloudflare token first" : undefined}

@@ -145,7 +145,7 @@ export default function SecurityPage() {
         <h2 className="font-display text-xl">Security</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className=" py-4">
+          <div className="surface-muted py-4 px-4">
             <div className="text-sm font-semibold text-sand">CAPTCHA</div>
             <p className="mt-1 text-sm text-sand/65">
               Enable Cloudflare Turnstile to protect login and registration from automated submissions.
@@ -178,7 +178,7 @@ export default function SecurityPage() {
                 </p>
                 <input
                   type="text"
-                  className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                  className="max-w-md  field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                   value={localSiteKey}
                   onChange={(e) => setLocalSiteKey(e.target.value)}
                   onBlur={() => {
@@ -201,7 +201,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_site_key ? (
                 <button
                   type="button"
-                  className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -238,7 +238,7 @@ export default function SecurityPage() {
                 </p>
                 <input
                   type="password"
-                  className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                  className="max-w-md  field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                   value={localSecretKey}
                   onChange={(e) => setLocalSecretKey(e.target.value)}
                   onBlur={() => {
@@ -262,7 +262,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_secret_key_set ? (
                 <button
                   type="button"
-                  className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -296,12 +296,12 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className=" py-4">
+          <div className="surface-muted py-4 px-4">
             <div className="text-sm font-semibold text-sand">2FA</div>
             <p className="mt-1 text-sm text-sand/65">
               Two-factor authentication for user accounts.
             </p>
-            <div className="mt-4  border border-white/10 bg-white px-4 py-3">
+            <div className="mt-4  field px-4 py-3">
               <p className="text-sm text-sand/65">Coming soon...</p>
             </div>
           </div>

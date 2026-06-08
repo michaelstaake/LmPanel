@@ -99,7 +99,7 @@ export default function TermsAndPoliciesPage() {
               />
             </label>
 
-            <div className=" py-4">
+            <div className="surface-muted px-4 py-4">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold text-sand">Terms and policies content</div>
@@ -111,7 +111,7 @@ export default function TermsAndPoliciesPage() {
                   <button
                     type="button"
                     onClick={() => setShowPreview(!showPreview)}
-                    className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand transition hover:border-white/20 hover:bg-white/10"
+                    className=" btn-secondary px-3 py-2 text-sm font-semibold transition hover:border-white/20 hover:bg-white/10"
                     disabled={isLoading || isSaving}
                   >
                     {showPreview ? "Edit" : "Preview"}
@@ -121,7 +121,7 @@ export default function TermsAndPoliciesPage() {
 
               <div className="mt-3">
                 {showPreview ? (
-                  <div className=" border border-white/10 bg-white p-5">
+                  <div className="surface p-5">
                     {localSettings.terms_content ? (
                       <MarkdownRenderer content={localSettings.terms_content} />
                     ) : (

@@ -223,7 +223,7 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
         <div className="flex flex-wrap items-center gap-2">
           <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
           {isPooled && (
-            <span className=" border border-violet-200 bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">Pooled: {poolName}</span>
+            <span className="badge-accent px-2 py-0.5 text-xs font-semibold">Pooled: {poolName}</span>
           )}
         </div>
       </div>
@@ -557,7 +557,7 @@ export default function StatusPage() {
           </button>
 
           {isTokenStatsOpen && tokenCards.map((card) => (
-            <div key={card.label} className={` p-4 ${card.className}`}>
+            <div key={card.label} className={`surface-muted p-4 ${card.className}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{card.label}</p>
               <p className="mt-2 font-display text-3xl text-sand" title={card.title}>{card.value}</p>
               <p className="mt-1 text-sm text-sand/55">{card.detail}</p>
@@ -590,7 +590,7 @@ export default function StatusPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="input-price" className="block text-sm font-medium text-sand/70">Input (per 1M tokens)</label>
-              <div className="mt-1 flex  border border-white/10 bg-white overflow-hidden">
+              <div className="mt-1 flex  field overflow-hidden">
                 <span className="flex items-center pl-3 text-sand/50">$</span>
                 <input
                   id="input-price"
@@ -606,7 +606,7 @@ export default function StatusPage() {
 
             <div>
               <label htmlFor="output-price" className="block text-sm font-medium text-sand/70">Output (per 1M tokens)</label>
-              <div className="mt-1 flex  border border-white/10 bg-white overflow-hidden">
+              <div className="mt-1 flex  field overflow-hidden">
                 <span className="flex items-center pl-3 text-sand/50">$</span>
                 <input
                   id="output-price"

@@ -80,7 +80,7 @@ function ActivityLogsTab() {
   return (
     <div className="grid gap-4">
     {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 ">
+      <div className="surface flex flex-wrap items-center gap-3 p-3">
         <div className="flex gap-1">
           {CATEGORIES.map((cat) => (
             <button
@@ -100,7 +100,7 @@ function ActivityLogsTab() {
             placeholder="Search events, users…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-52  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sand/30"
+            className="field w-52 px-3 py-1.5 text-sm"
           />
           <button
             type="submit"
@@ -122,7 +122,7 @@ function ActivityLogsTab() {
 
       {/* Table */}
       <div className="overflow-hidden border border-white/10">
-        {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+        {error && <p className="p-4 text-sm text-red-400">{error}</p>}
         {loading ? (
           <p className="p-6 text-center text-sm text-sand/50">Loading…</p>
         ) : items.length === 0 ? (
@@ -269,7 +269,7 @@ function DockerLogsTab() {
   return (
     <div className="grid gap-4">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3 ">
+      <div className="surface flex flex-wrap items-center gap-3 p-3">
         {containersError ? (
           <p className="text-sm text-red-600">{containersError}</p>
         ) : (
@@ -278,7 +278,7 @@ function DockerLogsTab() {
               value={selectedContainer}
               onChange={(e) => setSelectedContainer(e.target.value)}
               disabled={loadingContainers || containers.length === 0}
-              className=" border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sand/30 disabled:opacity-50"
+              className="field px-3 py-1.5 text-sm disabled:opacity-50"
             >
               {containers.length === 0 && !loadingContainers && (
                 <option value="">No containers found</option>

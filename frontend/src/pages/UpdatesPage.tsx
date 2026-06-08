@@ -118,7 +118,7 @@ export default function UpdatesPage() {
         <h2 className="font-display text-xl">Update check</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className=" py-4">
+          <div className="surface-muted px-4 py-4">
 
             <div className="grid gap-3">
               <label className="flex items-start justify-between gap-4">
@@ -136,7 +136,7 @@ export default function UpdatesPage() {
                   value={settings.update_check_mode}
                   disabled={isLoading || isSaving === "update_check_mode"}
                   onChange={(event) => void updateSetting("update_check_mode", event.target.value)}
-                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                  className=" field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 >
                   <option value="disabled">Disabled</option>
                   <option value="development">Development</option>
@@ -145,7 +145,7 @@ export default function UpdatesPage() {
               </label>
 
               {settings.update_check_mode !== "disabled" && updateStatus && (
-                <div className=" border border-white/10 bg-white px-4 py-3">
+                <div className="field px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm font-semibold text-sand">
@@ -159,7 +159,7 @@ export default function UpdatesPage() {
                     </div>
                     <button
                       type="button"
-                      className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
+                      className=" btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => {
                         if (!token) return;
                         setIsCheckingUpdate(true);

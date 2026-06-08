@@ -88,11 +88,11 @@ export default function AuthPage() {
         <form className="mt-6 grid gap-4" onSubmit={handleLogin}>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Username</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} autoComplete="username" />
+            <input className=" field px-4 py-3 text-sm" value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} autoComplete="username" />
           </label>
           <label className="grid gap-2 text-sm text-sand/70">
             <span className="font-semibold text-sand">Password</span>
-            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} autoComplete="current-password" />
+            <input className=" field px-4 py-3 text-sm" type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} autoComplete="current-password" />
           </label>
           {cloudflareTurnstileEnabled && cloudflareTurnstileSiteKey ? (
             <div ref={turnstileRef} className="mt-2 w-64 min-h-[74px]" />

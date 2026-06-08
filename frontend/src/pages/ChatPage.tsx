@@ -288,7 +288,7 @@ function getModelThinkingTagLabel(discourageThinking: boolean, capability: strin
 function ModelCardSkeleton() {
   return (
     <div
-      className="flex min-h-[172px] animate-pulse flex-col -[24px] p-5 shadow-sm"
+      className="surface-muted flex min-h-[172px] animate-pulse flex-col p-5"
       aria-hidden="true"
     >
       <div className="h-6 w-2/3  bg-black/10" />
@@ -895,7 +895,7 @@ export default function ChatPage() {
   return (
     <section className={`grid gap-0 ${isSidebarOpen ? "xl:grid-cols-[280px_minmax(0,1fr)]" : "xl:grid-cols-[72px_minmax(0,1fr)]"}`}>
       <aside
-        className={` border border-white/10 transition-all ${
+        className={`surface transition-all ${
           isSidebarOpen ? "hidden p-4 xl:block" : "hidden p-3 xl:block"
         }`}
       >
@@ -924,7 +924,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => setIsSidebarOpen(true)}
-              className="flex h-11 w-11 items-center justify-center  border border-white/10 bg-white text-sand/60 transition hover:border-white/20 hover:bg-white/10 hover:text-sand"
+              className="flex h-11 w-11 items-center justify-center  btn-icon text-sand/70 transition hover:border-white/20 hover:bg-white/10 hover:text-sand"
               aria-label="Expand sidebar"
               title="Expand sidebar"
             >
@@ -944,7 +944,7 @@ export default function ChatPage() {
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
                 disabled={isLoadingModels || models.length === 0}
-                className=" border border-white/20 bg-white px-3 py-2 text-sm"
+                className="field px-3 py-2 text-sm"
               >
                 {models.length === 0 ? (
                   <option value="">{isLoadingModels ? "Loading models..." : "No active models"}</option>
@@ -977,7 +977,7 @@ export default function ChatPage() {
         )}
 
         {shouldShowNoModelsEmptyState ? (
-          <div className="mx-auto w-full max-w-2xl -[28px] bg-white/40 px-8 py-10 text-center">
+          <div className="surface-muted mx-auto w-full max-w-2xl px-8 py-10 text-center">
             <i
               className="bi bi-emoji-frown text-[72px] leading-none text-sand"
               aria-hidden="true"
@@ -1018,7 +1018,7 @@ export default function ChatPage() {
                     className={`group flex min-h-[172px] flex-col -[24px] border p-5 text-left shadow-sm transition-all ${
                       isSelected
                         ? "border-ink bg-sand text-canvas shadow-lg shadow-black/10"
-                        : "border-white/10 bg-canvas text-sand hover:border-white/20 hover:shadow-md"
+                        : "border-white/15 bg-white/5 text-sand hover:border-white/25 hover:bg-white/10 hover:shadow-md"
                     }`}
                     aria-pressed={isSelected}
                   >
@@ -1026,14 +1026,14 @@ export default function ChatPage() {
                       <div className="min-w-0 flex-1">
                         <div className="font-display text-lg leading-tight">{alias}</div>
                         {details?.description ? (
-                          <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-white/80" : "text-sand/65"}`}>
+                          <p className={`mt-2 text-sm leading-6 ${isSelected ? "text-canvas/80" : "text-sand/65"}`}>
                             {details.description}
                           </p>
                         ) : null}
                       </div>
                       <span
                         className={`inline-flex h-9 w-9 shrink-0 items-center justify-center  border ${
-                          isSelected ? "border-white/20 bg-white/10 text-white" : "border-transparent bg-transparent text-transparent"
+                          isSelected ? "border-canvas/20 bg-canvas/10 text-canvas" : "border-transparent bg-transparent text-transparent"
                         }`}
                       >
                         {isSelected && <i className="bi bi-check2 text-[18px] leading-none" aria-hidden="true" />}
@@ -1042,7 +1042,7 @@ export default function ChatPage() {
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span
                         className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                          isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                          isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                         }`}
                       >
                         <i className="bi bi-box text-[13px] leading-none" aria-hidden="true" />
@@ -1051,7 +1051,7 @@ export default function ChatPage() {
                       {details?.toolCallingEnabled ? (
                         <span
                           className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                            isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                            isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                           }`}
                         >
                           <i className="bi bi-tools text-[13px] leading-none" aria-hidden="true" />
@@ -1061,7 +1061,7 @@ export default function ChatPage() {
                       {details?.webSearchEnabled ? (
                         <span
                           className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                            isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                            isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                           }`}
                         >
                           <i className="bi bi-globe2 text-[13px] leading-none" aria-hidden="true" />
@@ -1071,7 +1071,7 @@ export default function ChatPage() {
                       {details?.visionEnabled ? (
                         <span
                           className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                            isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                            isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                           }`}
                         >
                           <i className="bi bi-image text-[13px] leading-none" aria-hidden="true" />
@@ -1081,7 +1081,7 @@ export default function ChatPage() {
                       {details?.ragEnabled ? (
                         <span
                           className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                            isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                            isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                           }`}
                         >
                           <i className="bi bi-book-half text-[13px] leading-none" aria-hidden="true" />
@@ -1091,7 +1091,7 @@ export default function ChatPage() {
                       {thinkingTagLabel ? (
                         <span
                           className={`inline-flex items-center gap-2  px-3 py-1.5 text-xs font-medium ${
-                            isSelected ? "bg-white/10 text-white/90" : "bg-white/10 text-sand/70"
+                            isSelected ? "bg-canvas/10 text-canvas/90" : "bg-white/10 text-sand/70"
                           }`}
                         >
                           <i className="bi bi-stars text-[13px] leading-none" aria-hidden="true" />
@@ -1109,7 +1109,7 @@ export default function ChatPage() {
             <div
               ref={transcriptRef}
               onScroll={handleTranscriptScroll}
-              className="min-h-[360px] max-h-[55vh] overflow-y-auto  border border-dashed border-white/20 bg-sand p-4 text-sm text-sand/80"
+              className="min-h-[360px] max-h-[55vh] overflow-y-auto  surface-muted border-dashed p-4 text-sm text-sand/80"
             >
               {messages.length === 0 ? (
                 <div className="text-sand/50">Nothing to see here yet.</div>
@@ -1127,8 +1127,8 @@ export default function ChatPage() {
                       key={index}
                       className={
                         message.role === "user"
-                          ? " border border-white/5 bg-white/90 p-4 shadow-sm"
-                          : " border border-white/5 bg-white/55 p-4 shadow-sm shadow-black/5"
+                          ? " surface-muted p-4"
+                          : " surface-muted p-4"
                       }
                     >
                       <div className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">
@@ -1212,7 +1212,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={scrollTranscriptToBottom}
-              className={`absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center  border border-white/10 bg-sand text-canvas shadow-lg shadow-black/15 transition-all duration-150 ease-out hover:bg-black ${
+              className={`absolute bottom-4 right-4 btn-icon h-11 w-11 bg-sand text-canvas shadow-lg shadow-black/15 transition-all duration-150 ease-out hover:bg-sand/80 ${
                 showScrollToBottom
                   ? "translate-y-0 scale-100 opacity-100"
                   : "pointer-events-none translate-y-2 scale-95 opacity-0"
@@ -1230,7 +1230,7 @@ export default function ChatPage() {
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2  border border-white/10 bg-white/10 p-2">
               {attachments.map((file, idx) => (
-                <div key={idx} className="relative flex items-center gap-2  bg-white p-2 shadow-sm pr-8 text-xs font-semibold text-sand/70">
+                <div key={idx} className="relative flex items-center gap-2  surface-muted p-2 pr-8 text-xs font-semibold text-sand/70">
                   {file.kind === "image" && file.dataUrl ? (
                     <img src={file.dataUrl} alt={file.name} className="h-8 w-8  object-cover" />
                   ) : (
@@ -1264,7 +1264,7 @@ export default function ChatPage() {
                   setUseWebSearch((current) => !current);
                 }}
                 disabled={isSending || isModelsUnavailable || !selectedModelSupportsWebSearch}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelSupportsWebSearch ? "border-white/20 bg-white" : useWebSearch ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/20 bg-white hover:bg-white/10"}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelSupportsWebSearch ? "border-white/15 bg-white/10" : useWebSearch ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/15 bg-white/10 hover:bg-white/15"}`}
                 title={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
                 aria-label={selectedModelSupportsWebSearch ? (useWebSearch ? "Disable Web Search" : "Enable Web Search") : "Web Search not available for this model"}
                 aria-pressed={useWebSearch}
@@ -1281,7 +1281,7 @@ export default function ChatPage() {
                   }
                 }}
                 disabled={isSending || isModelsUnavailable || (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks)}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-white/20 bg-white" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/20 bg-white hover:bg-white/10"}`}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-white/15 bg-white/10" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/15 bg-white/10 hover:bg-white/15"}`}
                 title={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
                 aria-label={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
                 aria-pressed={useThinking || selectedModelAlwaysThinks}
@@ -1293,7 +1293,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isSending || isModelsUnavailable}
-                className="flex h-12 w-12 shrink-0 items-center justify-center  border border-white/20 bg-white hover:bg-white/10 text-sand disabled:opacity-50"
+                className="flex h-12 w-12 shrink-0 items-center justify-center  border border-white/15 bg-white/10 hover:bg-white/15 text-sand disabled:opacity-50"
                 title="Attach files"
                 aria-label="Attach files"
               >
@@ -1312,7 +1312,7 @@ export default function ChatPage() {
                 <button
                   type="submit"
                   disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                  className="flex h-12 flex-1 items-center justify-center  bg-amber px-4 text-sm font-semibold text-sand disabled:opacity-50 sm:hidden"
+                  className="flex h-12 flex-1 items-center justify-center bg-amber px-4 text-sm font-semibold text-canvas disabled:opacity-50 sm:hidden"
                   aria-label="Send"
                 >
                   <i className="bi bi-arrow-return-left text-[18px] leading-none" aria-hidden="true" />
@@ -1324,7 +1324,7 @@ export default function ChatPage() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               disabled={isSending || isModelsUnavailable}
-              className="order-1 min-w-0 flex-1  border border-white/20 bg-white px-4 py-3 text-sm h-12 disabled:opacity-50"
+              className="order-1 min-w-0 flex-1  field px-4 py-3 text-sm h-12 disabled:opacity-50"
               placeholder={inputPlaceholder}
             />
             {isSending ? (
@@ -1339,7 +1339,7 @@ export default function ChatPage() {
               <button
                 type="submit"
                 disabled={!selectedModel || (!input.trim() && attachments.length === 0)}
-                className="order-2 hidden h-12 items-center justify-center  bg-amber px-4 text-sm font-semibold text-sand disabled:opacity-50 sm:flex sm:flex-none"
+                className="order-2 hidden h-12 items-center justify-center bg-amber px-4 text-sm font-semibold text-canvas disabled:opacity-50 sm:flex sm:flex-none"
                 aria-label="Send"
               >
                 <i className="bi bi-arrow-return-left text-[18px] leading-none" aria-hidden="true" />

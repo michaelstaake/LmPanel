@@ -209,27 +209,27 @@ export default function ApiPage() {
   }
 
   return (
-    <section className="grid gap-0">
-      <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+    <section className="grid gap-4">
+      <article className="surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <h2 className="font-display text-2xl">API Keys</h2>
           </div>
-          <button className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10" type="button" onClick={() => setIsCreateModalOpen(true)}>
+          <button className="btn-secondary px-4 py-3 text-sm font-semibold" type="button" onClick={() => setIsCreateModalOpen(true)}>
             Add API key
           </button>
         </div>
 
         <div className="mt-5 space-y-4">
             {apiKeys.map((apiKey) => (
-              <div key={apiKey.id} className=" p-4">
+              <div key={apiKey.id} className="surface-muted p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <h3 className="font-display text-lg text-sand">{apiKey.name}</h3>
                     <p className="mt-1 text-xs uppercase tracking-[0.18em] text-sand/45">{formatLastUsed(apiKey.last_used_at)}</p>
                   </div>
                   <button
-                    className=" border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="btn-danger px-3 py-2 text-sm font-semibold"
                     type="button"
                     onClick={() => void handleRevokeApiKey(apiKey.id)}
                     disabled={revokingKeyId === apiKey.id}
@@ -239,9 +239,9 @@ export default function ApiPage() {
                 </div>
               </div>
             ))}
-            {isLoadingKeys ? <p className=" border border-white/10 bg-white px-4 py-6 text-sm text-sand/60">Loading API keys...</p> : null}
+            {isLoadingKeys ? <p className="surface-muted px-4 py-6 text-sm text-sand/60">Loading API keys...</p> : null}
             {!isLoadingKeys && apiKeys.length === 0 ? (
-              <div className=" border border-dashed border-white/15 bg-sand/60 px-5 py-8 text-center">
+              <div className=" border border-dashed border-white/15 bg-white/5 px-5 py-8 text-center">
                 <h3 className="font-display text-lg text-sand">No API keys yet</h3>
                 <p className="mt-2 text-sm text-sand/60">Create your first key to get started!</p>
               </div>
@@ -253,7 +253,7 @@ export default function ApiPage() {
         <article className="p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 id="api-key-create-title" className="font-display text-2xl">Add API key</h2>
-            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={closeCreateModal}>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={closeCreateModal}>
               Close
             </button>
           </div>
@@ -263,7 +263,7 @@ export default function ApiPage() {
               <label className="grid gap-2 text-sm text-sand/70">
                 <span className="font-semibold text-sand">Key name</span>
                 <input
-                  className=" border border-white/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-white/25"
+                  className="field px-4 py-3 text-sm outline-none transition focus:border-white/25"
                   value={newKeyName}
                   onChange={(event) => setNewKeyName(event.target.value)}
                   placeholder="Desktop client"
@@ -296,25 +296,25 @@ export default function ApiPage() {
         </article>
       </Modal>
 
-      <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className="surface p-5">
         <h2 className="font-display text-2xl">API Documentation</h2>
         <div className="mt-5 space-y-6">
           <div>
             <h3 className="font-display text-lg text-sand">Base URL</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className=" px-3 py-2 text-sm font-mono text-sand">{BASE_URL}</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-sand">Chat completions</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className=" px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/chat/completions</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/chat/completions</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-sand">List models</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className=" px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/models</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/models</code>
             </div>
           </div>
           <div>
@@ -326,7 +326,7 @@ export default function ApiPage() {
             ) : (
               <ul className="mt-2 space-y-2">
                 {v1Models.map((model) => (
-                  <li key={model.id} className=" px-3 py-2">
+                  <li key={model.id} className="surface-muted px-3 py-2">
                     <span className="text-sm font-mono text-sand">{model.id}</span>
                     {model.description && (
                       <span className="ml-2 text-xs text-sand/45">- {model.description}</span>
@@ -339,7 +339,7 @@ export default function ApiPage() {
         </div>
       </article>
 
-      <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className="surface p-5">
         <h2 className="font-display text-2xl">OpenCode config</h2>
         <p className="mt-2 text-sm text-sand/60">
           Use this in your OpenCode config file to connect to LmPanel's OpenAI-compatible endpoint. Adjust the models and settings as needed.
