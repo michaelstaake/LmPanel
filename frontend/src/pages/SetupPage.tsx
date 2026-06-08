@@ -31,7 +31,7 @@ export default function SetupPage() {
       setPassword("");
       setConfirmPassword("");
       showSuccess("Admin account created.");
-      navigate("/configuration", { replace: true });
+      navigate("/settings/general", { replace: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Initial admin creation failed";
       if (message.includes("Request failed: 500")) {
