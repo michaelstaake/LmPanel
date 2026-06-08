@@ -304,7 +304,7 @@ export default function ConfigurationPage() {
                 />
               </div>
             ) : (
-              <p className="text-sm text-sand/65">No favicon uploaded.</p>
+              <p className="text-sm text-sand/65">No favicon uploaded. Using default favicon.</p>
             )}
           </div>
           <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
