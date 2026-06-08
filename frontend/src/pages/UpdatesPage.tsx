@@ -144,43 +144,46 @@ export default function UpdatesPage() {
                 </select>
               </label>
 
-              {settings.update_check_mode !== "disabled" && updateStatus && (
-                <div className="field px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-sand">
-                        {updateStatus.update_available ? "Update available" : "Up to date"}
-                      </div>
-                      <p className="mt-1 text-sm text-sand/65">
-                        {settings.update_check_mode === "development"
-                          ? `Latest commit: ${updateStatus.latest_commit.slice(0, 7)}`
-                          : `Latest version: ${updateStatus.latest_version}`}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className=" btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-                      onClick={() => {
-                        if (!token) return;
-                        setIsCheckingUpdate(true);
-                        void (async () => {
-                          try {
-                            await checkForUpdatesToken(token);
-                          } finally {
-                            setIsCheckingUpdate(false);
-                          }
-                        })();
-                      }}
-                      disabled={isCheckingUpdate}
-                    >
-                      {isCheckingUpdate ? "Checking..." : "Check now"}
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
+
+        {settings.update_check_mode !== "disabled" && updateStatus && (
+          <div className="mt-3 grid gap-3">
+            <div className="surface-muted px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-sand">
+                    {updateStatus.update_available ? "Update available" : "Up to date"}
+                  </div>
+                  <p className="mt-1 text-sm text-sand/65">
+                    {settings.update_check_mode === "development"
+                      ? `Latest commit: ${updateStatus.latest_commit.slice(0, 7)}`
+                      : `Latest version: ${updateStatus.latest_version}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className=" btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => {
+                    if (!token) return;
+                    setIsCheckingUpdate(true);
+                    void (async () => {
+                      try {
+                        await checkForUpdatesToken(token);
+                      } finally {
+                        setIsCheckingUpdate(false);
+                      }
+                    })();
+                  }}
+                  disabled={isCheckingUpdate}
+                >
+                  {isCheckingUpdate ? "Checking..." : "Check now"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </article>
     </SettingsLayout>
   );
