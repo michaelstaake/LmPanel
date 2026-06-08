@@ -9,7 +9,7 @@ services:
       APP_PORT: "8000"
       FRONTEND_ORIGIN: "https://localhost:8443"
       INFERENCE_SERVICE_URL: http://inference-cpu:8100
-      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100,rocm=http://inference-rocm:8100
+      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100,rocm=http://inference-rocm:8100,anpu=http://inference-anpu:8100
       SUPPORTED_DEVICES: ""
       LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
       LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
@@ -43,6 +43,9 @@ services:
         condition: service_healthy
         required: false
       inference-rocm:
+        condition: service_healthy
+        required: false
+      inference-anpu:
         condition: service_healthy
         required: false
     restart: unless-stopped
@@ -192,6 +195,44 @@ services:
       - seccomp:unconfined
       - apparmor:unconfined
     ipc: host
+    expose:
+      - "8100"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
+      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    restart: unless-stopped
+
+  inference-anpu:
+    profiles: [anpu]
+    build:
+      context: .
+      dockerfile: Dockerfile.inference.anpu
+      args:
+        FLM_VERSION: ${FLM_VERSION:-0.9.43}
+        FLM_CONVERTER_TAG: ${FLM_CONVERTER_TAG:-main}
+    container_name: lmpanel-inference-anpu
+    environment:
+      SUPPORTED_DEVICES: anpu
+      LLAMA_STARTUP_TIMEOUT_SECONDS: ${ANPU_STARTUP_TIMEOUT_SECONDS:-900}
+      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
+      FLM_BIN: /usr/bin/flm
+      FLM_MODEL_PATH: /app/models/flm
+      FLM_TEMPLATE_MODELS: /opt/flm-templates
+      FLM_CONVERTER_ROOT: /opt/FLM_Q4NX_Converter
+      ANPU_BACKEND: flm
+    devices:
+      - /dev/accel:/dev/accel
+    volumes:
+      - ./models:/app/models
+      - ./logs:/app/logs
+      - /usr/lib/firmware/amdnpu:/usr/lib/firmware/amdnpu:ro
+    ulimits:
+      memlock: -1
+    group_add:
+      - render
     expose:
       - "8100"
     healthcheck:

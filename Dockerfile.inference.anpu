@@ -1,0 +1,69 @@
+FROM ubuntu:24.04
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    cmake \
+    curl \
+    git \
+    gnupg \
+    ninja-build \
+    python3 \
+    python3-pip \
+    python3-venv \
+    software-properties-common \
+  && rm -rf /var/lib/apt/lists/*
+
+ARG FLM_VERSION=0.9.43
+ARG FLM_CONVERTER_TAG=main
+
+# XRT userspace for AMD NPU (host must expose /dev/accel and firmware).
+RUN add-apt-repository -y ppa:lemonade-team/stable \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends libxrt-npu2 \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL \
+    "https://github.com/FastFlowLM/FastFlowLM/releases/download/v${FLM_VERSION}/fastflowlm_${FLM_VERSION}_ubuntu24.04_amd64.deb" \
+    -o /tmp/fastflowlm.deb \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends /tmp/fastflowlm.deb \
+  && rm -f /tmp/fastflowlm.deb \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --branch "${FLM_CONVERTER_TAG}" \
+    https://github.com/FastFlowLM/FLM_Q4NX_Converter.git /opt/FLM_Q4NX_Converter \
+  && cd /opt/FLM_Q4NX_Converter \
+  && chmod +x setup_venv.sh \
+  && ./setup_venv.sh
+
+COPY requirements.txt ./
+RUN python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+ENV PATH=/opt/venv/bin:$PATH
+ENV FLM_BIN=/usr/bin/flm
+ENV FLM_CONVERTER_ROOT=/opt/FLM_Q4NX_Converter
+ENV FLM_TEMPLATE_MODELS=/opt/flm-templates
+ENV FLM_MODEL_PATH=/app/models/flm
+ENV ANPU_BACKEND=flm
+ENV SUPPORTED_DEVICES=anpu
+
+# Bake reference models for xclbin/template cloning (downloads only; no NPU required).
+RUN mkdir -p /opt/flm-templates \
+  && FLM_MODEL_PATH=/opt/flm-templates flm pull llama3.2:3b || true \
+  && FLM_MODEL_PATH=/opt/flm-templates flm pull qwen3:4b || true
+
+COPY app ./app
+
+RUN mkdir -p /app/models /app/models/flm /app/logs \
+  && groupadd -f -g 44 video \
+  && groupadd -f -g 104 render
+
+EXPOSE 8100
+
+CMD ["uvicorn", "app.inference_service:app", "--host", "0.0.0.0", "--port", "8100"]

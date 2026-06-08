@@ -31,7 +31,7 @@ def get_supported_vendors() -> set[str]:
     if configured:
         return set(configured)
 
-    return {"cpu", "nvidia", "vulkan", "rocm"}
+    return {"cpu", "nvidia", "vulkan", "rocm", "anpu"}
 
 
 def is_supported_vendor(vendor: str) -> bool:
@@ -70,6 +70,7 @@ class DeviceManager:
         devices.extend(self._detect_nvidia())
         devices.extend(self._detect_rocm())
         devices.extend(self._detect_vulkan(exclude_amd=hide_vulkan_amd))
+        devices.extend(self._detect_anpu())
         devices.extend(self._detect_cpu())
         return devices
 
@@ -482,6 +483,44 @@ class DeviceManager:
             return int(path.read_text().strip())
         except Exception:
             return None
+
+    def _detect_anpu(self) -> list[DetectedDevice]:
+        if not is_supported_vendor("anpu"):
+            return []
+
+        accel_path = Path("/dev/accel/accel0")
+        if not accel_path.exists():
+            return []
+
+        stable_hardware_id = None
+        stable_hardware_id_source = None
+        fw_paths = list(Path("/sys/bus/pci/drivers/amdxdna").glob("*/fw_version"))
+        if fw_paths:
+            try:
+                stable_hardware_id = fw_paths[0].parent.name
+                stable_hardware_id_source = "pci_bdf"
+            except Exception:
+                stable_hardware_id = None
+
+        memory_mb = 0
+        for sysfs_path in Path("/sys/class/accel").glob("accel*/device/mem_size"):
+            value = self._read_sysfs_int(sysfs_path)
+            if value:
+                memory_mb = max(memory_mb, int(value / (1024 * 1024)))
+
+        return [
+            DetectedDevice(
+                hardware_id="anpu:0",
+                stable_hardware_id=stable_hardware_id,
+                stable_hardware_id_source=stable_hardware_id_source,
+                name="AMD Ryzen AI NPU",
+                vendor="anpu",
+                device_type="npu",
+                memory_mb=memory_mb,
+                max_threads=0,
+                max_slots=1,
+            )
+        ]
 
     def _detect_cpu(self) -> list[DetectedDevice]:
         cores = psutil.cpu_count(logical=False) or 1

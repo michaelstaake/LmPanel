@@ -20,6 +20,20 @@ TYPE_INT64 = 11
 TYPE_FLOAT64 = 12
 
 
+def read_gguf_architecture(file_path: str) -> str | None:
+    path = Path(file_path)
+    if not path.exists() or not path.is_file():
+        return None
+
+    try:
+        with path.open("rb") as handle:
+            version = _read_header(handle)
+            metadata_count = _read_metadata_count(handle, version)
+            return _read_architecture_from_metadata(handle, metadata_count, version)
+    except (OSError, UnicodeDecodeError, ValueError, struct.error):
+        return None
+
+
 def read_gguf_max_context_length(file_path: str) -> int | None:
     path = Path(file_path)
     if not path.exists() or not path.is_file():
@@ -50,6 +64,16 @@ def _read_metadata_count(handle: BinaryIO, version: int) -> int:
         return _unpack("<I", _read_exact(handle, 4))
     _read_exact(handle, 8)
     return _unpack("<Q", _read_exact(handle, 8))
+
+
+def _read_architecture_from_metadata(handle: BinaryIO, metadata_count: int, version: int) -> str | None:
+    for _ in range(metadata_count):
+        key = _read_string(handle, version)
+        value_type = _unpack("<I", _read_exact(handle, 4))
+        value = _read_value(handle, value_type, version)
+        if key == "general.architecture" and isinstance(value, str):
+            return value
+    return None
 
 
 def _read_context_length_from_metadata(handle: BinaryIO, metadata_count: int, version: int) -> int | None:

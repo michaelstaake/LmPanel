@@ -116,6 +116,11 @@ export type ModelRecord = {
   pinned_device_id: number | null;
   pinned_pool_id: number | null;
   activated: boolean;
+  anpu_architecture: string | null;
+  anpu_compatible: boolean;
+  anpu_flm_tag: string | null;
+  anpu_conversion_status: string;
+  anpu_conversion_error: string;
 };
 
 export type DeviceRecord = {

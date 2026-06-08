@@ -16,9 +16,15 @@ import httpx
 import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict
-
 from app.core.config import get_settings
+from app.inference.backends import select_backend
+from app.inference.llama_launch import (
+    format_gpu_layers_for_cli as _format_gpu_layers_for_cli,
+    llama_offload_extra_args as _llama_offload_extra_args,
+    validate_gpu_offload_from_log,
+    validate_gpu_offload_from_log as _validate_gpu_offload_from_log,
+)
+from app.inference.types import ActivateModelRequest
 from app.core.device_manager import (
     AMD_VENDOR_ID,
     INTEL_VENDOR_ID,
@@ -38,126 +44,6 @@ from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metr
 
 logger = logging.getLogger(__name__)
 
-_GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan", "rocm"})
-
-
-def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
-    if gpu_layers <= -1:
-        return "all"
-    return str(max(0, gpu_layers))
-
-
-def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool) -> list[str]:
-    effective_vendor = vendor.removesuffix("_pool")
-    if effective_vendor not in _GPU_OFFLOAD_VENDORS or gpu_layers == 0:
-        return []
-
-    args: list[str] = []
-    if not fit_to_vram:
-        args.extend(["--fit", "off"])
-    if not vendor.endswith("_pool"):
-        args.extend(["--main-gpu", "0"])
-    return args
-
-
-def _apply_rocm_runtime_env(env: dict[str, str]) -> None:
-    override = get_settings().rocm_hsa_override_gfx_version.strip()
-    if override:
-        env["HSA_OVERRIDE_GFX_VERSION"] = override
-
-
-def _rocm_pool_stability_args() -> list[str]:
-    settings = get_settings()
-    args: list[str] = []
-
-    parallel = max(1, settings.rocm_pool_parallel)
-    args.extend(["--parallel", str(parallel)])
-
-    cache_ram_mb = max(0, settings.rocm_pool_cache_ram_mb)
-    args.extend(["--cache-ram", str(cache_ram_mb)])
-
-    return args
-
-
-def _rocm_pool_flash_attn_enabled(requested: bool) -> bool:
-    settings = get_settings()
-    if settings.rocm_pool_flash_attn_enabled:
-        return requested
-    return False
-
-
-def _resolve_flash_attn_for_launch(vendor: str, requested: bool, split_mode: str) -> bool:
-    if vendor != "rocm_pool":
-        return requested
-
-    enabled = _rocm_pool_flash_attn_enabled(requested)
-    normalized_split_mode = split_mode.strip().lower()
-
-    # Tensor split requires flash-attn. If the model-level flash setting conflicts,
-    # ignore that model value and force a compatible value at launch.
-    if normalized_split_mode == "tensor" and not enabled:
-        settings = get_settings()
-        if settings.rocm_pool_allow_tensor_split and settings.rocm_pool_flash_attn_enabled:
-            logger.warning(
-                "Ignoring model flash-attn setting for ROCm tensor pool; forcing --flash-attn on"
-            )
-            return True
-
-    return enabled
-
-
-def _effective_pool_split_mode(vendor: str, split_mode: str, *, flash_attn_enabled: bool) -> str:
-    if vendor != "rocm_pool":
-        return split_mode
-
-    normalized = split_mode.strip().lower()
-    if normalized not in {"layer", "tensor"}:
-        logger.warning("ROCm pool requested unsupported split mode '%s'; using 'layer'", split_mode)
-        return "layer"
-
-    if normalized != "tensor":
-        return normalized
-
-    if not flash_attn_enabled:
-        logger.warning("ROCm pool requested split mode 'tensor' but flash-attn is off; using 'layer' instead")
-        return "layer"
-
-    settings = get_settings()
-    if settings.rocm_pool_allow_tensor_split:
-        return normalized
-
-    logger.warning(
-        "ROCm pool requested split mode 'tensor' but it is disabled by configuration; using 'layer' instead"
-    )
-    return "layer"
-
-
-def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) -> None:
-    effective_vendor = vendor.removesuffix("_pool")
-    if effective_vendor not in _GPU_OFFLOAD_VENDORS or gpu_layers == 0:
-        return
-
-    try:
-        text = Path(log_path).read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        logger.warning("Could not read llama log at %s for GPU offload verification", log_path)
-        return
-
-    lowered = text.lower()
-    if "no usable gpu found" in lowered or "gpu-layers option will be ignored" in lowered:
-        raise RuntimeError(
-            "llama-server has no usable GPU backend. Rebuild with the correct inference profile "
-            "(for AMD: docker compose --profile rocm) and verify AMDGPU_TARGETS matches your GPU."
-        )
-
-    match = re.search(r"offloaded\s+(\d+)/(\d+)\s+layers", text, re.IGNORECASE)
-    if match and int(match.group(1)) == 0 and int(match.group(2)) > 0:
-        raise RuntimeError(
-            "Model loaded with 0 GPU layers (CPU-only). Lower context length, keep GPU layers at 99 (all layers, or -1 for legacy), "
-            "set LLAMA_FIT_TO_VRAM=false, and confirm ROCm sees the GPU inside the inference-rocm container."
-        )
-
-
 def _coalesce_int(value: object) -> int | None:
     if value is None or value == "":
         return None
@@ -165,28 +51,6 @@ def _coalesce_int(value: object) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
-
-
-class ActivateModelRequest(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-
-    model_id: int
-    alias: str
-    file_path: str
-    mmproj_path: str | None = None
-    context_length: int
-    threads: int
-    gpu_layers: int
-    flash_attention_enabled: bool = False
-    memory_mapping_enabled: bool = True
-    vendor: str
-    hardware_id: str
-    hardware_ids: list[str] = []
-    vram_ratios: list[int] = []
-    split_mode: str = "layer"
-    stable_hardware_id: str | None = None
-    stable_hardware_ids: list[str] = []
-    discourage_thinking: bool = False
 
 
 @dataclass
@@ -201,6 +65,7 @@ class RunningModel:
     command: list[str] = field(default_factory=list, compare=False)
     log_path: str = field(default="", compare=False)
     log_file: Optional[IO[bytes]] = field(default=None, compare=False)
+    health_url: str = field(default="", compare=False)
 
 
 class InferenceRuntime:
@@ -220,73 +85,28 @@ class InferenceRuntime:
         self._ensure_stable_hardware_available(payload)
 
         port = self.settings.llama_base_port + payload.model_id
-        env = self._build_env(payload.vendor, payload.hardware_id, payload.threads, payload.hardware_ids)
-        flash_attn_enabled = _resolve_flash_attn_for_launch(
-            payload.vendor,
-            payload.flash_attention_enabled,
-            payload.split_mode,
-        )
-        if payload.vendor == "rocm_pool" and payload.flash_attention_enabled and not flash_attn_enabled:
-            logger.warning("ROCm pool forcing --flash-attn off for stability")
-
-        command = [
-            self._resolve_llama_server_path(),
-            "-m",
-            payload.file_path,
-            "--host",
-            self.settings.llama_host,
-            "--port",
-            str(port),
-            "-c",
-            str(payload.context_length),
-            "--threads",
-            str(payload.threads),
-            "--n-gpu-layers",
-            _format_gpu_layers_for_cli(payload.gpu_layers),
-            "--flash-attn",
-            "on" if flash_attn_enabled else "off",
-        ]
-        command.extend(
-            _llama_offload_extra_args(
-                payload.vendor,
-                payload.gpu_layers,
-                fit_to_vram=self.settings.llama_fit_to_vram,
-            )
-        )
-        if not payload.memory_mapping_enabled:
-            command.append("--no-mmap")
-        if payload.mmproj_path:
-            command.extend(["--mmproj", payload.mmproj_path])
-        command.extend(
-            self._build_vendor_args(
-                payload.vendor,
-                payload.vram_ratios,
-                payload.split_mode,
-                flash_attn_enabled=flash_attn_enabled,
-            )
-        )
-        command.append("--jinja")
-        if payload.discourage_thinking:
-            command.extend(["--reasoning", "off", "--reasoning-budget", "0"])
+        backend = select_backend(payload.vendor)
+        launch = backend.build_launch(payload, port, self.settings)
 
         logs_dir = Path(self.settings.logs_dir)
         logs_dir.mkdir(parents=True, exist_ok=True)
-        log_path = logs_dir / f"llama-{payload.model_id}.log"
+        log_path = logs_dir / f"{launch.log_prefix}-{payload.model_id}.log"
 
         try:
             log_file: IO[bytes] = open(log_path, "wb")
             logger.info(
-                "Launching llama-server for model %d (%s) on %s %s; log=%s; command=%s",
+                "Launching inference for model %d (%s) on %s %s; log=%s; command=%s",
                 payload.model_id,
                 payload.alias,
                 payload.vendor,
                 payload.hardware_id,
                 log_path,
-                shlex.join(command),
+                shlex.join(launch.command),
             )
-            process = subprocess.Popen(command, env=env, stdout=log_file, stderr=log_file)
+            process = subprocess.Popen(launch.command, env=launch.env, stdout=log_file, stderr=log_file)
         except FileNotFoundError as exc:
-            raise RuntimeError(f"llama-server executable not found at {self.settings.llama_server_path}") from exc
+            executable = launch.command[0] if launch.command else "inference server"
+            raise RuntimeError(f"Inference executable not found: {executable}") from exc
 
         self._running[payload.model_id] = RunningModel(
             model_id=payload.model_id,
@@ -296,19 +116,21 @@ class InferenceRuntime:
             port=port,
             process=process,
             stable_hardware_ids=self._stable_hardware_ids_from_payload(payload),
-            command=command,
+            command=launch.command,
             log_path=str(log_path),
             log_file=log_file,
+            health_url=launch.health_url,
         )
         if not await self.wait_until_healthy(payload.model_id):
             self.deactivate_model(payload.model_id)
             raise RuntimeError(f"Model {payload.alias} failed health check")
 
-        try:
-            _validate_gpu_offload_from_log(str(log_path), payload.vendor, payload.gpu_layers)
-        except RuntimeError:
-            self.deactivate_model(payload.model_id)
-            raise
+        if launch.post_launch_validate:
+            try:
+                validate_gpu_offload_from_log(str(log_path), payload.vendor, payload.gpu_layers)
+            except RuntimeError:
+                self.deactivate_model(payload.model_id)
+                raise
 
     def deactivate_model(self, model_id: int) -> None:
         running = self._running.pop(model_id, None)
@@ -330,7 +152,7 @@ class InferenceRuntime:
         if not running:
             return False
 
-        url = f"http://{self.settings.llama_host}:{running.port}/health"
+        url = running.health_url or f"http://{self.settings.llama_host}:{running.port}/health"
         timeout = self.settings.llama_health_timeout_seconds
         deadline = time.monotonic() + max(timeout, self.settings.llama_startup_timeout_seconds)
 
@@ -397,72 +219,6 @@ class InferenceRuntime:
                         event_buffer = self._track_stream_chunk(event_buffer, decoder, chunk)
                         yield chunk
                 self._finalize_tracked_stream(event_buffer, decoder)
-
-    def _resolve_llama_server_path(self) -> str:
-        configured_path = Path(self.settings.llama_server_path)
-        candidates = [configured_path]
-        if os.name == "nt" and configured_path.suffix.lower() != ".exe":
-            candidates.insert(0, configured_path.with_suffix(".exe"))
-
-        for candidate in candidates:
-            if candidate.exists():
-                return str(candidate)
-
-        return str(configured_path)
-
-    def _build_env(self, vendor: str, hardware_id: str, threads: int, hardware_ids: list[str] | None = None) -> dict[str, str]:
-        env = os.environ.copy()
-        if vendor == "nvidia_pool":
-            ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
-            env["CUDA_VISIBLE_DEVICES"] = ",".join(indices)
-        elif vendor == "vulkan_pool":
-            ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
-            env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
-        elif vendor == "rocm_pool":
-            ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
-            env["HIP_VISIBLE_DEVICES"] = ",".join(indices)
-            _apply_rocm_runtime_env(env)
-        elif vendor == "rocm":
-            env["HIP_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
-            _apply_rocm_runtime_env(env)
-        elif vendor == "nvidia":
-            env["CUDA_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
-        elif vendor == "vulkan":
-            env["GGML_VK_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
-        elif vendor == "cpu":
-            env["OMP_NUM_THREADS"] = str(max(1, threads))
-        else:
-            raise RuntimeError(f"Unknown device vendor: {vendor}")
-        return env
-
-    def _build_vendor_args(
-        self,
-        vendor: str,
-        vram_ratios: list[int] | None = None,
-        split_mode: str = "layer",
-        *,
-        flash_attn_enabled: bool = False,
-    ) -> list[str]:
-        if vendor.endswith("_pool"):
-            args: list[str] = []
-            effective_split_mode = split_mode
-            if vendor == "rocm_pool":
-                args.extend(_rocm_pool_stability_args())
-                effective_split_mode = _effective_pool_split_mode(
-                    vendor,
-                    split_mode,
-                    flash_attn_enabled=flash_attn_enabled,
-                )
-
-            if effective_split_mode == "tensor" and vram_ratios and len(vram_ratios) >= 2:
-                args.extend(["--tensor-split", ",".join(str(r) for r in vram_ratios)])
-            args.extend(["--split-mode", effective_split_mode])
-            return args
-
-        return []
 
     @staticmethod
     def _stable_hardware_ids_from_payload(payload: ActivateModelRequest) -> list[str]:

@@ -48,6 +48,7 @@ function vendorLabel(vendor: string) {
   if (vendor === "nvidia") return "NVIDIA";
   if (vendor === "vulkan") return "Vulkan";
   if (vendor === "rocm") return "ROCm";
+  if (vendor === "anpu") return "AMD NPU";
   return vendor;
 }
 
