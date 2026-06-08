@@ -11,9 +11,6 @@ export default function UpdatesPage() {
   const [settings, setSettings] = useState<AppSettingsRecord>({
     users_can_register: false,
     sitename: "LmPanel",
-    background_color: "#efe8d2",
-    background_image_path: null,
-    background_image_mode: "fill",
     favicon_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
@@ -121,13 +118,13 @@ export default function UpdatesPage() {
         <h2 className="font-display text-xl">Update check</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className=" py-4">
 
             <div className="grid gap-3">
               <label className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-sm font-semibold text-black">Update check mode</div>
-                  <p className="mt-1 text-sm text-black/65">
+                  <div className="text-sm font-semibold text-sand">Update check mode</div>
+                  <p className="mt-1 text-sm text-sand/65">
                     {settings.update_check_mode === "disabled"
                       ? "Updates are not checked automatically."
                       : settings.update_check_mode === "development"
@@ -139,7 +136,7 @@ export default function UpdatesPage() {
                   value={settings.update_check_mode}
                   disabled={isLoading || isSaving === "update_check_mode"}
                   onChange={(event) => void updateSetting("update_check_mode", event.target.value)}
-                  className=" border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 >
                   <option value="disabled">Disabled</option>
                   <option value="development">Development</option>
@@ -148,13 +145,13 @@ export default function UpdatesPage() {
               </label>
 
               {settings.update_check_mode !== "disabled" && updateStatus && (
-                <div className=" border border-black/10 bg-white px-4 py-3">
+                <div className=" border border-white/10 bg-white px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-black">
+                      <div className="text-sm font-semibold text-sand">
                         {updateStatus.update_available ? "Update available" : "Up to date"}
                       </div>
-                      <p className="mt-1 text-sm text-black/65">
+                      <p className="mt-1 text-sm text-sand/65">
                         {settings.update_check_mode === "development"
                           ? `Latest commit: ${updateStatus.latest_commit.slice(0, 7)}`
                           : `Latest version: ${updateStatus.latest_version}`}
@@ -162,7 +159,7 @@ export default function UpdatesPage() {
                     </div>
                     <button
                       type="button"
-                      className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                      className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => {
                         if (!token) return;
                         setIsCheckingUpdate(true);

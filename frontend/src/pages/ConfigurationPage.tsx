@@ -5,13 +5,9 @@ import { useToast } from "../context/ToastContext";
 import { AppSettingsRecord } from "../lib/records";
 import SettingsLayout from "./SettingsLayout";
 
-const DEFAULT_BACKGROUND_COLOR = "#efe8d2";
 const DEFAULT_SITENAME = "LmPanel";
-const ALLOWED_BACKGROUND_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
-const MAX_BACKGROUND_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_FAVICON_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_FAVICON_BYTES = 2 * 1024 * 1024;
-const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
 function normalizePublicUrl(rawUrl: string): string | null {
   const trimmed = rawUrl.trim();
@@ -52,9 +48,6 @@ export default function ConfigurationPage() {
   const [settings, setSettings] = useState<AppSettingsRecord>({
     users_can_register: false,
     sitename: DEFAULT_SITENAME,
-    background_color: DEFAULT_BACKGROUND_COLOR,
-    background_image_path: null,
-    background_image_mode: "fill",
     favicon_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
@@ -75,11 +68,8 @@ export default function ConfigurationPage() {
   });
   const [localSitename, setLocalSitename] = useState(DEFAULT_SITENAME);
   const [localPublicUrl, setLocalPublicUrl] = useState("");
-  const [localBackgroundColor, setLocalBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<keyof AppSettingsRecord | null>(null);
-  const [isUploadingBackgroundImage, setIsUploadingBackgroundImage] = useState(false);
-  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
   const faviconInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -95,10 +85,6 @@ export default function ConfigurationPage() {
       setLocalSitename(settings.sitename);
     }
   }, [settings.sitename]);
-
-  useEffect(() => {
-    setLocalBackgroundColor(settings.background_color || DEFAULT_BACKGROUND_COLOR);
-  }, [settings.background_color]);
 
   useEffect(() => {
     setLocalPublicUrl(settings.public_url || "");
@@ -136,62 +122,6 @@ export default function ConfigurationPage() {
       showError(error instanceof Error ? error.message : "Failed to update configuration setting");
     } finally {
       setIsSaving(null);
-    }
-  }
-
-  async function uploadBackgroundImage(file: File) {
-    if (!token) {
-      return;
-    }
-
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!ALLOWED_BACKGROUND_IMAGE_TYPES.has(file.type) && !["jpg", "jpeg", "png"].includes(extension)) {
-      showError("Background image must be a JPG or PNG file.");
-      return;
-    }
-
-    if (file.size > MAX_BACKGROUND_IMAGE_BYTES) {
-      showError("Background image must be 10 MB or smaller.");
-      return;
-    }
-
-    setIsUploadingBackgroundImage(true);
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const response = await apiPostForm<AppSettingsRecord>("/api/admin/settings/background-image", formData, token);
-      setSettings(response);
-      await refreshPublicSettings();
-      showSuccess("Background image updated.");
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "Failed to upload background image");
-    } finally {
-      setIsUploadingBackgroundImage(false);
-      if (uploadInputRef.current) {
-        uploadInputRef.current.value = "";
-      }
-    }
-  }
-
-  async function deleteBackgroundImage() {
-    if (!token) {
-      return;
-    }
-
-    setIsUploadingBackgroundImage(true);
-    try {
-      const response = await apiDelete<AppSettingsRecord>("/api/admin/settings/background-image", token);
-      setSettings(response);
-      await refreshPublicSettings();
-      showSuccess("Background image removed.");
-    } catch (error) {
-      showError(error instanceof Error ? error.message : "Failed to remove background image");
-    } finally {
-      setIsUploadingBackgroundImage(false);
-      if (uploadInputRef.current) {
-        uploadInputRef.current.value = "";
-      }
     }
   }
 
@@ -274,41 +204,24 @@ export default function ConfigurationPage() {
     }
   }
 
-  function commitBackgroundColor(rawColor: string) {
-    const normalized = (rawColor.trim() || DEFAULT_BACKGROUND_COLOR).toLowerCase();
-    setLocalBackgroundColor(normalized);
-
-    if (!HEX_COLOR_PATTERN.test(normalized)) {
-      setLocalBackgroundColor(settings.background_color || DEFAULT_BACKGROUND_COLOR);
-      showError("Background color must be a hex code like #efe8d2.");
-      return;
-    }
-
-    if (normalized !== settings.background_color) {
-      void updateSetting("background_color", normalized);
-    }
-  }
-
   return (
     <SettingsLayout title="Configuration">
       <section className="grid gap-4">
       <article>
-        <h2 className="font-display text-xl">Configuration</h2>
+        <h2 className="font-display text-xl text-sand">Configuration</h2>
 
-        <div className="mt-5 grid gap-3">
-          <div className="flex flex-col gap-2  border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm font-semibold text-black">Site name</div>
-                <p className="mt-1 text-sm text-black/65">
-                  This will update the browser title and the header.
-                </p>
-              </div>
+        <div className="mt-5 grid gap-6">
+          <div className="flex flex-col gap-2">
+            <div>
+              <div className="text-sm font-semibold text-sand">Site name</div>
+              <p className="mt-1 text-sm text-sand/65">
+                This will update the browser title and the header.
+              </p>
             </div>
             <div className="mt-2 max-w-md">
               <input
                 type="text"
-                className="w-full  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="w-full border border-white/15 bg-white/10 px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 value={localSitename}
                 onChange={(e) => setLocalSitename(e.target.value)}
                 onBlur={() => commitSitename(localSitename)}
@@ -322,17 +235,17 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2  border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-2">
             <div>
-              <div className="text-sm font-semibold text-black">URL</div>
-              <p className="mt-1 text-sm text-black/65">
+              <div className="text-sm font-semibold text-sand">URL</div>
+              <p className="mt-1 text-sm text-sand/65">
                 Set the URL to your LmPanel instance. Used in API docs, required for SSL, and otherwise useful.
               </p>
             </div>
             <div className="mt-2 max-w-xl">
               <input
                 type="url"
-                className="w-full  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                className="w-full border border-white/15 bg-white/10 px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                 value={localPublicUrl}
                 onChange={(e) => setLocalPublicUrl(e.target.value)}
                 onBlur={() => commitPublicUrl(localPublicUrl)}
@@ -346,119 +259,16 @@ export default function ConfigurationPage() {
               />
             </div>
           </div>
-          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-sm font-semibold text-black">Background color</div>
-                <p className="mt-1 text-sm text-black/65">
-                  Used whenever no background image is set, and always on mobile.
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
-              <input
-                type="color"
-                value={localBackgroundColor}
-                onChange={(event) => {
-                  const nextColor = event.target.value.toLowerCase();
-                  setLocalBackgroundColor(nextColor);
-                  if (nextColor !== settings.background_color) {
-                    void updateSetting("background_color", nextColor);
-                  }
-                }}
-                disabled={isLoading || isSaving === "background_color"}
-                className="h-11 w-16 cursor-pointer  border border-black/15 bg-white p-1 disabled:cursor-not-allowed"
-              />
-              <input
-                type="text"
-                inputMode="text"
-                className="w-full max-w-xs  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
-                value={localBackgroundColor}
-                onChange={(event) => setLocalBackgroundColor(event.target.value)}
-                onBlur={() => commitBackgroundColor(localBackgroundColor)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    commitBackgroundColor(localBackgroundColor);
-                  }
-                }}
-                disabled={isLoading || isSaving === "background_color"}
-                placeholder="#efe8d2"
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <div className="text-sm font-semibold text-black">Background image</div>
-                <p className="mt-1 text-sm text-black/65">
-                  Applied on desktop only. Upload a JPG or PNG up to 10 MB.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center  border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
-                  <span>{isUploadingBackgroundImage ? "Uploading..." : "Upload image"}</span>
-                  <input
-                    ref={uploadInputRef}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    className="hidden"
-                    disabled={isLoading || isUploadingBackgroundImage}
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        void uploadBackgroundImage(file);
-                      }
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
-                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
-                  onClick={() => void deleteBackgroundImage()}
-                  disabled={isLoading || isUploadingBackgroundImage || !settings.background_image_path}
-                >
-                  Delete image
-                </button>
-              </div>
-            </div>
-            <label className="grid gap-2 text-sm text-black/70 md:max-w-xs">
-              <span className="font-semibold text-black">Desktop image fit</span>
-              <select
-                className=" border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
-                value={settings.background_image_mode}
-                onChange={(event) => void updateSetting("background_image_mode", event.target.value)}
-                disabled={isLoading || isSaving === "background_image_mode"}
-              >
-                <option value="fill">Fill</option>
-                <option value="stretch">Stretch</option>
-                <option value="repeat">Repeat</option>
-              </select>
-            </label>
-            {settings.background_image_path ? (
-              <div className="grid gap-3">
-                <p className="text-sm text-black/65">
-                  The uploaded image is active on desktop. Mobile continues to use the background color.
-                </p>
-                <img
-                  src={resolveApiUrl(settings.background_image_path)}
-                  alt="Current background"
-                  className="h-36 w-full  border border-black/10 bg-white object-cover shadow-sm md:max-w-[220px]"
-                />
-              </div>
-            ) : (
-              <p className="text-sm text-black/65">No background image uploaded. Desktop will use the background color until you add one.</p>
-            )}
-          </div>
-          <div className="flex flex-col gap-3  border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-black">Favicon</div>
-                <p className="mt-1 text-sm text-black/65">
+                <div className="text-sm font-semibold text-sand">Favicon</div>
+                <p className="mt-1 text-sm text-sand/65">
                   Upload a square JPG or PNG at least 16px, max 2 MB.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <label className="inline-flex cursor-pointer items-center  border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5">
+                <label className="inline-flex cursor-pointer items-center border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-sand transition hover:bg-white/15">
                   <span>{isUploadingFavicon ? "Uploading..." : "Upload favicon"}</span>
                   <input
                     ref={faviconInputRef}
@@ -476,7 +286,7 @@ export default function ConfigurationPage() {
                 </label>
                 <button
                   type="button"
-                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-sand transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => void deleteFavicon()}
                   disabled={isLoading || isUploadingFavicon || !settings.favicon_path}
                 >
@@ -486,21 +296,21 @@ export default function ConfigurationPage() {
             </div>
             {settings.favicon_path ? (
               <div className="grid gap-3">
-                <p className="text-sm text-black/65">The uploaded favicon is active across all pages.</p>
+                <p className="text-sm text-sand/65">The uploaded favicon is active across all pages.</p>
                 <img
                   src={resolveApiUrl(settings.favicon_path)}
                   alt="Current favicon"
-                  className="h-16 w-16  border border-black/10 bg-white object-contain shadow-sm"
+                  className="h-16 w-16 border border-white/15 object-contain"
                 />
               </div>
             ) : (
-              <p className="text-sm text-black/65">No favicon uploaded.</p>
+              <p className="text-sm text-sand/65">No favicon uploaded.</p>
             )}
           </div>
-          <label className="flex items-start justify-between gap-4  border border-black/10 bg-[#fffdf7] px-4 py-4">
+          <label className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-semibold text-black">Users can register</div>
-              <p className="mt-1 text-sm text-black/65">
+              <div className="text-sm font-semibold text-sand">Users can register</div>
+              <p className="mt-1 text-sm text-sand/65">
                 If enabled, visitors can create standard accounts for themselves. If disabled, only admins can create users.
               </p>
             </div>

@@ -425,13 +425,13 @@ export default function PackagesPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-2xl">Packages</h2>
-            <p className="mt-2 max-w-3xl text-sm text-black/60">
+            <p className="mt-2 max-w-3xl text-sm text-sand/60">
               Packages define usage limits for users. Admin users are assigned the Unlimited package.
               Standard users are assigned the Default package. Create custom packages for specific usage tiers.
             </p>
           </div>
           <button
-            className=" border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+            className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
           >
@@ -441,9 +441,9 @@ export default function PackagesPage() {
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {packages.map((pkg) => (
-            <div key={pkg.id} className=" border border-black/10 bg-[#fffdf7] p-4">
+            <div key={pkg.id} className=" p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-lg text-black">{pkg.name}</h3>
+                <h3 className="font-display text-lg text-sand">{pkg.name}</h3>
                 {pkg.is_admin_package ? (
                   <span className=" bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Admin</span>
                 ) : pkg.is_default_package ? (
@@ -455,7 +455,7 @@ export default function PackagesPage() {
                 {!pkg.is_admin_package ? (
                   <>
                     <button
-                      className=" border border-black/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-black/5"
+                      className=" border border-white/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10"
                       type="button"
                       onClick={() => openEditModal(pkg)}
                     >
@@ -475,20 +475,20 @@ export default function PackagesPage() {
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>
+                <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sand/40">Tokens</p>
                 {TOKEN_PERIOD_FIELDS.map((period) => (
                   <div key={period.key} className=" bg-sand/60 px-2 py-1.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wide text-black/50">{period.label}</div>
-                    <div className="text-sm font-semibold text-black">
+                    <div className="text-[10px] uppercase tracking-wide text-sand/50">{period.label}</div>
+                    <div className="text-sm font-semibold text-sand">
                       {pkg[period.key] === 0 ? "Unlimited" : pkg[period.key].toLocaleString()}
                     </div>
                   </div>
                 ))}
-                <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-black/40">Web Search</p>
+                <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sand/40">Web Search</p>
                 {TOOL_PERIOD_FIELDS.map((period) => (
                   <div key={period.key} className=" bg-sand/60 px-2 py-1.5 text-center">
-                    <div className="text-[10px] uppercase tracking-wide text-black/50">{period.label}</div>
-                    <div className="text-sm font-semibold text-black">
+                    <div className="text-[10px] uppercase tracking-wide text-sand/50">{period.label}</div>
+                    <div className="text-sm font-semibold text-sand">
                       {pkg[period.key] === 0 ? "Unlimited" : pkg[period.key].toLocaleString()}
                     </div>
                   </div>
@@ -496,9 +496,9 @@ export default function PackagesPage() {
               </div>
             </div>
           ))}
-          {isLoading ? <p className=" border border-black/10 bg-white px-4 py-6 text-sm text-black/60">Loading packages...</p> : null}
+          {isLoading ? <p className=" border border-white/10 bg-white px-4 py-6 text-sm text-sand/60">Loading packages...</p> : null}
           {!isLoading && packages.length === 0 ? (
-            <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">No packages created yet.</p>
+            <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">No packages created yet.</p>
           ) : null}
         </div>
       </article>
@@ -510,17 +510,17 @@ export default function PackagesPage() {
             <div>
               <h2 id="package-create-title" className="font-display text-2xl">Add package</h2>
             </div>
-            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCreateModalOpen(false)}>
+            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Close
             </button>
           </div>
 
           <form className="mt-5 grid gap-3" onSubmit={handleCreate}>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm text-black/70">
+              <label className="grid gap-1 text-sm text-sand/70">
                 Name
                 <input
-                  className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                   value={createDraft.name}
                   onChange={(event) => {
                     setCreateDraft((current) => ({ ...current, name: event.target.value }));
@@ -531,32 +531,32 @@ export default function PackagesPage() {
                 {createNameError ? <span className="text-xs text-red-600">{createNameError}</span> : null}
               </label>
               <div className="md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sand/40">Tokens</p>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {TOKEN_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
-                      <label className="block text-xs text-black/70">{period.label}</label>
-                      <input className="w-full  border border-black/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
-                      <p className="mt-0.5 text-[10px] text-black/50">0 = unlimited</p>
+                      <label className="block text-xs text-sand/70">{period.label}</label>
+                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Web Search</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sand/40">Web Search</p>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {TOOL_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
-                      <label className="block text-xs text-black/70">{period.label}</label>
-                      <input className="w-full  border border-black/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
-                      <p className="mt-0.5 text-[10px] text-black/50">0 = unlimited</p>
+                      <label className="block text-xs text-sand/70">{period.label}</label>
+                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={createDraft[period.key]} onChange={(event) => setCreateDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             <div>
-              <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isCreating}>
+              <button className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isCreating}>
                 {isCreating ? "Creating..." : "Create Package"}
               </button>
             </div>
@@ -571,17 +571,17 @@ export default function PackagesPage() {
             <div>
               <h2 id="package-edit-title" className="font-display text-2xl">Edit package</h2>
             </div>
-            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsEditModalOpen(false)}>
+            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsEditModalOpen(false)}>
               Close
             </button>
           </div>
 
           <form className="mt-5 grid gap-3" onSubmit={handleEdit}>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm text-black/70">
+              <label className="grid gap-1 text-sm text-sand/70">
                 Name
                 <input
-                  className=" border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-black/5 disabled:text-black/50"
+                  className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-sand/50"
                   value={editDraft.name}
                   onChange={(event) => {
                     setEditDraft((current) => ({ ...current, name: event.target.value }));
@@ -591,37 +591,37 @@ export default function PackagesPage() {
                   required
                 />
                 {editingPackage?.is_default_package ? (
-                  <span className="text-xs text-black/50">The default package name cannot be changed.</span>
+                  <span className="text-xs text-sand/50">The default package name cannot be changed.</span>
                 ) : null}
                 {editNameError ? <span className="text-xs text-red-600">{editNameError}</span> : null}
               </label>
               <div className="md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Tokens</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sand/40">Tokens</p>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {TOKEN_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
-                      <label className="block text-xs text-black/70">{period.label}</label>
-                      <input className="w-full  border border-black/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
-                      <p className="mt-0.5 text-[10px] text-black/50">0 = unlimited</p>
+                      <label className="block text-xs text-sand/70">{period.label}</label>
+                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
                 </div>
               </div>
               <div className="md:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-black/40">Web Search</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sand/40">Web Search</p>
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {TOOL_PERIOD_FIELDS.map((period) => (
                     <div key={period.key}>
-                      <label className="block text-xs text-black/70">{period.label}</label>
-                      <input className="w-full  border border-black/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
-                      <p className="mt-0.5 text-[10px] text-black/50">0 = unlimited</p>
+                      <label className="block text-xs text-sand/70">{period.label}</label>
+                      <input className="w-full  border border-white/15 bg-white px-2 py-1.5 text-sm" type="number" min={0} step={1} value={editDraft[period.key]} onChange={(event) => setEditDraft((current) => ({ ...current, [period.key]: event.target.value }))} />
+                      <p className="mt-0.5 text-[10px] text-sand/50">0 = unlimited</p>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
             <div>
-              <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isSaving}>
+              <button className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Package"}
               </button>
             </div>
@@ -637,21 +637,21 @@ export default function PackagesPage() {
             <button
               type="button"
               onClick={() => setIsDeleteModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <div className="mt-5">
-            <p className="text-sm text-black/70">
-              Are you sure you want to delete <span className="font-semibold text-black">{deletingPackage?.name}</span>? This action cannot be undone.
+            <p className="text-sm text-sand/70">
+              Are you sure you want to delete <span className="font-semibold text-sand">{deletingPackage?.name}</span>? This action cannot be undone.
             </p>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">
             <button
-              className=" border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
               type="button"
               onClick={() => setIsDeleteModalOpen(false)}
             >

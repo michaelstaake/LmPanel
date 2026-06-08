@@ -9,7 +9,7 @@ type SettingsNavItem = {
 };
 
 const settingsNavItems: SettingsNavItem[] = [
-  { id: "general", label: "Configuration", iconClassName: "bi bi-gear", description: "Site name, appearance, pricing, and background" },
+  { id: "general", label: "Configuration", iconClassName: "bi bi-gear", description: "Site name, URL, favicon, and registration" },
   { id: "security", label: "Security", iconClassName: "bi bi-shield-lock", description: "CAPTCHA, 2FA, and authentication" },
   { id: "users", label: "Users", iconClassName: "bi bi-people", description: "Manage user accounts and permissions" },
   { id: "packages", label: "Packages", iconClassName: "bi bi-box", description: "Token and tool usage limits" },
@@ -25,11 +25,11 @@ const settingsNavItems: SettingsNavItem[] = [
 export default function SettingsHomePage() {
   return (
     <SettingsLayout>
-      <div className="mb-4 border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <div className="mb-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl">LmPanel</h2>
-            <p className="mt-1 text-sm text-black/60">
+            <p className="mt-1 text-sm text-sand/60">
               v{__APP_VERSION__}
               {__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}
             </p>
@@ -38,7 +38,7 @@ export default function SettingsHomePage() {
             href="https://github.com/michaelstaake/LmPanel"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-semibold text-ink underline underline-offset-2 hover:text-ink/80"
+            className="text-sm font-semibold text-sand underline underline-offset-2 hover:text-sand/80"
           >
             GitHub
           </a>
@@ -51,22 +51,18 @@ export default function SettingsHomePage() {
             key={item.id}
             to={item.id}
             className={({ isActive }) =>
-              `group  border p-5 shadow-sm backdrop-blur transition ${
-                isActive
-                  ? "border-black/20 bg-white/90"
-                  : "border-black/10 bg-white/80 hover:border-black/20 hover:bg-white/90"
-              }`
+              `group border border-white/10 p-5 transition hover:border-white/20 hover:bg-white/5 ${isActive ? "border-white/25 bg-white/10" : ""}`
             }
           >
             <div className="flex items-start gap-4">
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center  text-lg ${
-                "bg-black/5 text-black/70 group-hover:bg-black/10"
+                "bg-white/10 text-sand/70 group-hover:bg-white/15"
               }`}>
                 <i className={item.iconClassName} aria-hidden="true" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-black">{item.label}</div>
-                <p className="mt-1 text-xs text-black/55">{item.description}</p>
+                <div className="text-sm font-semibold text-sand">{item.label}</div>
+                <p className="mt-1 text-xs text-sand/55">{item.description}</p>
               </div>
             </div>
           </NavLink>

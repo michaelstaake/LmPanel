@@ -405,11 +405,11 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   return (
     <section className="grid gap-4">
-      <article className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article className="">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="mt-2 font-display text-xl">{setupMode ? "Step 2: Devices" : "Devices"}</h2>
-            {setupMode ? <p className="mt-2 max-w-3xl text-sm text-black/70">Enable at least one device so models have somewhere to run.</p> : null}
+            {setupMode ? <p className="mt-2 max-w-3xl text-sm text-sand/70">Enable at least one device so models have somewhere to run.</p> : null}
           </div>
         </div>
         <div className="mt-5 space-y-4">
@@ -440,7 +440,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                   pools.map((pool) => {
                     const poolEnabled = isPoolEnabled(pool);
                     return (
-                      <div key={pool.id} className=" border border-violet-200 bg-white/80 p-4">
+                      <div key={pool.id} className=" border border-violet-400/30 p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
@@ -454,7 +454,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                               type="button"
                               onClick={() => void handleTogglePool(pool)}
                               disabled={poolLoadingTarget !== null}
-                              className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${poolEnabled ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "border-black/15 bg-white text-black/55 hover:bg-black/5"}`}
+                              className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${poolEnabled ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10"}`}
                             >
                               {poolLoadingTarget === `toggle:${pool.id}` ? "Saving..." : poolEnabled ? "Enabled" : "Disabled"}
                             </button>
@@ -482,7 +482,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                               <button type="button" onClick={() => void handleDeletePool(pool)} disabled={poolLoadingTarget !== null} className="cursor-pointer  border border-rose-300 bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60">
                                 {poolLoadingTarget === `delete:${pool.id}` ? "Deleting..." : "Confirm Delete"}
                               </button>
-                              <button type="button" onClick={() => setShowDeletePoolConfirmId(null)} className="cursor-pointer  border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5">
+                              <button type="button" onClick={() => setShowDeletePoolConfirmId(null)} className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-xs font-semibold text-sand/70 hover:bg-white/10">
                                 Cancel
                               </button>
                             </div>
@@ -512,17 +512,17 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               describedBy="pool-modal-description"
               panelClassName="max-w-2xl"
             >
-              <div className="border-b border-black/10 px-5 py-4 sm:px-6">
+              <div className="border-b border-white/10 px-5 py-4 sm:px-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 id="pool-modal-title" className="mt-2 font-display text-xl text-black">
+                    <h3 id="pool-modal-title" className="mt-2 font-display text-xl text-sand">
                       {editingPoolId === null ? "New GPU Pool" : `Edit ${editablePool?.name ?? "GPU Pool"}`}
                     </h3>
                   </div>
                   <button
                     type="button"
                     onClick={closePoolModal}
-                    className="cursor-pointer  border border-black/15 bg-white px-3 py-1.5 text-sm font-semibold text-black/70 hover:bg-black/5"
+                    className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm font-semibold text-sand/70 hover:bg-white/10"
                   >
                     Close
                   </button>
@@ -530,22 +530,22 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               </div>
 
               <div className="grid gap-4 px-5 py-5 sm:px-6">
-                <label className="grid gap-1 text-sm text-black/70">
+                <label className="grid gap-1 text-sm text-sand/70">
                   <span>Pool Name</span>
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" value={poolDraftName} onChange={(event) => setPoolDraftName(event.target.value)} />
+                  <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={poolDraftName} onChange={(event) => setPoolDraftName(event.target.value)} />
                 </label>
-                <label className="grid gap-1 text-sm text-black/70">
+                <label className="grid gap-1 text-sm text-sand/70">
                   <span>Pool Type</span>
-                  <select className=" border border-black/15 bg-white px-3 py-2 text-sm" value={poolDraftVendor} onChange={(event) => setPoolDraftVendor(event.target.value as (typeof POOL_VENDORS)[number])}>
+                  <select className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={poolDraftVendor} onChange={(event) => setPoolDraftVendor(event.target.value as (typeof POOL_VENDORS)[number])}>
                     {draftVendorOptions.map((vendor) => (
                       <option key={vendor} value={vendor}>{vendorLabel(vendor)}</option>
                     ))}
                   </select>
                 </label>
-                <label className="grid gap-1 text-sm text-black/70">
+                <label className="grid gap-1 text-sm text-sand/70">
                   <span>Split Mode</span>
-                  <span className="text-xs text-black/45">{splitModeDescription(poolDraftSplitMode)}</span>
-                  <select className=" border border-black/15 bg-white px-3 py-2 text-sm" value={poolDraftSplitMode} onChange={(event) => setPoolDraftSplitMode(event.target.value as (typeof SPLIT_MODES)[number])}>
+                  <span className="text-xs text-sand/45">{splitModeDescription(poolDraftSplitMode)}</span>
+                  <select className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={poolDraftSplitMode} onChange={(event) => setPoolDraftSplitMode(event.target.value as (typeof SPLIT_MODES)[number])}>
                     {SPLIT_MODES.map((mode) => (
                       <option key={mode} value={mode}>{splitModeLabel(mode)}</option>
                     ))}
@@ -555,14 +555,14 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                   <p className="mb-2 text-xs font-semibold uppercase tracking-[0.15em] text-violet-600">Pool Members</p>
                   <div className="space-y-2">
                     {filteredDraftDevices.length > 0 ? filteredDraftDevices.map((device) => (
-                      <label key={device.id} className="flex cursor-pointer items-center gap-3  border border-violet-200 bg-white px-3 py-2 text-sm text-black/80 hover:bg-violet-50">
+                      <label key={device.id} className="flex cursor-pointer items-center gap-3  border border-violet-200 bg-white px-3 py-2 text-sm text-sand/80 hover:bg-violet-50">
                         <input
                           type="checkbox"
                           checked={selectedPoolDeviceIds.includes(device.id)}
                           onChange={() => togglePoolDevice(device.id)}
                         />
                         <span className="flex-1">{device.name}</span>
-                        <span className="text-xs text-black/45">{formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</span>
+                        <span className="text-xs text-sand/45">{formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</span>
                       </label>
                     )) : (
                       <p className=" border border-dashed border-violet-200 bg-violet-50/70 px-3 py-3 text-sm text-violet-700/80">No unassigned {vendorLabel(poolDraftVendor)} GPUs are available for this pool.</p>
@@ -574,11 +574,11 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap justify-end gap-2 border-t border-black/10 px-5 py-4 sm:px-6">
+              <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-5 py-4 sm:px-6">
                 <button
                   type="button"
                   onClick={closePoolModal}
-                  className="cursor-pointer  border border-black/15 bg-white px-3 py-1.5 text-sm font-semibold text-black/70 hover:bg-black/5"
+                  className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm font-semibold text-sand/70 hover:bg-white/10"
                 >
                   Cancel
                 </button>
@@ -594,21 +594,21 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
             </Modal>
           ) : null}
 
-          {isLoading && devices.length === 0 ? <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">Loading...</p> : null}
+          {isLoading && devices.length === 0 ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
           {devices.map((device) => {
             const owningPool = poolDeviceToPool.get(device.id);
             const inPool = owningPool !== undefined;
             return (
               <article
                 key={device.id}
-                className=" border border-black/10 bg-[#fffdf7] p-4"
+                className=" p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display text-base">{device.name}</h3>
                     </div>
-                    <p className="mt-1 text-sm text-black/70">{device.vendor} {device.device_type} · {formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</p>
+                    <p className="mt-1 text-sm text-sand/70">{device.vendor} {device.device_type} · {formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</p>
                   </div>
                   {inPool ? (
                     <span className=" border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-600">
@@ -618,7 +618,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                     <button
                       type="button"
                       onClick={() => updateDeviceDraft(device.id, { enabled: !device.enabled })}
-                      className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${device.enabled ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "border-black/15 bg-white text-black/55 hover:bg-black/5"}`}
+                      className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${device.enabled ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200" : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10"}`}
                     >
                       {device.enabled ? "Enabled" : "Disabled"}
                     </button>
@@ -626,36 +626,36 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 </div>
 
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Name</span>
-                    <span className="text-xs text-black/45">Shown throughout the app.</span>
+                    <span className="text-xs text-sand/45">Shown throughout the app.</span>
                     <input
-                      className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                       value={device.name}
                       onChange={(event) => updateDeviceDraft(device.id, { name: event.target.value })}
                       onBlur={() => commitDeviceName(device.id)}
                     />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Priority</span>
-                    <span className="text-xs text-black/45">Higher values are chosen first.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" value={device.priority} onChange={(event) => updateDeviceDraft(device.id, { priority: Number(event.target.value) || 0 })} />
+                    <span className="text-xs text-sand/45">Higher values are chosen first.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" value={device.priority} onChange={(event) => updateDeviceDraft(device.id, { priority: Number(event.target.value) || 0 })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Max Threads</span>
-                    <span className="text-xs text-black/45">Caps worker threads for this device.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" value={device.max_threads} onChange={(event) => updateDeviceDraft(device.id, { max_threads: Number(event.target.value) || 0 })} />
+                    <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" value={device.max_threads} onChange={(event) => updateDeviceDraft(device.id, { max_threads: Number(event.target.value) || 0 })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Max Slots</span>
-                    <span className="text-xs text-black/45">Set 0 to allow unlimited jobs.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} value={device.max_slots} onChange={(event) => updateDeviceDraft(device.id, { max_slots: parseNonNegativeInput(event.target.value) })} />
+                    <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} value={device.max_slots} onChange={(event) => updateDeviceDraft(device.id, { max_slots: parseNonNegativeInput(event.target.value) })} />
                   </label>
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   {savingDeviceIds.includes(device.id) || pendingDeviceIds.includes(device.id) ? (
-                    <p className="text-sm text-black/55">
+                    <p className="text-sm text-sand/55">
                       {savingDeviceIds.includes(device.id) ? "Saving..." : "Saving changes..."}
                     </p>
                   ) : null}
@@ -663,13 +663,13 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               </article>
             );
           })}
-          {devices.length === 0 && !isLoading ? <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">No devices detected yet.</p> : null}
+          {devices.length === 0 && !isLoading ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">No devices detected yet.</p> : null}
         </div>
 
         {setupMode ? (
-          <div className="mt-5 flex items-center justify-between gap-3  border border-black/10 bg-sand/60 px-4 py-4 text-sm text-black/70">
+          <div className="mt-5 flex items-center justify-between gap-3  border border-white/10 px-4 py-4 text-sm text-sand/70">
             <p>{enabledDevices > 0 ? `${enabledDevices} device${enabledDevices === 1 ? " is" : "s are"} ready.` : "Enable at least one device to continue."}</p>
-            <button className=" bg-ink px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={onContinue} disabled={enabledDevices === 0 || pendingDeviceIds.length > 0 || savingDeviceIds.length > 0}>
+            <button className=" bg-sand px-4 py-2 font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={onContinue} disabled={enabledDevices === 0 || pendingDeviceIds.length > 0 || savingDeviceIds.length > 0}>
               Continue to Models
             </button>
           </div>

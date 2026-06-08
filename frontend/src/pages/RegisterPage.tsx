@@ -100,34 +100,34 @@ export default function RegisterPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <article className="-[2rem] border border-black/10 bg-white/90 p-6 shadow-sm backdrop-blur">
+      <article className="-[2rem]">
         <h2 className="font-display text-2xl">Create an account</h2>
 
         <form className="mt-6 grid gap-4" onSubmit={handleRegister}>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Username</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" value={registerUsername} onChange={(event) => setRegisterUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Username</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" value={registerUsername} onChange={(event) => setRegisterUsername(sanitizeUsernameInput(event.target.value))} autoComplete="username" minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
           </label>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Email</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" type="email" value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} autoComplete="email" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Email</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="email" value={registerEmail} onChange={(event) => setRegisterEmail(event.target.value)} autoComplete="email" />
           </label>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Password</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" type="password" value={registerPassword} onChange={(event) => setRegisterPassword(event.target.value)} autoComplete="new-password" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Password</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={registerPassword} onChange={(event) => setRegisterPassword(event.target.value)} autoComplete="new-password" />
           </label>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Confirm Password</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" type="password" value={registerConfirmPassword} onChange={(event) => setRegisterConfirmPassword(event.target.value)} autoComplete="new-password" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Confirm Password</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={registerConfirmPassword} onChange={(event) => setRegisterConfirmPassword(event.target.value)} autoComplete="new-password" />
           </label>
           {cloudflareTurnstileEnabled && cloudflareTurnstileSiteKey ? (
             <div ref={turnstileRef} className="mt-2 w-64 min-h-[74px]" />
           ) : null}
           <div className="flex items-center justify-between gap-4 mt-2">
-            <button className=" bg-ink px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
+            <button className=" bg-sand px-5 py-3 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
               {isAuthenticating ? "Creating..." : "Register"}
             </button>
-            <Link to="/login" className="text-sm text-black/60 hover:text-black hover:underline transition">
+            <Link to="/login" className="text-sm text-sand/60 hover:text-sand hover:underline transition">
               Back to Sign In
             </Link>
           </div>

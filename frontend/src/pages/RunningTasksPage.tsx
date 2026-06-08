@@ -126,7 +126,7 @@ export default function RunningTasksPage() {
   function progressColor(task: RunningTaskRecord): string {
     const pct = progressPercent(task);
     if (pct >= 100) return "bg-green-500";
-    if (pct > 60) return "bg-ink";
+    if (pct > 60) return "bg-sand";
     if (pct > 30) return "bg-amber-500";
     return "bg-red-400";
   }
@@ -137,37 +137,37 @@ export default function RunningTasksPage() {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm text-black/55">Current model requests and model fetches</p>
+            <p className="text-sm text-sand/55">Current model requests and model fetches</p>
           </div>
-          <div className=" bg-black/5 px-3 py-1 text-xs font-semibold text-black/55">
+          <div className=" bg-white/10 px-3 py-1 text-xs font-semibold text-sand/55">
             {tasks.length} active
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className=" border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
-          <p className="text-center text-sm text-black/50">Loading running tasks…</p>
+        <div className=" p-6">
+          <p className="text-center text-sm text-sand/50">Loading running tasks…</p>
         </div>
       ) : tasks.length === 0 ? (
-        <div className=" border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
-          <p className="text-center text-sm text-black/50">No active tasks.</p>
+        <div className=" p-6">
+          <p className="text-center text-sm text-sand/50">No active tasks.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {groups.map(([username, groupTasks]) => {
             const isExpanded = expandedGroups[username] ?? true;
             return (
-              <div key={username} className="overflow-hidden  border border-black/10 bg-white/80 shadow-sm backdrop-blur">
+              <div key={username} className="overflow-hidden border border-white/10">
                 <button
                   type="button"
                   onClick={() => toggleGroup(username)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-black/[0.02]"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-sand/80/[0.02]"
                 >
-                  <span className="text-sm font-semibold text-black/70">{username}</span>
-                  <span className=" bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/50">{groupTasks.length}</span>
+                  <span className="text-sm font-semibold text-sand/70">{username}</span>
+                  <span className=" bg-white/10 px-2 py-0.5 text-xs font-semibold text-sand/50">{groupTasks.length}</span>
                   <svg
-                    className={`h-4 w-4 text-black/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    className={`h-4 w-4 text-sand/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -181,7 +181,7 @@ export default function RunningTasksPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-t border-black/10 bg-black/5 text-left text-xs font-semibold text-black/60">
+                        <tr className="border-t border-white/10 bg-white/10 text-left text-xs font-semibold text-sand/60">
                           <th className="px-4 py-2.5">Task</th>
                           <th className="px-4 py-2.5">Duration</th>
                           <th className="px-4 py-2.5">Progress</th>
@@ -197,18 +197,18 @@ export default function RunningTasksPage() {
                             <tr key={task.task_id} className="hover:bg-black/[0.02]">
                               <td className="px-4 py-2.5">
                                 <div className="flex items-center gap-2">
-                                  <span className=" bg-black/5 px-2 py-0.5 text-xs font-semibold text-black/60">
+                                  <span className=" bg-white/10 px-2 py-0.5 text-xs font-semibold text-sand/60">
                                     {formatTaskType(task.task_type)}
                                   </span>
-                                  <span className="text-black/80">{task.description}</span>
+                                  <span className="text-sand/80">{task.description}</span>
                                 </div>
                                 {task.metadata.file_name && (
-                                  <div className="mt-1 text-xs text-black/40 font-mono truncate max-w-xs" title={task.metadata.file_name as string}>
+                                  <div className="mt-1 text-xs text-sand/40 font-mono truncate max-w-xs" title={task.metadata.file_name as string}>
                                     {task.metadata.file_name as string}
                                   </div>
                                 )}
                               </td>
-                              <td className="px-4 py-2.5 text-xs text-black/50 font-mono whitespace-nowrap">
+                              <td className="px-4 py-2.5 text-xs text-sand/50 font-mono whitespace-nowrap">
                                 {formatDuration(task.created_at)}
                               </td>
                               <td className="px-4 py-2.5">
@@ -219,7 +219,7 @@ export default function RunningTasksPage() {
                                       style={{ width: `${pct}%` }}
                                     />
                                   </div>
-                                  <span className="text-xs text-black/50 font-mono w-8 text-right">{pct}%</span>
+                                  <span className="text-xs text-sand/50 font-mono w-8 text-right">{pct}%</span>
                                 </div>
                               </td>
                               <td className="px-4 py-2.5">
@@ -227,7 +227,7 @@ export default function RunningTasksPage() {
                                   task.status === "running" ? "text-green-600" :
                                   task.status === "error" ? "text-red-600" :
                                   task.status === "cancelled" ? "text-amber-600" :
-                                  "text-black/50"
+                                  "text-sand/50"
                                 }`}>
                                   {task.status}
                                 </span>

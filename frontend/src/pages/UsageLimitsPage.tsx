@@ -21,9 +21,6 @@ const TOOL_PERIOD_FIELDS = [
 const DEFAULT_SETTINGS: AppSettingsRecord = {
   users_can_register: false,
   sitename: "LmPanel",
-  background_color: "#efe8d2",
-  background_image_path: null,
-  background_image_mode: "fill",
   favicon_path: null,
   input_price_per_1m: 0,
   output_price_per_1m: 0,
@@ -288,14 +285,14 @@ export default function UsageLimitsPage() {
   );
 
   if (isLoading) {
-    return <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading usage limits...</div>;
+    return <div className=" px-4 py-8 text-sm text-sand/55">Loading usage limits...</div>;
   }
 
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
-      <section className="-[28px] border border-black/10 bg-white/80 p-6 shadow-sm backdrop-blur">
-        <h2 className="font-display text-2xl text-ink">Usage Limits</h2>
-        <p className="mt-2 max-w-3xl text-sm text-black/60">
+      <section className="-[28px] p-6">
+        <h2 className="font-display text-2xl text-sand">Usage Limits</h2>
+        <p className="mt-2 max-w-3xl text-sm text-sand/60">
           Set per-account limits for standard users. Admin users are not limited. Use zero to disable a time window.
           When every limit is zero, usage is unlimited for everyone.
         </p>
@@ -303,7 +300,7 @@ export default function UsageLimitsPage() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {TOKEN_PERIOD_FIELDS.map((period) => (
             <div key={period.key}>
-              <label htmlFor={period.key} className="block text-sm font-medium text-black/70">
+              <label htmlFor={period.key} className="block text-sm font-medium text-sand/70">
                 {period.label}
               </label>
               <input
@@ -313,16 +310,16 @@ export default function UsageLimitsPage() {
                 step={1}
                 value={draft[period.key]}
                 onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                className="mt-1 w-full  border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
+                className="mt-1 w-full  border border-white/10 bg-white/10 px-3 py-2 text-sand.5 text-sand outline-none focus:border-white/30"
               />
-              <p className="mt-1 text-xs text-black/50">0 = unlimited for this window</p>
+              <p className="mt-1 text-xs text-sand/50">0 = unlimited for this window</p>
             </div>
           ))}
         </div>
 
         <div className="mt-8">
-          <h3 className="font-display text-xl text-ink">Tool Usage Limits</h3>
-          <p className="mt-2 max-w-3xl text-sm text-black/60">
+          <h3 className="font-display text-xl text-sand">Tool Usage Limits</h3>
+          <p className="mt-2 max-w-3xl text-sm text-sand/60">
             Set per-account web search tool call limits for standard users. Admin users are not limited.
             Use zero to disable a time window. When every tool limit is zero, web search usage is unlimited.
             Users who hit a tool limit cannot use web search but can still use other tools, chat, and the API (assuming within token limits).
@@ -331,7 +328,7 @@ export default function UsageLimitsPage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {TOOL_PERIOD_FIELDS.map((period) => (
               <div key={period.key}>
-                <label htmlFor={period.key} className="block text-sm font-medium text-black/70">
+                <label htmlFor={period.key} className="block text-sm font-medium text-sand/70">
                   {period.label}
                 </label>
                 <input
@@ -341,9 +338,9 @@ export default function UsageLimitsPage() {
                   step={1}
                   value={draft[period.key]}
                   onChange={(event) => setDraft((current) => ({ ...current, [period.key]: event.target.value }))}
-                  className="mt-1 w-full  border border-black/10 bg-white px-3 py-2.5 text-ink outline-none focus:border-black/30"
+                  className="mt-1 w-full  border border-white/10 bg-white/10 px-3 py-2 text-sand.5 text-sand outline-none focus:border-white/30"
                 />
-                <p className="mt-1 text-xs text-black/50">0 = unlimited for this window</p>
+                <p className="mt-1 text-xs text-sand/50">0 = unlimited for this window</p>
               </div>
             ))}
           </div>
@@ -357,7 +354,7 @@ export default function UsageLimitsPage() {
         ) : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-black/55">
+          <p className="text-sm text-sand/55">
             {tokenLimitsEnabled && toolLimitsEnabled
               ? "Token and tool limits are active for standard users."
               : tokenLimitsEnabled
@@ -369,7 +366,7 @@ export default function UsageLimitsPage() {
           <button
             type="submit"
             disabled={isSaving || !allValid}
-            className=" bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
+            className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas hover:bg-black/85 disabled:opacity-50"
           >
             {isSaving ? "Saving..." : "Save usage limits"}
           </button>

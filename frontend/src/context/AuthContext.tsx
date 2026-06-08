@@ -1,6 +1,6 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../lib/api";
-import { BackgroundImageMode, BootstrapStatus, clearStoredToken, CurrentUser, getStoredToken, LoginResponse, storeToken, AUTH_TOKEN_KEY } from "../lib/session";
+import { BootstrapStatus, clearStoredToken, CurrentUser, getStoredToken, LoginResponse, storeToken, AUTH_TOKEN_KEY } from "../lib/session";
 
 type TermsSettings = {
   terms_enabled: boolean;
@@ -17,9 +17,6 @@ type AuthContextValue = {
   isAuthenticating: boolean;
   usersCanRegister: boolean;
   sitename: string;
-  backgroundColor: string;
-  backgroundImagePath: string | null;
-  backgroundImageMode: BackgroundImageMode;
   faviconPath: string | null;
   knowledgeBaseEnabled: boolean;
   cloudflareTurnstileEnabled: boolean;
@@ -38,9 +35,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEFAULT_BACKGROUND_COLOR = "#efe8d2";
-const DEFAULT_BACKGROUND_IMAGE_MODE: BackgroundImageMode = "fill";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string>(() => getStoredToken());
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -51,9 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [usersCanRegister, setUsersCanRegister] = useState(false);
   const [sitename, setSitename] = useState("LmPanel");
-  const [backgroundColor, setBackgroundColor] = useState(DEFAULT_BACKGROUND_COLOR);
-  const [backgroundImagePath, setBackgroundImagePath] = useState<string | null>(null);
-  const [backgroundImageMode, setBackgroundImageMode] = useState<BackgroundImageMode>(DEFAULT_BACKGROUND_IMAGE_MODE);
   const [faviconPath, setFaviconPath] = useState<string | null>(null);
   const [knowledgeBaseEnabled, setKnowledgeBaseEnabled] = useState(false);
   const [cloudflareTurnstileEnabled, setCloudflareTurnstileEnabled] = useState(false);
@@ -83,9 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSetupStatus(bootstrap);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
-      setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
-      setBackgroundImagePath(bootstrap.background_image_path || null);
-      setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
       setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
@@ -104,9 +92,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(bootstrap.requires_setup);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
-      setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
-      setBackgroundImagePath(bootstrap.background_image_path || null);
-      setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
       setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
@@ -132,9 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(false);
       setUsersCanRegister(false);
       setSitename("LmPanel");
-      setBackgroundColor(DEFAULT_BACKGROUND_COLOR);
-      setBackgroundImagePath(null);
-      setBackgroundImageMode(DEFAULT_BACKGROUND_IMAGE_MODE);
       setFaviconPath(null);
       setKnowledgeBaseEnabled(false);
       setCloudflareTurnstileEnabled(false);
@@ -180,9 +162,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(bootstrap.requires_setup);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
-      setBackgroundColor(bootstrap.background_color || DEFAULT_BACKGROUND_COLOR);
-      setBackgroundImagePath(bootstrap.background_image_path || null);
-      setBackgroundImageMode(bootstrap.background_image_mode || DEFAULT_BACKGROUND_IMAGE_MODE);
       setFaviconPath(bootstrap.favicon_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
@@ -267,9 +246,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticating,
         usersCanRegister,
         sitename,
-        backgroundColor,
-        backgroundImagePath,
-        backgroundImageMode,
         faviconPath,
         knowledgeBaseEnabled,
         cloudflareTurnstileEnabled,

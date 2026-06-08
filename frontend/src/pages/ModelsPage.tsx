@@ -845,14 +845,14 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
   return (
     <section className="grid gap-4">
-      <article className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <article className="">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="mt-2 font-display text-xl">{setupMode ? "Step 3: Models" : "Models"}</h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
               onClick={openModelUploadModal}
               disabled={isUploading || isFetching}
@@ -860,7 +860,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               {isUploading ? "Uploading..." : "Upload Model File"}
             </button>
             <button
-              className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
               onClick={openFetchModal}
               disabled={isUploading || isFetching}
@@ -868,7 +868,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               {isFetching ? "Fetching..." : "Fetch Model File"}
             </button>
             <button
-              className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               type="button"
               onClick={handleScan}
               disabled={contextIsScanning || isUploading || isFetching}
@@ -878,7 +878,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
           </div>
         </div>
 
-        {setupMode ? <p className="mt-2 max-w-3xl text-sm text-black/70">Register and activate at least one model to complete setup.</p> : null}
+        {setupMode ? <p className="mt-2 max-w-3xl text-sm text-sand/70">Register and activate at least one model to complete setup.</p> : null}
 
         <div className="mt-5 space-y-4">
           {models.map((model) => {
@@ -887,13 +887,13 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               ? "border-sky-300 bg-sky-100 text-sky-800"
               : model.activated
                 ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                : "border-black/15 bg-white text-black/55 hover:bg-black/5";
+                : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10";
             const activationButtonLabel = isActivationLoading ? "Loading..." : model.activated ? "Enabled" : "Disabled";
 
             return (
               <article
                 key={model.id}
-                className={` border border-black/10 bg-[#fffdf7] p-4 transition-shadow ${draggedModelId === model.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
+                className={` p-4 transition-shadow ${draggedModelId === model.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
                 draggable={!isReordering}
                 onDragStart={(event) => handleDragStart(event, model.id)}
                 onDragOver={handleDragOver}
@@ -903,15 +903,15 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="font-display text-base">{model.alias}</h3>
-                    <p className="mt-0.5 text-sm text-black/55">
+                    <p className="mt-0.5 text-sm text-sand/55">
                       {model.file_name}
                       {model.file_size != null ? <span className="ml-2">({formatFileSize(model.file_size)})</span> : null}
                     </p>
-                    {model.description ? <p className="mt-1 text-sm text-black/70">{model.description}</p> : null}
+                    {model.description ? <p className="mt-1 text-sm text-sand/70">{model.description}</p> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {savingModelIds.includes(model.id) || pendingModelIds.includes(model.id) ? (
-                      <span className="text-xs text-black/45">{savingModelIds.includes(model.id) ? "Saving..." : "Pending..."}</span>
+                      <span className="text-xs text-sand/45">{savingModelIds.includes(model.id) ? "Saving..." : "Pending..."}</span>
                     ) : null}
                     <button
                       type="button"
@@ -922,7 +922,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       {activationButtonLabel}
                     </button>
                     <button
-                      className="cursor-pointer  border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-black/5"
+                      className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-white/10"
                       type="button"
                       onClick={() => openSettingsModal(model)}
                     >
@@ -933,14 +933,14 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               </article>
             );
           })}
-          {!hasLoadedModels ? <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">Loading...</p> : null}
-          {hasLoadedModels && models.length === 0 ? <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">No models registered yet.</p> : null}
+          {!hasLoadedModels ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
+          {hasLoadedModels && models.length === 0 ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">No models registered yet.</p> : null}
         </div>
 
         {setupMode ? (
-          <div className="mt-5 flex items-center justify-between gap-3  border border-black/10 bg-sand/60 px-4 py-4 text-sm text-black/70">
+          <div className="mt-5 flex items-center justify-between gap-3  border border-white/10 px-4 py-4 text-sm text-sand/70">
             <p>{activeModels > 0 ? `${activeModels} model${activeModels === 1 ? " is" : "s are"} active.` : "Activate at least one model to finish setup."}</p>
-            <button className=" bg-ink px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={onComplete} disabled={activeModels === 0 || pendingModelIds.length > 0 || savingModelIds.length > 0}>
+            <button className=" bg-sand px-4 py-2 font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="button" onClick={onComplete} disabled={activeModels === 0 || pendingModelIds.length > 0 || savingModelIds.length > 0}>
               Finish Setup
             </button>
           </div>
@@ -970,26 +970,26 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     {formatShardStatus(modalDraft.shard_count, modalDraft.shards_complete, modalDraft.missing_shards)}
                   </div>
                 ) : null}
-                <div className="overflow-hidden  border border-black/10">
+                <div className="overflow-hidden  border border-white/10">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-black/5 text-left text-xs font-semibold text-black/60">
+                      <tr className="bg-white/10 text-left text-xs font-semibold text-sand/60">
                         <th className="px-4 py-2.5">{modalDraft.model_dir_name}</th>
                         <th className="px-4 py-2.5 text-right">{formatFileSize(modalDraft.directory_size ?? 0)}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-black/5">
                       {(modalDraft.directory_files ?? []).map((file) => (
-                        <tr key={file.name} className="text-black/70">
+                        <tr key={file.name} className="text-sand/70">
                           <td className="px-4 py-2.5 font-mono text-xs">{file.name}</td>
-                          <td className="px-4 py-2.5 text-right text-xs text-black/55">{formatFileSize(file.size)}</td>
+                          <td className="px-4 py-2.5 text-right text-xs text-sand/55">{formatFileSize(file.size)}</td>
                         </tr>
                       ))}
                       <tr>
                         <td className="px-4 py-3" colSpan={2}>
                           <button
                             type="button"
-                            className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                            className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                             onClick={() => openAssetUploadModal(modalDraft.id)}
                             disabled={isSavingModal || isDeletingModal || isUploading}
                           >
@@ -1003,29 +1003,29 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">General</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">General</p>
                 <div className="grid gap-3">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Name</span>
-                    <span className="text-xs text-black/45">Used in API requests and displayed on the front end.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.alias} onChange={(event) => updateModalDraft({ alias: event.target.value })} />
+                    <span className="text-xs text-sand/45">Used in API requests and displayed on the front end.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.alias} onChange={(event) => updateModalDraft({ alias: event.target.value })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Description</span>
-                    <span className="text-xs text-black/45">Optional, displayed on the front end.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.description} onChange={(event) => updateModalDraft({ description: event.target.value })} />
+                    <span className="text-xs text-sand/45">Optional, displayed on the front end.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.description} onChange={(event) => updateModalDraft({ description: event.target.value })} />
                   </label>
                 </div>
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Devices</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Devices</p>
                 <div className="grid gap-3">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Device</span>
-                    <span className="text-xs text-black/45">Auto lets LmPanel choose the most sensible device.</span>
+                    <span className="text-xs text-sand/45">Auto lets LmPanel choose the most sensible device.</span>
                     <select
-                      className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                       value={getDeviceDropdownValue(modalDraft, assignmentTargets)}
                       onChange={(event) => {
                         const value = event.target.value;
@@ -1046,22 +1046,22 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       ))}
                     </select>
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>CPU threads</span>
-                    <span className="text-xs text-black/45">CPU worker threads for this model.</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
+                    <span className="text-xs text-sand/45">CPU worker threads for this model.</span>
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
                   </label>
                 </div>
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Context Length</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Context Length</p>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Mode</span>
-                    <span className="text-xs text-black/45">Auto uses the model default limit.</span>
+                    <span className="text-xs text-sand/45">Auto uses the model default limit.</span>
                     <select
-                      className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                       value={modalContextLengthMode}
                       onChange={(event) => updateModalContextLengthMode(event.target.value as ContextLengthMode)}
                     >
@@ -1072,11 +1072,11 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       ))}
                     </select>
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Context Length</span>
-                    <span className="text-xs text-black/45">Larger context lengths may increase memory usage.</span>
+                    <span className="text-xs text-sand/45">Larger context lengths may increase memory usage.</span>
                     <input
-                      className=" border border-black/15 bg-white px-3 py-2 text-sm disabled:bg-black/5 disabled:text-black/45"
+                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:bg-white/10 disabled:text-sand/45"
                       type="number"
                       min={256}
                       value={modalNumericDrafts.context_length ?? String(modalDraft.context_length)}
@@ -1089,13 +1089,13 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Features</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Features</p>
                 <div className="grid gap-3">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Thinking capability</span>
-                    <span className="text-xs text-black/45">Auto detects hybrid models (Qwen, Gemma). Override if detection is wrong.</span>
+                    <span className="text-xs text-sand/45">Auto detects hybrid models (Qwen, Gemma). Override if detection is wrong.</span>
                     <select
-                      className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                      className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                       value={modalDraft.thinking_capability}
                       onChange={(event) => updateModalDraft({ thinking_capability: event.target.value })}
                     >
@@ -1106,7 +1106,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     </select>
                   </label>
                   {!modalDraft.discourage_thinking && (modalDraft.thinking_capability === "auto" || modalDraft.thinking_capability === "hybrid") ? (
-                    <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                    <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                       <input
                         className="mt-1"
                         type="checkbox"
@@ -1114,26 +1114,26 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                         onChange={(event) => updateModalDraft({ default_thinking_enabled: event.target.checked })}
                       />
                       <span className="grid gap-0.5">
-                        <span className="text-sm text-black/70">Default thinking on</span>
-                        <span className="text-xs text-black/45">Initial state of the chat Thinking toggle for this model.</span>
+                        <span className="text-sm text-sand/70">Default thinking on</span>
+                        <span className="text-xs text-sand/45">Initial state of the chat Thinking toggle for this model.</span>
                       </span>
                     </label>
                   ) : null}
-                  <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                  <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.discourage_thinking} onChange={(event) => updateModalDraft({ discourage_thinking: event.target.checked })} />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Always disable thinking</span>
-                      <span className="text-xs text-black/45">Locks thinking off for this model and hides the chat toggle.</span>
+                      <span className="text-sm text-sand/70">Always disable thinking</span>
+                      <span className="text-xs text-sand/45">Locks thinking off for this model and hides the chat toggle.</span>
                     </span>
                   </label>
-                  <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                  <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.tool_calling_enabled} onChange={(event) => updateModalDraft({ tool_calling_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Tool calling</span>
-                      <span className="text-xs text-black/45">If enabled, lets this model call tools.</span>
+                      <span className="text-sm text-sand/70">Tool calling</span>
+                      <span className="text-xs text-sand/45">If enabled, lets this model call tools.</span>
                     </span>
                   </label>
-                  <label className={`flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70 ${!modalDraft.tool_calling_enabled ? "opacity-50" : ""}`}>
+                  <label className={`flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70 ${!modalDraft.tool_calling_enabled ? "opacity-50" : ""}`}>
                     <input
                       className="mt-1"
                       type="checkbox"
@@ -1142,15 +1142,15 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       onChange={(event) => updateModalDraft({ web_search_enabled: event.target.checked })}
                     />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Web search</span>
-                      <span className="text-xs text-black/45">
+                      <span className="text-sm text-sand/70">Web search</span>
+                      <span className="text-xs text-sand/45">
                         {modalDraft.tool_calling_enabled
                           ? "Allows the model to search the web for current information via the active provider."
                           : "Requires tool calling to be enabled first."}
                       </span>
                     </span>
                   </label>
-                  <label className={`flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70 ${!modalDraft.tool_calling_enabled ? "opacity-50" : ""}`}>
+                  <label className={`flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70 ${!modalDraft.tool_calling_enabled ? "opacity-50" : ""}`}>
                     <input
                       className="mt-1"
                       type="checkbox"
@@ -1159,82 +1159,82 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       onChange={(event) => updateModalDraft({ rag_enabled: event.target.checked })}
                     />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Knowledge Base</span>
-                      <span className="text-xs text-black/45">
+                      <span className="text-sm text-sand/70">Knowledge Base</span>
+                      <span className="text-xs text-sand/45">
                         {modalDraft.tool_calling_enabled
                           ? "Enables Retrieval-Augmented Generation (RAG) features powered by Knowledge Base content"
                           : "Requires tool calling to be enabled first."}
                       </span>
                     </span>
                   </label>
-                  <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                  <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.vision_enabled} onChange={(event) => updateModalDraft({ vision_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Vision capable</span>
-                      <span className="text-xs text-black/45">Requires an mmproj file in this model folder to handle images.</span>
+                      <span className="text-sm text-sand/70">Vision capable</span>
+                      <span className="text-xs text-sand/45">Requires an mmproj file in this model folder to handle images.</span>
                     </span>
                   </label>
                 </div>
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Behavior</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Behavior</p>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Temperature</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} max={2} step={0.05} value={modalNumericDrafts.temperature ?? String(modalDraft.temperature)} onChange={(event) => setModalNumericDraft("temperature", event.target.value)} onBlur={(event) => commitModalNumericDraft("temperature", event.target.value, (n) => Math.min(2, Math.max(0, n)))} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top P</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top K</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} step={1} value={modalNumericDrafts.top_k ?? String(modalDraft.top_k)} onChange={(event) => setModalNumericDraft("top_k", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_k", event.target.value, (n) => Math.max(0, Math.round(n)))} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Presence Penalty</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                  <label className="grid gap-1 text-sm text-sand/70 md:col-span-2">
                     <span>Repetition Penalty</span>
-                    <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
+                    <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
                   </label>
                 </div>
               </section>
 
               <section>
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-black/45">Advanced</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Advanced</p>
                 <div className="grid gap-3">
-                  <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                  <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Flash Attention</span>
-                      <span className="text-xs text-black/45">Use flash attention to speed up inference.</span>
+                      <span className="text-sm text-sand/70">Flash Attention</span>
+                      <span className="text-xs text-sand/45">Use flash attention to speed up inference.</span>
                     </span>
                   </label>
-                  <label className="flex gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70">
+                  <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
-                      <span className="text-sm text-black/70">Memory Mapping</span>
-                      <span className="text-xs text-black/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
+                      <span className="text-sm text-sand/70">Memory Mapping</span>
+                      <span className="text-xs text-sand/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
                     </span>
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>System Prompt</span>
-                    <span className="text-xs text-black/45">Default instructions sent with each chat.</span>
-                    <textarea className="min-h-24  border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.system_prompt} onChange={(event) => updateModalDraft({ system_prompt: event.target.value })} />
+                    <span className="text-xs text-sand/45">Default instructions sent with each chat.</span>
+                    <textarea className="min-h-24  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.system_prompt} onChange={(event) => updateModalDraft({ system_prompt: event.target.value })} />
                   </label>
-                  <label className="grid gap-1 text-sm text-black/70">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Chat Template</span>
-                    <span className="text-xs text-black/45">Formats messages for this model.</span>
-                    <textarea className="min-h-24  border border-black/15 bg-white px-3 py-2 text-sm" value={modalDraft.chat_template} onChange={(event) => updateModalDraft({ chat_template: event.target.value })} />
+                    <span className="text-xs text-sand/45">Formats messages for this model.</span>
+                    <textarea className="min-h-24  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={modalDraft.chat_template} onChange={(event) => updateModalDraft({ chat_template: event.target.value })} />
                   </label>
                 </div>
               </section>
             </div>
 
-            <div className="mt-6 flex items-center justify-between gap-3 border-t border-black/10 pt-4">
+            <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1249,7 +1249,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               <div className="flex items-center gap-3">
               <button
                 type="button"
-                className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+                className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={closeSettingsModal}
                 disabled={isSavingModal || isDeletingModal}
               >
@@ -1257,7 +1257,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               </button>
               <button
                 type="button"
-                className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => void saveModalDraft()}
                 disabled={isSavingModal || isDeletingModal}
               >
@@ -1277,7 +1277,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       >
         <form className="p-6" onSubmit={handleUpload}>
           <h2 id="model-upload-modal-title" className="font-display text-xl">{uploadMode === "files" ? "Add Files" : "Upload Model File"}</h2>
-          <p className="mt-1 text-sm text-black/55">
+          <p className="mt-1 text-sm text-sand/55">
             {uploadMode === "files"
               ? `Select additional files to store in ${uploadContextModel?.model_dir_name ?? "this model folder"}.`
               : "Select one `.gguf` file, or all shards of a split model (`*-00001-of-00002.gguf`, etc.)."}
@@ -1287,7 +1287,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             <input
               ref={uploadInputRef}
               id="model-upload-input"
-              className="block w-full  border border-black/15 bg-white px-3 py-2 text-sm file:mr-3 file: file:border-0 file:bg-amber file:px-3 file:py-2 file:font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              className="block w-full  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm file:mr-3 file: file:border-0 file:bg-amber file:px-3 file:py-2 file:font-semibold disabled:cursor-not-allowed disabled:opacity-60"
               type="file"
               accept={uploadMode === "files" ? MODEL_ASSET_ACCEPT : ".gguf"}
               multiple
@@ -1295,8 +1295,8 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
               disabled={isUploading}
             />
             {selectedUploadFiles.length > 0 ? (
-              <div className=" border border-black/10 bg-sand/50 px-3 py-3 text-sm text-black/65">
-                <p className="font-semibold text-black/75">Selected</p>
+              <div className=" border border-white/10 px-3 py-3 text-sm text-sand/65">
+                <p className="font-semibold text-sand/75">Selected</p>
                 <div className="mt-2 grid gap-1">
                   {selectedUploadFiles.map((file) => (
                     <p key={`${file.name}-${file.size}`}>{file.name}</p>
@@ -1306,10 +1306,10 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             ) : null}
           </div>
 
-          <div className="mt-6 flex items-center justify-end gap-3 border-t border-black/10 pt-4">
+          <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/10 pt-4">
             <button
               type="button"
-              className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={closeUploadModal}
               disabled={isUploading}
             >
@@ -1317,7 +1317,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             </button>
             <button
               type="submit"
-              className=" bg-amber px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-amber px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isUploading || selectedUploadFiles.length === 0}
             >
               {isUploading ? "Uploading..." : uploadMode === "files" ? "Add Files" : "Upload Model File"}
@@ -1339,16 +1339,16 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       >
         <form className="p-6" onSubmit={handleFetch}>
           <h2 id="model-fetch-modal-title" className="font-display text-xl">Fetch Model File</h2>
-          <p className="mt-1 text-sm text-black/55">
+          <p className="mt-1 text-sm text-sand/55">
             Enter a URL to download a `.gguf` model file directly to the server.
           </p>
 
           <div className="mt-5 grid gap-3">
-            <label className="grid gap-1 text-sm text-black/70">
+            <label className="grid gap-1 text-sm text-sand/70">
               <span>Model URL</span>
-              <span className="text-xs text-black/45">Must point to a .gguf file.</span>
+              <span className="text-xs text-sand/45">Must point to a .gguf file.</span>
               <input
-                className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                 type="url"
                 placeholder="https://example.com/model.gguf"
                 value={fetchUrlInput}
@@ -1359,10 +1359,10 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             </label>
           </div>
 
-          <div className="mt-6 flex items-center justify-between gap-3 border-t border-black/10 pt-4">
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
             <button
               type="button"
-              className=" border border-black/15 px-4 py-2 text-sm font-semibold text-black hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-60"
+              className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setFetchUrlInput("");
                 setIsFetchModalOpen(false);
@@ -1373,7 +1373,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             </button>
             <button
               type="submit"
-              className=" bg-amber px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-amber px-4 py-2 text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isFetching || !fetchUrlInput.trim()}
             >
               {isFetching ? "Fetching..." : "Fetch Model File"}

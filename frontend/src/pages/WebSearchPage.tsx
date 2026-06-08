@@ -144,15 +144,15 @@ export default function WebSearchPage() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="mt-2 font-display text-xl">Web Search</h2>
-            <p className="mt-1 max-w-2xl text-sm text-black/60">
+            <p className="mt-1 max-w-2xl text-sm text-sand/60">
               Web search can be used by capable models to research topics, access current events, or read online documentation. Ensure tool calling and web search is enabled in the settings for the model you want to use search capability.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-sm font-semibold text-black/70">Active provider</label>
+            <label className="text-sm font-semibold text-sand/70">Active provider</label>
             <select
-              className={` border border-black/15 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-black/40" : ""}`}
+              className={` border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 ${dropdownProviders.length === 0 && !activeIsUnavailable ? "text-sand/40" : ""}`}
               value={activeProviderType ?? ""}
               disabled={settingActive || (dropdownProviders.length === 0 && !activeIsUnavailable)}
               onChange={(event) => void handleSetActive(event.target.value === "" ? null : event.target.value)}
@@ -179,7 +179,7 @@ export default function WebSearchPage() {
         </div>
 
         {isLoading ? (
-          <p className="mt-6 text-sm text-black/50">Loading...</p>
+          <p className="mt-6 text-sm text-sand/50">Loading...</p>
         ) : (
           <div className="mt-6 grid gap-4">
             {providers.map((provider) => {
@@ -190,12 +190,12 @@ export default function WebSearchPage() {
               return (
                 <article
                   key={provider.provider_type}
-                  className=" border border-black/10 bg-[#fffdf7] p-5"
+                  className=" p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="font-display text-base">{provider.display_name}</h3>
-                      <p className="mt-0.5 text-sm text-black/55">{provider.description}</p>
+                      <p className="mt-0.5 text-sm text-sand/55">{provider.description}</p>
                     </div>
                     {provider.api_key_set && provider.enabled && (
                       <span className=" border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
@@ -205,29 +205,29 @@ export default function WebSearchPage() {
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <label className="flex items-center gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
+                    <label className="flex items-center gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70 md:col-span-2">
                       <input
                         type="checkbox"
                         checked={draft.enabled}
                         onChange={(event) => updateDraft(provider.provider_type, { enabled: event.target.checked })}
                       />
                       <span className="grid gap-0.5">
-                        <span className="text-sm text-black/70">Enabled</span>
-                        <span className="text-xs text-black/45">
+                        <span className="text-sm text-sand/70">Enabled</span>
+                        <span className="text-xs text-sand/45">
                           Must be enabled and have an API key set to be selectable as the active provider.
                         </span>
                       </span>
                     </label>
 
-                    <label className="grid gap-1 text-sm text-black/70 md:col-span-2">
+                    <label className="grid gap-1 text-sm text-sand/70 md:col-span-2">
                       <span>API Key</span>
-                      <span className="text-xs text-black/45">
+                      <span className="text-xs text-sand/45">
                         {provider.api_key_set
                           ? "A key is already set. Enter a new value to replace it, or leave blank to keep the existing key."
                           : "Enter your API key."}
                       </span>
                       <input
-                        className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                        className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                         type="password"
                         autoComplete="new-password"
                         placeholder={provider.api_key_set ? "••••••••  (key already set)" : "Enter API key"}
@@ -236,11 +236,11 @@ export default function WebSearchPage() {
                       />
                     </label>
 
-                    <label className="grid gap-1 text-sm text-black/70">
+                    <label className="grid gap-1 text-sm text-sand/70">
                       <span>Number of Results</span>
-                      <span className="text-xs text-black/45">Results returned per search query (1–20).</span>
+                      <span className="text-xs text-sand/45">Results returned per search query (1–20).</span>
                       <input
-                        className=" border border-black/15 bg-white px-3 py-2 text-sm"
+                        className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                         type="number"
                         min={1}
                         max={20}
@@ -263,7 +263,7 @@ export default function WebSearchPage() {
                   <div className="mt-4 flex justify-end">
                     <button
                       type="button"
-                      className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60"
                       disabled={isSaving}
                       onClick={() => void saveProvider(provider.provider_type)}
                     >

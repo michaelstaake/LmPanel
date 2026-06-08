@@ -144,34 +144,34 @@ export default function ProfilePage() {
 
   return (
     <section className="grid gap-4">
-      <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+      <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45">{roleLabel}</p>
-            <h2 className="mt-2 font-display text-2xl text-black">Profile</h2>
-            <p className="mt-2 text-sm text-black/60">
-              Signed in as <span className="font-semibold text-black">{user?.username ?? "Unknown user"}</span>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">{roleLabel}</p>
+            <h2 className="mt-2 font-display text-2xl text-sand">Profile</h2>
+            <p className="mt-2 text-sm text-sand/60">
+              Signed in as <span className="font-semibold text-sand">{user?.username ?? "Unknown user"}</span>
             </p>
           </div>
           <div className="flex shrink-0 items-start gap-2">
             <button
               type="button"
               onClick={() => setEmailModalOpen(true)}
-              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
             >
               Update email
             </button>
             <button
               type="button"
               onClick={() => setPasswordModalOpen(true)}
-              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
             >
               Update password
             </button>
             <button
               type="button"
               onClick={logout}
-              className="shrink-0  border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className="shrink-0  border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
             >
               Log out
             </button>
@@ -180,9 +180,9 @@ export default function ProfilePage() {
       </article>
 
       {(showAccountUsage || showAccountToolUsage) && (
-        <article className=" border border-black/10 bg-white/85 p-5 shadow-sm backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Your Usage{packageLabel}</p>
-          <p className="mt-1 text-sm text-black/60">
+        <article className=" border border-white/10 bg-white/85 p-5 shadow-sm backdrop-blur">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">Your Usage{packageLabel}</p>
+          <p className="mt-1 text-sm text-sand/60">
             {adminUsage
               ? "Token and web search usage."
               : atAnyLimit
@@ -196,24 +196,24 @@ export default function ProfilePage() {
 
           {showAccountUsage && (
             <>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-black/45">Token Usage</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-sand/45">Token Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountUsage.periods.map((period) => (
-                  <div key={period.id} className=" border border-black/10 bg-white/80 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
+                  <div key={period.id} className=" p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
-                        <p className="mt-2 font-display text-3xl text-ink">{numberFormatter.format(period.used_tokens)}</p>
-                        <p className="mt-1 text-sm text-black/55">Tokens</p>
-                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
+                        <p className="mt-2 font-display text-3xl text-sand">{numberFormatter.format(period.used_tokens)}</p>
+                        <p className="mt-1 text-sm text-sand/55">Tokens</p>
+                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-sand/40">Resets in {reset}</p> : null; })()}
                       </>
                     ) : (
                       <>
-                        <p className="mt-2 font-display text-3xl text-ink">{formatWholePercent(period.percent)}</p>
-                        <p className="mt-1 text-sm text-black/55">
+                        <p className="mt-2 font-display text-3xl text-sand">{formatWholePercent(period.percent)}</p>
+                        <p className="mt-1 text-sm text-sand/55">
                           {numberFormatter.format(period.used_tokens)} / {numberFormatter.format(period.limit_tokens)} tokens
                         </p>
-                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
+                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-sand/40">Resets in {reset}</p> : null; })()}
                         <div className="mt-3 h-2 overflow-hidden  bg-black/10">
                           <div
                             className={`h-full  ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
@@ -230,24 +230,24 @@ export default function ProfilePage() {
 
           {showAccountToolUsage && (
             <>
-              <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-black/45 ${showAccountUsage ? "mt-6" : "mt-4"}`}>Web Search Usage</p>
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] text-sand/45 ${showAccountUsage ? "mt-6" : "mt-4"}`}>Web Search Usage</p>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {accountToolUsage.periods.map((period) => (
-                  <div key={period.id} className=" border border-black/10 bg-white/80 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{period.label}</p>
+                  <div key={period.id} className=" p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{period.label}</p>
                     {isUnlimitedPeriod(period.limit_tokens) ? (
                       <>
-                        <p className="mt-2 font-display text-3xl text-ink">{numberFormatter.format(period.used_tokens)}</p>
-                        <p className="mt-1 text-sm text-black/55">Searches</p>
-                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
+                        <p className="mt-2 font-display text-3xl text-sand">{numberFormatter.format(period.used_tokens)}</p>
+                        <p className="mt-1 text-sm text-sand/55">Searches</p>
+                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-sand/40">Resets in {reset}</p> : null; })()}
                       </>
                     ) : (
                       <>
-                        <p className="mt-2 font-display text-3xl text-ink">{formatWholePercent(period.percent)}</p>
-                        <p className="mt-1 text-sm text-black/55">
+                        <p className="mt-2 font-display text-3xl text-sand">{formatWholePercent(period.percent)}</p>
+                        <p className="mt-1 text-sm text-sand/55">
                           {numberFormatter.format(period.used_tokens)} / {numberFormatter.format(period.limit_tokens)} searches
                         </p>
-                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-black/40">Resets in {reset}</p> : null; })()}
+                        {(() => { const reset = formatResetIn(period.resets_in_seconds); return reset ? <p className="mt-1 text-xs text-sand/40">Resets in {reset}</p> : null; })()}
                         <div className="mt-3 h-2 overflow-hidden  bg-black/10">
                           <div
                             className={`h-full  ${period.percent >= 100 ? "bg-[#c63f3f]" : period.percent >= 80 ? "bg-[#c98a13]" : "bg-[#2f8f4e]"}`}
@@ -271,17 +271,17 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setEmailModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <form className="mt-5 space-y-4" onSubmit={handleEmailSubmit}>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">Email</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">Email</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
@@ -290,7 +290,7 @@ export default function ProfilePage() {
               />
             </label>
             <button
-              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-sand px-4 py-3 font-semibold text-canvas transition hover:bg-sand/80 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingEmail}
             >
@@ -307,17 +307,17 @@ export default function ProfilePage() {
             <button
               type="button"
               onClick={() => setPasswordModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <form className="mt-5 space-y-4" onSubmit={handlePasswordSubmit}>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">New password</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">New password</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -325,10 +325,10 @@ export default function ProfilePage() {
                 placeholder="Enter a new password"
               />
             </label>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">Confirm new password</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">Confirm new password</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
@@ -337,7 +337,7 @@ export default function ProfilePage() {
               />
             </label>
             <button
-              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-sand px-4 py-3 font-semibold text-canvas transition hover:bg-sand/80 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingPassword}
             >

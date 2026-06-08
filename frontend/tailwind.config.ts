@@ -5,6 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        canvas: "#0d0d0d",
         ink: "#101820",
         mint: "#54f2c3",
         sand: "#f5f2e8",

@@ -217,9 +217,9 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
   ] : [];
 
   return (
-    <article className="overflow-hidden -[28px] border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <article className="overflow-hidden -[28px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-xl text-ink">{device.name}</h3>
+        <h3 className="font-display text-xl text-sand">{device.name}</h3>
         <div className="flex flex-wrap items-center gap-2">
           <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
           {isPooled && (
@@ -230,22 +230,22 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
 
       <div className="mt-4 space-y-3">
         {!isCpuDevice && (
-          <div className="flex items-baseline justify-between border-t border-b border-black/5 pt-2 pb-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">GPU</p>
-            <p className="text-lg font-display text-ink">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
+          <div className="flex items-baseline justify-between border-t border-b border-white/5 pt-2 pb-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">GPU</p>
+            <p className="text-lg font-display text-sand">{hasGpuUsage ? `${formatWholePercent(gpuUsagePercent)}` : "N/A"}</p>
           </div>
         )}
 
         {isCpuDevice && hasCpuUsage && (
-          <div className="flex items-baseline justify-between border-t border-b border-black/5 pt-2 pb-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">CPU</p>
-            <p className="text-lg font-display text-ink">{formatWholePercent(cpuUsagePercent)}</p>
+          <div className="flex items-baseline justify-between border-t border-b border-white/5 pt-2 pb-1">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">CPU</p>
+            <p className="text-lg font-display text-sand">{formatWholePercent(cpuUsagePercent)}</p>
           </div>
         )}
 
         <div className={`flex items-baseline justify-between ${device.models.length > 0 ? 'border-b pb-1' : ''}`}>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Memory</p>
-          <p className="text-lg font-display text-ink">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Memory</p>
+          <p className="text-lg font-display text-sand">{formatMemorySummary(device.memory_used_mb, device.memory_total_mb)}</p>
         </div>
 
         {device.models.length > 0 && (
@@ -253,7 +253,7 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
             {device.models.map((model) => (
               <div key={`${device.id}-legend-${model.model_id}`} className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 shrink-0 " style={{ backgroundColor: getModelColor(modelColors, model.model_id) }} />
-                <span className="text-sm font-semibold text-ink">{model.alias}</span>
+                <span className="text-sm font-semibold text-sand">{model.alias}</span>
               </div>
             ))}
           </div>
@@ -518,64 +518,64 @@ export default function StatusPage() {
   );
 
   return (
-    <section className="grid gap-4 overflow-hidden -[32px] border border-black/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(245,240,226,0.78)_100%)] p-6 shadow-sm backdrop-blur">
+    <section className="grid gap-4 overflow-hidden p-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">System Health</p>
+          <div className=" lg:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">System Health</p>
             <div className="mt-2 flex items-center gap-3">
               <i className={`${systemHealth.iconClassName} ${systemHealth.iconColorClassName} text-[28px] leading-none`} aria-hidden="true" />
-              <p className="font-display text-3xl text-ink">{systemHealth.label}</p>
+              <p className="font-display text-3xl text-sand">{systemHealth.label}</p>
             </div>
-            <p className="mt-1 text-sm text-black/55">{systemHealth.detail}</p>
+            <p className="mt-1 text-sm text-sand/55">{systemHealth.detail}</p>
           </div>
 
-          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Free Disk Space</p>
-            <p className="mt-2 font-display text-3xl text-ink">{formatDiskSpace(systemDiskFreeBytes)}</p>
-            <p className="mt-1 text-sm text-black/55">Available on /</p>
+          <div className=" lg:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Free Disk Space</p>
+            <p className="mt-2 font-display text-3xl text-sand">{formatDiskSpace(systemDiskFreeBytes)}</p>
+            <p className="mt-1 text-sm text-sand/55">Available on /</p>
           </div>
 
-          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Host CPU</p>
-            <p className="mt-2 font-display text-3xl text-ink">{systemCpuUsagePercent !== null ? `${systemCpuUsagePercent.toFixed(1)}%` : "N/A"}</p>
-            <p className="mt-1 text-sm text-black/55">Total utilization</p>
+          <div className=" lg:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Host CPU</p>
+            <p className="mt-2 font-display text-3xl text-sand">{systemCpuUsagePercent !== null ? `${systemCpuUsagePercent.toFixed(1)}%` : "N/A"}</p>
+            <p className="mt-1 text-sm text-sand/55">Total utilization</p>
           </div>
 
-          <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">AI Memory</p>
-            <p className="mt-2 font-display text-3xl text-ink">{summary.memoryUsagePercent !== null ? `${summary.memoryUsagePercent.toFixed(1)}%` : "N/A"}</p>
-            <p className="mt-1 text-sm text-black/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
+          <div className=" lg:col-span-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">AI Memory</p>
+            <p className="mt-2 font-display text-3xl text-sand">{summary.memoryUsagePercent !== null ? `${summary.memoryUsagePercent.toFixed(1)}%` : "N/A"}</p>
+            <p className="mt-1 text-sm text-sand/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
           </div>
 
           <button
             type="button"
             onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
-            className="flex w-full items-center justify-between  border border-black/10 bg-white/80 p-4 text-left hover:bg-white/90 lg:col-span-12"
+            className="flex w-full items-center justify-between  p-4 text-left hover:bg-white/90 lg:col-span-12"
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Token Usage</p>
-            <i className={`bi bi-chevron-down text-lg text-black/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Token Usage</p>
+            <i className={`bi bi-chevron-down text-lg text-sand/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
           </button>
 
           {isTokenStatsOpen && tokenCards.map((card) => (
-            <div key={card.label} className={` border border-black/10 bg-white/80 p-4 ${card.className}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">{card.label}</p>
-              <p className="mt-2 font-display text-3xl text-ink" title={card.title}>{card.value}</p>
-              <p className="mt-1 text-sm text-black/55">{card.detail}</p>
+            <div key={card.label} className={` p-4 ${card.className}`}>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{card.label}</p>
+              <p className="mt-2 font-display text-3xl text-sand" title={card.title}>{card.value}</p>
+              <p className="mt-1 text-sm text-sand/55">{card.detail}</p>
             </div>
           ))}
 
           {isTokenStatsOpen && (
-            <div className=" border border-black/10 bg-white/80 p-4 lg:col-span-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">Estimated Savings</p>
-              <p className="mt-2 font-display text-3xl text-ink">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
+            <div className=" lg:col-span-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Estimated Savings</p>
+              <p className="mt-2 font-display text-3xl text-sand">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
               {user?.is_admin ? (
                 <p className="mt-1 text-sm">
                   <a href="#" className="text-blue-600 hover:underline" onClick={(e) => { e.preventDefault(); openManageCostModal(); }}>Manage Cost</a>
                 </p>
               ) : appSettings ? (
-                <p className="mt-1 text-sm text-black/55">Based on cloud API pricing of ${appSettings.input_price_per_1m.toFixed(2)}/1M Input, ${appSettings.output_price_per_1m.toFixed(2)}/1M Output</p>
+                <p className="mt-1 text-sm text-sand/55">Based on cloud API pricing of ${appSettings.input_price_per_1m.toFixed(2)}/1M Input, ${appSettings.output_price_per_1m.toFixed(2)}/1M Output</p>
               ) : (
-                <p className="mt-1 text-sm text-black/55">Log in to view</p>
+                <p className="mt-1 text-sm text-sand/55">Log in to view</p>
               )}
             </div>
           )}
@@ -584,14 +584,14 @@ export default function StatusPage() {
       {user?.is_admin && (
         <Modal open={isManageCostOpen} onClose={() => setIsManageCostOpen(false)} labelledBy="manage-cost-modal-title" panelClassName="max-w-lg">
         <div className="p-6">
-          <h2 id="manage-cost-modal-title" className="font-display text-2xl text-ink">Manage Cost</h2>
-          <p className="mt-1 text-sm text-black/55">Set the price per 1M tokens for input and output to estimate your savings.</p>
+          <h2 id="manage-cost-modal-title" className="font-display text-2xl text-sand">Manage Cost</h2>
+          <p className="mt-1 text-sm text-sand/55">Set the price per 1M tokens for input and output to estimate your savings.</p>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="input-price" className="block text-sm font-medium text-black/70">Input (per 1M tokens)</label>
-              <div className="mt-1 flex  border border-black/10 bg-white overflow-hidden">
-                <span className="flex items-center pl-3 text-black/50">$</span>
+              <label htmlFor="input-price" className="block text-sm font-medium text-sand/70">Input (per 1M tokens)</label>
+              <div className="mt-1 flex  border border-white/10 bg-white overflow-hidden">
+                <span className="flex items-center pl-3 text-sand/50">$</span>
                 <input
                   id="input-price"
                   type="number"
@@ -599,15 +599,15 @@ export default function StatusPage() {
                   min="0"
                   value={modalDraft.input_price_per_1m}
                   onChange={(e) => setModalDraft((d) => ({ ...d, input_price_per_1m: e.target.value }))}
-                  className="w-full border-0 bg-transparent px-3 py-2.5 text-ink outline-none focus:ring-0"
+                  className="w-full border-0 bg-transparent px-3 py-2.5 text-sand outline-none focus:ring-0"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="output-price" className="block text-sm font-medium text-black/70">Output (per 1M tokens)</label>
-              <div className="mt-1 flex  border border-black/10 bg-white overflow-hidden">
-                <span className="flex items-center pl-3 text-black/50">$</span>
+              <label htmlFor="output-price" className="block text-sm font-medium text-sand/70">Output (per 1M tokens)</label>
+              <div className="mt-1 flex  border border-white/10 bg-white overflow-hidden">
+                <span className="flex items-center pl-3 text-sand/50">$</span>
                 <input
                   id="output-price"
                   type="number"
@@ -615,7 +615,7 @@ export default function StatusPage() {
                   min="0"
                   value={modalDraft.output_price_per_1m}
                   onChange={(e) => setModalDraft((d) => ({ ...d, output_price_per_1m: e.target.value }))}
-                  className="w-full border-0 bg-transparent px-3 py-2.5 text-ink outline-none focus:ring-0"
+                  className="w-full border-0 bg-transparent px-3 py-2.5 text-sand outline-none focus:ring-0"
                 />
               </div>
             </div>
@@ -636,13 +636,13 @@ export default function StatusPage() {
       )}
 
       {isLoading ? (
-        <div className=" border border-black/10 bg-white/80 px-4 py-8 text-sm text-black/55 shadow-sm">Loading...</div>
+        <div className=" px-4 py-8 text-sm text-sand/55">Loading...</div>
       ) : visibleDevices.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} />)}
         </div>
       ) : (
-        <div className=" border border-dashed border-black/15 bg-white/60 px-4 py-8 text-sm text-black/55 shadow-sm">No ready devices are available.</div>
+        <div className=" border border-dashed border-white/15 px-4 py-8 text-sm text-sand/55">No ready devices are available.</div>
       )}
     </section>
   );

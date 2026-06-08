@@ -78,15 +78,15 @@ export default function TermsAndPoliciesPage() {
         <section className="grid gap-4">
         <article>
           <h2 className="font-display text-xl">Terms and Policies</h2>
-          <p className="mt-1 text-sm text-black/65">
+          <p className="mt-1 text-sm text-sand/65">
             When enabled, users will be prompted to accept the terms and policies before accessing the web interface.
           </p>
 
           <div className="mt-5 grid gap-3">
-            <label className="flex items-start justify-between gap-4  border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <label className="flex items-start justify-between gap-4  py-4">
               <div>
-                <div className="text-sm font-semibold text-black">Enable terms and policies</div>
-                <p className="mt-1 text-sm text-black/65">
+                <div className="text-sm font-semibold text-sand">Enable terms and policies</div>
+                <p className="mt-1 text-sm text-sand/65">
                   Require users to accept the terms and policies before using LmPanel.
                 </p>
               </div>
@@ -95,15 +95,15 @@ export default function TermsAndPoliciesPage() {
                 checked={localSettings.terms_enabled}
                 disabled={isLoading || isSaving}
                 onChange={(event) => updateEnabled(event.target.checked)}
-                className="mt-1 h-5 w-5 cursor-pointer  border border-black/15 text-ink focus:ring-ink/20"
+                className="mt-1 h-5 w-5 cursor-pointer  border border-white/15 text-sand focus:ring-sand/20"
               />
             </label>
 
-            <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
+            <div className=" py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-semibold text-black">Terms and policies content</div>
-                  <p className="mt-1 text-sm text-black/65">
+                  <div className="text-sm font-semibold text-sand">Terms and policies content</div>
+                  <p className="mt-1 text-sm text-sand/65">
                     Write your terms and policies in Markdown format.
                   </p>
                 </div>
@@ -111,7 +111,7 @@ export default function TermsAndPoliciesPage() {
                   <button
                     type="button"
                     onClick={() => setShowPreview(!showPreview)}
-                    className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black transition hover:border-black/20 hover:bg-black/5"
+                    className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand transition hover:border-white/20 hover:bg-white/10"
                     disabled={isLoading || isSaving}
                   >
                     {showPreview ? "Edit" : "Preview"}
@@ -121,11 +121,11 @@ export default function TermsAndPoliciesPage() {
 
               <div className="mt-3">
                 {showPreview ? (
-                  <div className=" border border-black/10 bg-white p-5">
+                  <div className=" border border-white/10 bg-white p-5">
                     {localSettings.terms_content ? (
                       <MarkdownRenderer content={localSettings.terms_content} />
                     ) : (
-                      <p className="text-sm text-black/50">No content to preview. Add content in the editor.</p>
+                      <p className="text-sm text-sand/50">No content to preview. Add content in the editor.</p>
                     )}
                   </div>
                 ) : (
@@ -143,7 +143,7 @@ export default function TermsAndPoliciesPage() {
                 <button
                   type="submit"
                   disabled={isLoading || isSaving}
-                  className=" bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black/85 disabled:opacity-50"
+                  className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas hover:bg-black/85 disabled:opacity-50"
                 >
                   {isSaving ? "Saving..." : "Save"}
                 </button>

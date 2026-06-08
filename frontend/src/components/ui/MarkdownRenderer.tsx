@@ -38,7 +38,7 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
             if (el) codeRefs.current.set(index, el);
             else codeRefs.current.delete(index);
           }}
-          className="my-3 w-full max-w-full overflow-hidden  border border-black/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0"
+          className="my-3 w-full max-w-full overflow-hidden  border border-white/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0"
           {...rest}
         >
           <div className="max-h-[24rem] overflow-y-auto">

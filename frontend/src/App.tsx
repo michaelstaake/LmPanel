@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
 import AuthPage from "./pages/AuthPage";
@@ -34,14 +34,6 @@ import { createFaviconSvg, getSystemStatus } from "./lib/favicon";
 const appVersionLabel = `v${__APP_VERSION__}`;
 const BACKEND_STATUS_POLL_INTERVAL_MS = 5000;
 const MOBILE_BREAKPOINT_PX = 768;
-
-type AppBackgroundStyle = CSSProperties & {
-  "--app-background-color": string;
-  "--app-background-image": string;
-  "--app-background-position": string;
-  "--app-background-repeat": string;
-  "--app-background-size": string;
-};
 
 function getMainNavItems(user: CurrentUser | null, knowledgeBaseEnabled: boolean): MobileNavItem[] {
   const items: MobileNavItem[] = [];
@@ -97,7 +89,7 @@ function MainNavLink({
       to={to}
       end={end}
       onClick={handleClick}
-      className={({ isActive }) => `inline-flex items-center gap-2  px-3 py-2 text-sm ${isActive ? "bg-ink text-white" : "bg-black/5"}`}
+      className={({ isActive }) => `inline-flex items-center gap-2 px-3 py-2 text-sm ${isActive ? "bg-sand text-canvas" : "bg-white/10 text-sand hover:bg-white/15"}`}
     >
       <i className={`${iconClassName} text-[14px] leading-none`} aria-hidden="true" />
       <span>{label}</span>
@@ -109,7 +101,7 @@ function RequireAdmin({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup, user } = useAuth();
 
   if (isBootstrapping) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className="p-5 text-sm text-sand/60">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -127,7 +119,7 @@ function RequireUser({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup, user } = useAuth();
 
   if (isBootstrapping) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className="p-5 text-sm text-sand/60">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -142,7 +134,7 @@ function RequireSetup({ children }: { children: ReactNode }) {
   const { isBootstrapping, requiresSetup } = useAuth();
 
   if (isBootstrapping) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className="p-5 text-sm text-sand/60">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -154,7 +146,7 @@ function HomeRoute() {
   const { isBootstrapping, requiresSetup, user, termsSettings } = useAuth();
 
   if (isBootstrapping) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Loading...</section>;
+    return <section className="p-5 text-sm text-sand/60">Loading...</section>;
   }
   if (requiresSetup) {
     return <Navigate to="/setup" replace />;
@@ -179,10 +171,10 @@ function SetupRoute() {
   }, [bootstrapError, showError]);
 
   if (isBootstrapping) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Checking installation state...</section>;
+    return <section className="p-5 text-sm text-sand/60">Checking installation state...</section>;
   }
   if (bootstrapError) {
-    return <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">Installation state is temporarily unavailable.</section>;
+    return <section className="p-5 text-sm text-sand/60">Installation state is temporarily unavailable.</section>;
   }
   if (!requiresSetup) {
     return <Navigate to={user ? "/settings/general" : "/login"} replace />;
@@ -191,7 +183,7 @@ function SetupRoute() {
 }
 
 export default function App() {
-  const { backgroundColor, backgroundImageMode, backgroundImagePath, bootstrapError, faviconPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { bootstrapError, faviconPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
@@ -335,25 +327,23 @@ export default function App() {
     setIsMobileNavOpen(false);
   }, [location.pathname]);
 
-  const appBackgroundStyle = buildAppBackgroundStyle(backgroundColor, backgroundImagePath, backgroundImageMode);
-
  return (
     <BackgroundProgressProvider>
       <ModelsCatalogProvider>
-      <div className="app-background min-h-screen text-ink font-body" style={appBackgroundStyle}>
+      <div className="min-h-screen bg-canvas text-sand font-body">
         <ToastViewport />
         <MobileNavProvider value={{ closeMobileNav: () => setIsMobileNavOpen(false), setMobileNavSection }}>
           <div className="mx-auto max-w-7xl px-4 md:px-8">
-            <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible  border border-black/10 bg-white/80 p-4 shadow-sm backdrop-blur isolate">
-              <NavLink to="/" className="inline-flex items-baseline gap-3  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/30">
-                <h1 className="font-display text-2xl font-semibold tracking-tight">{sitename}</h1>
+            <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible py-4 isolate">
+              <NavLink to="/" className="inline-flex items-baseline gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sand/30">
+                <h1 className="font-display text-2xl font-semibold tracking-tight text-sand">{sitename}</h1>
               </NavLink>
               {showMainNav ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setIsMobileNavOpen(true)}
-                    className="inline-flex items-center gap-2  border border-black/10 bg-white px-3 py-2 text-sm font-medium text-ink transition hover:border-black/20 hover:bg-black/5 xl:hidden"
+                    className="inline-flex items-center gap-2 border border-white/15 bg-white/10 px-3 py-2 text-sm font-medium text-sand transition hover:bg-white/15 xl:hidden"
                     aria-label="Open navigation menu"
                     aria-expanded={isMobileNavOpen}
                     aria-controls="mobile-nav-title"
@@ -405,39 +395,4 @@ export default function App() {
       </ModelsCatalogProvider>
     </BackgroundProgressProvider>
   );
-}
-
-function buildAppBackgroundStyle(
-  backgroundColor: string,
-  backgroundImagePath: string | null,
-  backgroundImageMode: "fill" | "stretch" | "repeat",
-): AppBackgroundStyle {
-  const baseStyle: AppBackgroundStyle = {
-    "--app-background-color": backgroundColor || "#efe8d2",
-    "--app-background-image": "none",
-    "--app-background-position": "center center",
-    "--app-background-repeat": "no-repeat",
-    "--app-background-size": "auto",
-  };
-
-  if (!backgroundImagePath) {
-    return baseStyle;
-  }
-
-  baseStyle["--app-background-image"] = `url("${resolveApiUrl(backgroundImagePath)}")`;
-
-  if (backgroundImageMode === "stretch") {
-    baseStyle["--app-background-size"] = "100% 100%";
-    return baseStyle;
-  }
-
-  if (backgroundImageMode === "repeat") {
-    baseStyle["--app-background-position"] = "left top";
-    baseStyle["--app-background-repeat"] = "repeat";
-    baseStyle["--app-background-size"] = "auto";
-    return baseStyle;
-  }
-
-  baseStyle["--app-background-size"] = "cover";
-  return baseStyle;
 }

@@ -5,50 +5,34 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-}
-
-.app-background {
-  background-color: var(--app-background-color, #efe8d2);
-  background-image: var(--app-background-image, none);
-  background-attachment: fixed;
-  background-position: var(--app-background-position, center center);
-  background-repeat: var(--app-background-repeat, no-repeat);
-  background-size: var(--app-background-size, auto);
-}
-
-@media (max-width: 767px) {
-  .app-background {
-    background-image: none !important;
-    background-position: center center;
-    background-repeat: no-repeat;
-    background-size: auto;
-  }
+  background-color: #0d0d0d;
+  color: #f5f2e8;
 }
 
 .markdown-content h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 1.5rem 0 0.75rem;
-  color: #1a1a2e;
+  color: #f5f2e8;
 }
 
 .markdown-content h2 {
   font-size: 1.4rem;
   font-weight: 700;
   margin: 1.25rem 0 0.5rem;
-  color: #1a1a2e;
+  color: #f5f2e8;
 }
 
 .markdown-content h3 {
   font-size: 1.15rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: #1a1a2e;
+  color: #f5f2e8;
 }
 
 .markdown-content p {
@@ -57,12 +41,12 @@ body {
 }
 
 .markdown-content a {
-  color: #0066cc;
+  color: #89ddff;
   text-decoration: underline;
 }
 
 .markdown-content a:hover {
-  color: #004499;
+  color: #54f2c3;
 }
 
 .markdown-content ul,
@@ -79,15 +63,15 @@ body {
 .markdown-content blockquote {
   margin: 1rem 0;
   padding: 0.5rem 1rem;
-  border-left: 3px solid #d1d5db;
-  color: #4b5563;
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  color: rgba(245, 242, 232, 0.75);
   font-style: italic;
 }
 
 .markdown-content hr {
   margin: 1.5rem 0;
   border: none;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .markdown-content table {
@@ -99,17 +83,17 @@ body {
 .markdown-content th,
 .markdown-content td {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   text-align: left;
 }
 
 .markdown-content th {
-  background-color: #f9fafb;
+  background-color: rgba(255, 255, 255, 0.06);
   font-weight: 600;
 }
 
 .markdown-content code:not(.hljs):not([class*="language-"]) {
-  background-color: rgba(0, 0, 0, 0.06);
+  background-color: rgba(255, 255, 255, 0.08);
   padding: 0.15rem 0.4rem;
   border-radius: 0;
   font-size: 0.875em;
@@ -185,4 +169,3 @@ body {
 .markdown-content .hljs-regexp {
   color: #82aaff;
 }
-

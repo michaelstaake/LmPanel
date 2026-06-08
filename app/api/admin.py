@@ -56,8 +56,6 @@ GITHUB_REPO_NAME = "LmPanel"
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 app_config = get_settings()
-BACKGROUND_IMAGE_MAX_BYTES = 10 * 1024 * 1024
-BACKGROUND_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 FAVICON_MAX_BYTES = 2 * 1024 * 1024
 FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
@@ -76,10 +74,6 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.users_can_register = payload.users_can_register
     if payload.sitename is not None:
         app_settings.sitename = payload.sitename
-    if payload.background_color is not None:
-        app_settings.background_color = payload.background_color
-    if payload.background_image_mode is not None:
-        app_settings.background_image_mode = payload.background_image_mode
     if payload.knowledge_base_enabled is not None:
         app_settings.knowledge_base_enabled = payload.knowledge_base_enabled
     if payload.input_price_per_1m is not None:
@@ -145,52 +139,6 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
             if value is not None:
                 setattr(app_settings, field_name, value)
 
-    db.add(app_settings)
-    db.commit()
-    db.refresh(app_settings)
-    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
-    return _serialize_app_settings(app_settings)
-
-
-@router.post("/settings/background-image", response_model=AppSettingsResponse)
-async def upload_background_image(
-    file: UploadFile = File(...),
-    admin_user: User = Depends(get_admin_user),
-    db: Session = Depends(get_db),
-) -> AppSettingsResponse:
-    extension = Path(file.filename or "").suffix.lower()
-    if extension not in BACKGROUND_IMAGE_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Background image must be a JPG or PNG file")
-
-    content = await file.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Background image upload was empty")
-    if len(content) > BACKGROUND_IMAGE_MAX_BYTES:
-        raise HTTPException(status_code=400, detail="Background image must be 10 MB or smaller")
-
-    app_settings = get_or_create_app_settings(db)
-    backgrounds_directory = _backgrounds_directory()
-    backgrounds_directory.mkdir(parents=True, exist_ok=True)
-
-    _delete_background_file(app_settings.background_image_path)
-
-    stored_name = f"background-{uuid4().hex}{extension}"
-    destination = backgrounds_directory / stored_name
-    destination.write_bytes(content)
-
-    app_settings.background_image_path = f"/static/backgrounds/{stored_name}"
-    db.add(app_settings)
-    db.commit()
-    db.refresh(app_settings)
-    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
-    return _serialize_app_settings(app_settings)
-
-
-@router.delete("/settings/background-image", response_model=AppSettingsResponse)
-def delete_background_image(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> AppSettingsResponse:
-    app_settings = get_or_create_app_settings(db)
-    _delete_background_file(app_settings.background_image_path)
-    app_settings.background_image_path = None
     db.add(app_settings)
     db.commit()
     db.refresh(app_settings)
@@ -642,9 +590,6 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
     return AppSettingsResponse(
         users_can_register=app_settings.users_can_register,
         sitename=app_settings.sitename,
-        background_color=app_settings.background_color,
-        background_image_path=app_settings.background_image_path,
-        background_image_mode=app_settings.background_image_mode,
         favicon_path=app_settings.favicon_path,
         knowledge_base_enabled=app_settings.knowledge_base_enabled,
         input_price_per_1m=app_settings.input_price_per_1m,
@@ -664,19 +609,6 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         usage_limit_tools_30_days=app_settings.usage_limit_tools_30_days,
         update_check_mode=app_settings.update_check_mode,
     )
-
-
-def _backgrounds_directory() -> Path:
-    return Path(app_config.data_dir) / "backgrounds"
-
-
-def _delete_background_file(background_image_path: str | None) -> None:
-    if not background_image_path or not background_image_path.startswith("/static/backgrounds/"):
-        return
-
-    file_path = _backgrounds_directory() / Path(background_image_path).name
-    if file_path.exists():
-        file_path.unlink()
 
 
 def _favicons_directory() -> Path:

@@ -311,33 +311,33 @@ export default function UsersPage() {
           <div>
             <h2 className="font-display text-2xl">Users</h2>
           </div>
-          <button className=" border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => setIsCreateModalOpen(true)}>
+          <button className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10" type="button" onClick={() => setIsCreateModalOpen(true)}>
             Add user
           </button>
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {visibleUsers.map((user) => (
-            <div key={user.id} className=" border border-black/10 bg-[#fffdf7] p-4">
+            <div key={user.id} className=" p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-lg text-black">{user.username}</h3>
+                <h3 className="font-display text-lg text-sand">{user.username}</h3>
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {user.is_admin ? <span className=" bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Admin</span> : null}
                 {user.package_name ? <span className=" bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800">{user.package_name}</span> : null}
-                {user.is_active ? <span className=" bg-[#e8f5e9] px-2.5 py-1 text-xs font-semibold text-[#2f8f4e]">Enabled</span> : <span className=" bg-black/10 px-2.5 py-1 text-xs font-semibold text-black/60">Disabled</span>}
+                {user.is_active ? <span className=" bg-[#e8f5e9] px-2.5 py-1 text-xs font-semibold text-[#2f8f4e]">Enabled</span> : <span className=" bg-black/10 px-2.5 py-1 text-xs font-semibold text-sand/60">Disabled</span>}
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className=" border border-black/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => handleViewUsage(user)}>
+                <button className=" border border-white/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10" type="button" onClick={() => handleViewUsage(user)}>
                   View usage
                 </button>
-                <button className=" border border-black/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => openUpdateEmailModal(user)}>
+                <button className=" border border-white/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10" type="button" onClick={() => openUpdateEmailModal(user)}>
                   Update email
                 </button>
-                <button className=" border border-black/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-black transition hover:bg-black/5" type="button" onClick={() => openUpdatePasswordModal(user)}>
+                <button className=" border border-white/15 bg-white px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10" type="button" onClick={() => openUpdatePasswordModal(user)}>
                   Update password
                 </button>
-                <button className={` border px-2.5 py-1.5 text-xs font-semibold transition hover:bg-black/5 ${user.is_active ? "border-black/15 bg-white text-black" : "border-[#2f8f4e]/40 bg-[#e8f5e9] text-[#2f8f4e]"}`} type="button" onClick={() => handleToggleActive(user)}>
+                <button className={` border px-2.5 py-1.5 text-xs font-semibold transition hover:bg-white/10 ${user.is_active ? "border-white/15 bg-white text-sand" : "border-[#2f8f4e]/40 bg-[#e8f5e9] text-[#2f8f4e]"}`} type="button" onClick={() => handleToggleActive(user)}>
                   {user.is_active ? "Disable" : "Enable"}
                 </button>
                 <button className=" border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100" type="button" onClick={() => openDeleteModal(user)}>
@@ -346,17 +346,17 @@ export default function UsersPage() {
               </div>
             </div>
           ))}
-          {isLoading ? <p className=" border border-black/10 bg-white px-4 py-6 text-sm text-black/60">Loading users...</p> : null}
+          {isLoading ? <p className=" border border-white/10 bg-white px-4 py-6 text-sm text-sand/60">Loading users...</p> : null}
           {!isLoading && visibleUsers.length === 0 ? (
             currentUser?.is_admin ? (
-              <div className=" border border-dashed border-black/15 bg-sand/60 px-5 py-6 text-sm text-black/65">
-                <p className="font-semibold text-black">There are no other users yet.</p>
+              <div className=" border border-dashed border-white/15 bg-sand/60 px-5 py-6 text-sm text-sand/65">
+                <p className="font-semibold text-sand">There are no other users yet.</p>
                 <p className="mt-2">
-                  If you want to update your own account, go to the <Link to="/profile" className="font-semibold text-black underline decoration-black/30 underline-offset-4">Profile page</Link>.
+                  If you want to update your own account, go to the <Link to="/profile" className="font-semibold text-sand underline decoration-black/30 underline-offset-4">Profile page</Link>.
                 </p>
               </div>
             ) : (
-              <p className=" border border-dashed border-black/15 bg-sand/60 px-4 py-6 text-sm text-black/60">No users created yet.</p>
+              <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">No users created yet.</p>
             )
           ) : null}
         </div>
@@ -369,35 +369,35 @@ export default function UsersPage() {
             <div>
               <h2 id="user-create-title" className="font-display text-2xl">Add user</h2>
             </div>
-            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsCreateModalOpen(false)}>
+            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsCreateModalOpen(false)}>
               Close
             </button>
           </div>
 
           <form className="mt-5 grid gap-3" onSubmit={handleCreateUser}>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="grid gap-1 text-sm text-black/70">
+              <label className="grid gap-1 text-sm text-sand/70">
                 Username
-                <input className=" border border-black/15 bg-white px-3 py-2 text-sm" value={newUser.username} onChange={(event) => setNewUser((current) => ({ ...current, username: sanitizeUsernameInput(event.target.value) }))} minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
+                <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" value={newUser.username} onChange={(event) => setNewUser((current) => ({ ...current, username: sanitizeUsernameInput(event.target.value) }))} minLength={4} maxLength={16} pattern="[a-z0-9]{4,16}" />
               </label>
-              <label className="grid gap-1 text-sm text-black/70">
+              <label className="grid gap-1 text-sm text-sand/70">
                 Email
-                <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type="email" value={newUser.email} onChange={(event) => setNewUser((current) => ({ ...current, email: event.target.value }))} />
+                <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type="email" value={newUser.email} onChange={(event) => setNewUser((current) => ({ ...current, email: event.target.value }))} />
               </label>
               <div className="md:col-span-2">
-                <label className="grid gap-1 text-sm text-black/70">
+                <label className="grid gap-1 text-sm text-sand/70">
                   Password
-                  <input className=" border border-black/15 bg-white px-3 py-2 text-sm" type={isPasswordVisible ? "text" : "password"} value={newUser.password} onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))} />
+                  <input className=" border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm" type={isPasswordVisible ? "text" : "password"} value={newUser.password} onChange={(event) => setNewUser((current) => ({ ...current, password: event.target.value }))} />
                 </label>
                 <div className="mt-1 flex gap-1">
-                  <button className=" border border-black/15 bg-white px-2 py-1 text-sm text-black/70 transition hover:bg-black/5" type="button" onClick={handleGeneratePassword} disabled={isGeneratingPassword}>
+                  <button className=" border border-white/15 bg-white px-2 py-1 text-sm text-sand/70 transition hover:bg-white/10" type="button" onClick={handleGeneratePassword} disabled={isGeneratingPassword}>
                     {isGeneratingPassword ? (
-                      <span className="inline-block h-4 w-4 animate-spin  border-2 border-black/30 border-t-black" />
+                      <span className="inline-block h-4 w-4 animate-spin  border-2 border-white/30 border-t-black" />
                     ) : (
                       <span className="bi bi-shuffle inline-block text-sm" />
                     )}
                   </button>
-                  <button className=" border border-black/15 bg-white px-2 py-1 text-sm text-black/70 transition hover:bg-black/5" type="button" onClick={() => setIsPasswordVisible((current) => !current)}>
+                  <button className=" border border-white/15 bg-white px-2 py-1 text-sm text-sand/70 transition hover:bg-white/10" type="button" onClick={() => setIsPasswordVisible((current) => !current)}>
                     {isPasswordVisible ? (
                       <span className="bi bi-eye-slash inline-block text-sm" />
                     ) : (
@@ -406,7 +406,7 @@ export default function UsersPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3  border border-black/10 bg-white px-3 py-2 text-sm text-black/70 md:col-span-2">
+              <div className="flex flex-wrap gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70 md:col-span-2">
                 <label className="flex items-center gap-2">
                   <input type="checkbox" checked={newUser.is_admin} onChange={(event) => setNewUser((current) => ({ ...current, is_admin: event.target.checked }))} />
                   Admin
@@ -418,10 +418,10 @@ export default function UsersPage() {
               </div>
               {!newUser.is_admin && (
                 <div className="md:col-span-2">
-                  <label className="block text-sm text-black/70">
-                    <span className="mb-2 block font-semibold text-black">Package</span>
+                  <label className="block text-sm text-sand/70">
+                    <span className="mb-2 block font-semibold text-sand">Package</span>
                     <select
-                      className="w-full  border border-black/15 bg-white px-3 py-2 text-sm"
+                      className="w-full  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm"
                       value={newUser.package_id ?? ""}
                       onChange={(event) => setNewUser((current) => ({ ...current, package_id: event.target.value ? Number(event.target.value) : null }))}
                     >
@@ -434,7 +434,7 @@ export default function UsersPage() {
               )}
             </div>
             <div>
-              <button className=" bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isCreatingUser}>
+              <button className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isCreatingUser}>
                 {isCreatingUser ? "Creating..." : "Create User"}
               </button>
             </div>
@@ -451,85 +451,85 @@ export default function UsersPage() {
                 Usage for {selectedUsageUser?.username}
               </h2>
             </div>
-            <button className=" border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black" type="button" onClick={() => setIsUsageModalOpen(false)}>
+            <button className=" border border-white/15 bg-white px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={() => setIsUsageModalOpen(false)}>
               Close
             </button>
           </div>
 
           {isLoadingUsage ? (
-            <p className="mt-5 text-sm text-black/60">Loading token usage...</p>
+            <p className="mt-5 text-sm text-sand/60">Loading token usage...</p>
           ) : userTokenUsages[selectedUsageUser?.id ?? -1] ? (
             (() => {
               const usage = userTokenUsages[selectedUsageUser?.id ?? -1];
               return (
                 <div className="mt-5 space-y-4">
-                  <div className=" border border-black/10 bg-white/70 p-4">
+                  <div className=" border border-white/10 bg-white/70 p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-black/50 uppercase tracking-wide">Token Usage &amp; Estimated Cost</span>
-                      <span className="text-sm font-semibold text-black">
+                      <span className="text-xs font-semibold text-sand/50 uppercase tracking-wide">Token Usage &amp; Estimated Cost</span>
+                      <span className="text-sm font-semibold text-sand">
                         ${usage.estimated_cost.toFixed(4)}
                       </span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">60 min</div>
-                        <div className="text-sm font-semibold text-black">{formatTokens(usage.last_60_minutes.total_tokens)}</div>
-                        <div className="text-[10px] text-black/50">
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">60 min</div>
+                        <div className="text-sm font-semibold text-sand">{formatTokens(usage.last_60_minutes.total_tokens)}</div>
+                        <div className="text-[10px] text-sand/50">
                           {formatTokens(usage.last_60_minutes.input_tokens)} / {formatTokens(usage.last_60_minutes.output_tokens)}
                         </div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">24 hrs</div>
-                        <div className="text-sm font-semibold text-black">{formatTokens(usage.last_24_hours.total_tokens)}</div>
-                        <div className="text-[10px] text-black/50">
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">24 hrs</div>
+                        <div className="text-sm font-semibold text-sand">{formatTokens(usage.last_24_hours.total_tokens)}</div>
+                        <div className="text-[10px] text-sand/50">
                           {formatTokens(usage.last_24_hours.input_tokens)} / {formatTokens(usage.last_24_hours.output_tokens)}
                         </div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">7 days</div>
-                        <div className="text-sm font-semibold text-black">{formatTokens(usage.last_7_days.total_tokens)}</div>
-                        <div className="text-[10px] text-black/50">
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">7 days</div>
+                        <div className="text-sm font-semibold text-sand">{formatTokens(usage.last_7_days.total_tokens)}</div>
+                        <div className="text-[10px] text-sand/50">
                           {formatTokens(usage.last_7_days.input_tokens)} / {formatTokens(usage.last_7_days.output_tokens)}
                         </div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">30 days</div>
-                        <div className="text-sm font-semibold text-black">{formatTokens(usage.last_30_days.total_tokens)}</div>
-                        <div className="text-[10px] text-black/50">
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">30 days</div>
+                        <div className="text-sm font-semibold text-sand">{formatTokens(usage.last_30_days.total_tokens)}</div>
+                        <div className="text-[10px] text-sand/50">
                           {formatTokens(usage.last_30_days.input_tokens)} / {formatTokens(usage.last_30_days.output_tokens)}
                         </div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">Forever</div>
-                        <div className="text-sm font-semibold text-black">{formatTokens(usage.forever.total_tokens)}</div>
-                        <div className="text-[10px] text-black/50">
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">Forever</div>
+                        <div className="text-sm font-semibold text-sand">{formatTokens(usage.forever.total_tokens)}</div>
+                        <div className="text-[10px] text-sand/50">
                           {formatTokens(usage.forever.input_tokens)} / {formatTokens(usage.forever.output_tokens)}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className=" border border-black/10 bg-white/70 p-4">
-                    <span className="text-xs font-semibold text-black/50 uppercase tracking-wide">Web Search Usage</span>
+                  <div className=" border border-white/10 bg-white/70 p-4">
+                    <span className="text-xs font-semibold text-sand/50 uppercase tracking-wide">Web Search Usage</span>
                     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">60 min</div>
-                        <div className="text-sm font-semibold text-black">{usage.last_60_minutes.web_searches}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">60 min</div>
+                        <div className="text-sm font-semibold text-sand">{usage.last_60_minutes.web_searches}</div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">24 hrs</div>
-                        <div className="text-sm font-semibold text-black">{usage.last_24_hours.web_searches}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">24 hrs</div>
+                        <div className="text-sm font-semibold text-sand">{usage.last_24_hours.web_searches}</div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">7 days</div>
-                        <div className="text-sm font-semibold text-black">{usage.last_7_days.web_searches}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">7 days</div>
+                        <div className="text-sm font-semibold text-sand">{usage.last_7_days.web_searches}</div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">30 days</div>
-                        <div className="text-sm font-semibold text-black">{usage.last_30_days.web_searches}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">30 days</div>
+                        <div className="text-sm font-semibold text-sand">{usage.last_30_days.web_searches}</div>
                       </div>
                       <div className=" bg-sand/60 px-2 py-1.5 text-center">
-                        <div className="text-[10px] uppercase tracking-wide text-black/50">Forever</div>
-                        <div className="text-sm font-semibold text-black">{usage.forever.web_searches}</div>
+                        <div className="text-[10px] uppercase tracking-wide text-sand/50">Forever</div>
+                        <div className="text-sm font-semibold text-sand">{usage.forever.web_searches}</div>
                       </div>
                     </div>
                   </div>
@@ -537,7 +537,7 @@ export default function UsersPage() {
               );
             })()
           ) : (
-            <p className="mt-5 text-sm text-black/60">No usage data available for this user.</p>
+            <p className="mt-5 text-sm text-sand/60">No usage data available for this user.</p>
           )}
         </div>
       </Modal>
@@ -550,17 +550,17 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setIsEmailModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <form className="mt-5 space-y-4" onSubmit={handleUpdateEmail}>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">Email</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">Email</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="email"
                 value={emailValue}
                 onChange={(event) => setEmailValue(event.target.value)}
@@ -569,7 +569,7 @@ export default function UsersPage() {
               />
             </label>
             <button
-              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-sand px-4 py-3 font-semibold text-canvas transition hover:bg-sand/80 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingEmail}
             >
@@ -587,17 +587,17 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setIsPasswordModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <form className="mt-5 space-y-4" onSubmit={handleUpdatePassword}>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">New password</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">New password</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={passwordValue}
                 onChange={(event) => setPasswordValue(event.target.value)}
@@ -605,10 +605,10 @@ export default function UsersPage() {
                 placeholder="Enter a new password"
               />
             </label>
-            <label className="block text-sm text-black/70">
-              <span className="mb-2 block font-semibold text-black">Confirm new password</span>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">Confirm new password</span>
               <input
-                className="w-full  border border-black/10 bg-white px-4 py-3 outline-none transition focus:border-black/25"
+                className="w-full  border border-white/10 bg-white px-4 py-3 outline-none transition focus:border-white/25"
                 type="password"
                 value={confirmPasswordValue}
                 onChange={(event) => setConfirmPasswordValue(event.target.value)}
@@ -617,7 +617,7 @@ export default function UsersPage() {
               />
             </label>
             <button
-              className=" bg-ink px-4 py-3 font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              className=" bg-sand px-4 py-3 font-semibold text-canvas transition hover:bg-sand/80 disabled:cursor-not-allowed disabled:opacity-60"
               type="submit"
               disabled={isSavingPassword}
             >
@@ -635,21 +635,21 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setIsDeleteModalOpen(false)}
-              className="shrink-0  p-1 text-black/45 transition hover:bg-black/5 hover:text-black"
+              className="shrink-0  p-1 text-sand/45 transition hover:bg-white/10 hover:text-sand"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
           <div className="mt-5">
-            <p className="text-sm text-black/70">
-              Are you sure you want to delete <span className="font-semibold text-black">{selectedDeleteUser?.username}</span>? This action cannot be undone.
+            <p className="text-sm text-sand/70">
+              Are you sure you want to delete <span className="font-semibold text-sand">{selectedDeleteUser?.username}</span>? This action cannot be undone.
             </p>
           </div>
 
           <div className="mt-6 flex justify-end gap-3">
             <button
-              className=" border border-black/15 bg-white px-4 py-3 text-sm font-semibold text-black transition hover:bg-black/5"
+              className=" border border-white/15 bg-white/10 px-4 py-3 text-sand text-sm font-semibold text-sand transition hover:bg-white/10"
               type="button"
               onClick={() => setIsDeleteModalOpen(false)}
             >

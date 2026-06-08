@@ -82,27 +82,27 @@ export default function AuthPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <article className="-[2rem] border border-black/10 bg-white/90 p-6 shadow-sm backdrop-blur">
+      <article>
         <h2 className="font-display text-2xl">Sign in</h2>
 
         <form className="mt-6 grid gap-4" onSubmit={handleLogin}>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Username</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} autoComplete="username" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Username</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} autoComplete="username" />
           </label>
-          <label className="grid gap-2 text-sm text-black/70">
-            <span className="font-semibold text-black">Password</span>
-            <input className=" border border-black/10 bg-[#fcfaf5] px-4 py-3 text-sm outline-none transition focus:border-black/25 focus:bg-white" type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} autoComplete="current-password" />
+          <label className="grid gap-2 text-sm text-sand/70">
+            <span className="font-semibold text-sand">Password</span>
+            <input className=" border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-white/25 focus:bg-white/15" type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} autoComplete="current-password" />
           </label>
           {cloudflareTurnstileEnabled && cloudflareTurnstileSiteKey ? (
             <div ref={turnstileRef} className="mt-2 w-64 min-h-[74px]" />
           ) : null}
           <div className="flex items-center justify-between gap-4 mt-2">
-            <button className=" bg-ink px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
+            <button className=" bg-sand px-5 py-3 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
               {isAuthenticating ? "Signing in..." : "Sign In"}
             </button>
             {usersCanRegister ? (
-              <Link to="/register" className="text-sm text-black/60 hover:text-black hover:underline transition">
+              <Link to="/register" className="text-sm text-sand/60 hover:text-sand hover:underline transition">
                 Create an account
               </Link>
             ) : null}

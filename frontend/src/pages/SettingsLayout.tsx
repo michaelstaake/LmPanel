@@ -42,17 +42,17 @@ export default function SettingsLayout({ children, title }: SettingsLayoutProps)
   const showBreadcrumbs = title && breadcrumbs.length > 1;
 
   return (
-    <div className=" border border-black/10 bg-white/80 p-5 shadow-sm backdrop-blur">
+    <div className="py-5">
       {showBreadcrumbs && (
         <nav aria-label="Breadcrumb" className="mb-4 text-sm">
           <ol className="flex items-center gap-1.5">
             {breadcrumbs.map((crumb, index) => (
               <li key={crumb.to} className="flex items-center gap-1.5">
-                {index > 0 && <span className="text-neutral-400" aria-hidden="true">/</span>}
+                {index > 0 && <span className="text-sand/40" aria-hidden="true">/</span>}
                 {index === breadcrumbs.length - 1 ? (
-                  <span className="font-semibold text-neutral-800">{crumb.label}</span>
+                  <span className="font-semibold text-sand">{crumb.label}</span>
                 ) : (
-                  <Link to={crumb.to} className="text-neutral-600 hover:text-neutral-800">
+                  <Link to={crumb.to} className="text-sand/70 hover:text-white">
                     {crumb.label}
                   </Link>
                 )}

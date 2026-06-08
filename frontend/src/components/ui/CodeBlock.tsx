@@ -33,7 +33,7 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
   }
 
   return (
-    <div className="my-3 w-full max-w-full overflow-hidden  border border-black/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0">
+    <div className="my-3 w-full max-w-full overflow-hidden  border border-white/10 bg-ink text-sand shadow-sm first:mt-0 last:mb-0">
       <div className="max-h-[24rem] overflow-y-auto">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-ink/95 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-sand/55 backdrop-blur-sm">
           <span>{language || "code"}</span>

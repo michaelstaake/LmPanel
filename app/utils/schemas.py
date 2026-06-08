@@ -20,23 +20,6 @@ def validate_username_optional(value: str | None) -> str | None:
     return validate_username(value)
 
 
-def _normalize_background_color(value: str | None) -> str:
-    if value is None:
-        return "#efe8d2"
-
-    normalized = value.strip().lower()
-    if not normalized:
-        return "#efe8d2"
-
-    if len(normalized) != 7 or not normalized.startswith("#"):
-        raise ValueError("background_color must be a hex color like #efe8d2")
-
-    if any(character not in "0123456789abcdef#" for character in normalized):
-        raise ValueError("background_color must be a hex color like #efe8d2")
-
-    return normalized
-
-
 def normalize_public_url(value: str | None) -> str:
     if value is None:
         return ""
@@ -253,20 +236,12 @@ class BootstrapStatusResponse(BaseModel):
     has_active_model: bool = False
     users_can_register: bool = False
     sitename: str = "LmPanel"
-    background_color: str = "#efe8d2"
-    background_image_path: str | None = None
-    background_image_mode: Literal["fill", "stretch", "repeat"] = "fill"
     favicon_path: str | None = None
     knowledge_base_enabled: bool = False
     cloudflare_turnstile_enabled: bool = False
     cloudflare_turnstile_site_key: str | None = None
     public_url: str = ""
     api_base_url: str = ""
-
-    @field_validator("background_color", mode="before")
-    @classmethod
-    def validate_background_color(cls, value: str | None) -> str:
-        return _normalize_background_color(value)
 
 
 class BootstrapAdminRequest(BaseModel):
@@ -295,9 +270,6 @@ class UserRegistrationRequest(BaseModel):
 class AppSettingsResponse(BaseModel):
     users_can_register: bool = False
     sitename: str = "LmPanel"
-    background_color: str = "#efe8d2"
-    background_image_path: str | None = None
-    background_image_mode: Literal["fill", "stretch", "repeat"] = "fill"
     favicon_path: str | None = None
     knowledge_base_enabled: bool = False
     input_price_per_1m: float = 0.0
@@ -317,11 +289,6 @@ class AppSettingsResponse(BaseModel):
     usage_limit_tools_30_days: int = 0
     update_check_mode: Literal["development", "release", "disabled"] = "disabled"
 
-    @field_validator("background_color", mode="before")
-    @classmethod
-    def validate_background_color(cls, value: str | None) -> str:
-        return _normalize_background_color(value)
-
     @field_validator("public_url", mode="before")
     @classmethod
     def validate_public_url(cls, value: str | None) -> str:
@@ -330,8 +297,6 @@ class AppSettingsResponse(BaseModel):
 class AppSettingsUpdateRequest(BaseModel):
     users_can_register: bool | None = None
     sitename: str | None = None
-    background_color: str | None = None
-    background_image_mode: Literal["fill", "stretch", "repeat"] | None = None
     knowledge_base_enabled: bool | None = None
     input_price_per_1m: float | None = None
     output_price_per_1m: float | None = None
@@ -349,13 +314,6 @@ class AppSettingsUpdateRequest(BaseModel):
     usage_limit_tools_7_days: int | None = None
     usage_limit_tools_30_days: int | None = None
     update_check_mode: Literal["development", "release", "disabled"] | None = None
-
-    @field_validator("background_color", mode="before")
-    @classmethod
-    def validate_background_color(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        return _normalize_background_color(value)
 
     @field_validator("public_url", mode="before")
     @classmethod

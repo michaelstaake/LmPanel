@@ -24,7 +24,7 @@ function eventTypeBadgeClass(eventType: string): string {
   if (eventType.startsWith("device.")) return "bg-yellow-100 text-yellow-700";
   if (eventType.startsWith("chat.")) return "bg-green-100 text-green-700";
   if (eventType.startsWith("admin.")) return "bg-gray-100 text-gray-700";
-  return "bg-black/5 text-black/60";
+  return "bg-white/10 text-sand/60";
 }
 
 function ActivityLogsTab() {
@@ -80,14 +80,14 @@ function ActivityLogsTab() {
   return (
     <div className="grid gap-4">
     {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3  border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap items-center gap-3 ">
         <div className="flex gap-1">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.value}
               type="button"
               onClick={() => handleCategoryChange(cat.value)}
-              className={` px-3 py-1.5 text-xs font-semibold transition ${category === cat.value ? "bg-ink text-white" : "text-black/70 hover:bg-black/5"}`}
+              className={` px-3 py-1.5 text-xs font-semibold transition ${category === cat.value ? "bg-sand text-canvas" : "text-sand/70 hover:bg-white/10"}`}
             >
               {cat.label}
             </button>
@@ -100,11 +100,11 @@ function ActivityLogsTab() {
             placeholder="Search events, users…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-52  border border-black/15 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink/30"
+            className="w-52  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sand/30"
           />
           <button
             type="submit"
-            className=" bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink/80"
+            className=" bg-sand px-3 py-1.5 text-xs font-semibold text-canvas transition hover:bg-sand/80"
           >
             Search
           </button>
@@ -112,7 +112,7 @@ function ActivityLogsTab() {
             <button
               type="button"
               onClick={handleClearSearch}
-              className=" border border-black/15 px-3 py-1.5 text-xs font-semibold text-black/70 transition hover:bg-black/5"
+              className=" border border-white/15 px-3 py-1.5 text-xs font-semibold text-sand/70 transition hover:bg-white/10"
             >
               Clear
             </button>
@@ -121,17 +121,17 @@ function ActivityLogsTab() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden  border border-black/10 bg-white/80 shadow-sm backdrop-blur">
+      <div className="overflow-hidden border border-white/10">
         {error && <p className="p-4 text-sm text-red-600">{error}</p>}
         {loading ? (
-          <p className="p-6 text-center text-sm text-black/50">Loading…</p>
+          <p className="p-6 text-center text-sm text-sand/50">Loading…</p>
         ) : items.length === 0 ? (
-          <p className="p-6 text-center text-sm text-black/50">No log entries found.</p>
+          <p className="p-6 text-center text-sm text-sand/50">No log entries found.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-black/10 bg-black/5 text-left text-xs font-semibold text-black/60">
+                <tr className="border-b border-white/10 bg-white/10 text-left text-xs font-semibold text-sand/60">
                   <th className="px-4 py-3 whitespace-nowrap">Timestamp</th>
                   <th className="px-4 py-3">Event</th>
                   <th className="px-4 py-3">User</th>
@@ -141,8 +141,8 @@ function ActivityLogsTab() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-b border-black/5 last:border-0 hover:bg-black/[0.02]">
-                    <td className="px-4 py-2.5 text-xs text-black/50 whitespace-nowrap font-mono">
+                  <tr key={item.id} className="border-b border-white/5 last:border-0 hover:bg-black/[0.02]">
+                    <td className="px-4 py-2.5 text-xs text-sand/50 whitespace-nowrap font-mono">
                       {item.created_at ? new Date(item.created_at).toLocaleString() : "—"}
                     </td>
                     <td className="px-4 py-2.5">
@@ -150,9 +150,9 @@ function ActivityLogsTab() {
                         {item.event_type}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-black/70">{item.username ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-xs text-black/50 font-mono whitespace-nowrap">{item.ip_address ?? "—"}</td>
-                    <td className="max-w-xs truncate px-4 py-2.5 text-xs text-black/60 font-mono" title={item.details ?? undefined}>
+                    <td className="px-4 py-2.5 text-sand/70">{item.username ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs text-sand/50 font-mono whitespace-nowrap">{item.ip_address ?? "—"}</td>
+                    <td className="max-w-xs truncate px-4 py-2.5 text-xs text-sand/60 font-mono" title={item.details ?? undefined}>
                       {item.details ?? "—"}
                     </td>
                   </tr>
@@ -165,8 +165,8 @@ function ActivityLogsTab() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between  border border-black/10 bg-white/80 px-4 py-3 shadow-sm backdrop-blur text-sm">
-          <span className="text-black/50">
+        <div className="flex items-center justify-between  px-4 py-3 text-sm">
+          <span className="text-sand/50">
             {total} {total === 1 ? "entry" : "entries"} · Page {page} of {totalPages}
           </span>
           <div className="flex gap-2">
@@ -174,7 +174,7 @@ function ActivityLogsTab() {
               type="button"
               disabled={page === 1}
               onClick={() => setPage((p) => p - 1)}
-              className=" border border-black/15 px-3 py-1.5 text-xs font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40"
+              className=" border border-white/15 px-3 py-1.5 text-xs font-semibold text-sand/70 transition hover:bg-white/10 disabled:opacity-40"
             >
               ← Prev
             </button>
@@ -182,7 +182,7 @@ function ActivityLogsTab() {
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
-              className=" border border-black/15 px-3 py-1.5 text-xs font-semibold text-black/70 transition hover:bg-black/5 disabled:opacity-40"
+              className=" border border-white/15 px-3 py-1.5 text-xs font-semibold text-sand/70 transition hover:bg-white/10 disabled:opacity-40"
             >
               Next →
             </button>
@@ -269,7 +269,7 @@ function DockerLogsTab() {
   return (
     <div className="grid gap-4">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3  border border-black/10 bg-white/80 p-3 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap items-center gap-3 ">
         {containersError ? (
           <p className="text-sm text-red-600">{containersError}</p>
         ) : (
@@ -278,7 +278,7 @@ function DockerLogsTab() {
               value={selectedContainer}
               onChange={(e) => setSelectedContainer(e.target.value)}
               disabled={loadingContainers || containers.length === 0}
-              className=" border border-black/15 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink/30 disabled:opacity-50"
+              className=" border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sand/30 disabled:opacity-50"
             >
               {containers.length === 0 && !loadingContainers && (
                 <option value="">No containers found</option>
@@ -291,7 +291,7 @@ function DockerLogsTab() {
             <select
               value={tail}
               onChange={(e) => setTail(Number(e.target.value))}
-              className=" border border-black/15 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ink/30"
+              className=" border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sand/30"
             >
               {TAIL_OPTIONS.map((n) => (
                 <option key={n} value={n}>Last {n} lines</option>
@@ -301,7 +301,7 @@ function DockerLogsTab() {
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-black/70 select-none">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-sand/70 select-none">
             <input
               type="checkbox"
               checked={autoRefresh}
@@ -317,7 +317,7 @@ function DockerLogsTab() {
               if (selectedContainer) fetchLogs(selectedContainer, tail);
             }}
             disabled={loadingLogs || loadingContainers}
-            className=" bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-ink/80 disabled:opacity-50"
+            className=" bg-sand px-3 py-1.5 text-xs font-semibold text-canvas transition hover:bg-sand/80 disabled:opacity-50"
           >
             Refresh
           </button>
@@ -325,18 +325,18 @@ function DockerLogsTab() {
       </div>
 
       {/* Log output */}
-      <div className="overflow-hidden  border border-black/10 bg-white/80 shadow-sm backdrop-blur">
+      <div className="overflow-hidden border border-white/10">
         {logsError ? (
           <p className="p-4 text-sm text-red-600">{logsError}</p>
         ) : loadingLogs && lines.length === 0 ? (
-          <p className="p-6 text-center text-sm text-black/50">Loading…</p>
+          <p className="p-6 text-center text-sm text-sand/50">Loading…</p>
         ) : lines.length === 0 ? (
-          <p className="p-6 text-center text-sm text-black/50">
+          <p className="p-6 text-center text-sm text-sand/50">
             {selectedContainer ? "No log output." : "Select a container above."}
           </p>
         ) : (
           <div className="max-h-[600px] overflow-y-auto p-4">
-            <pre className="whitespace-pre-wrap break-all font-mono text-xs text-black/80 leading-5">
+            <pre className="whitespace-pre-wrap break-all font-mono text-xs text-sand/80 leading-5">
               {lines.join("\n")}
             </pre>
             <div ref={logEndRef} />
@@ -360,14 +360,14 @@ export default function LogsPage() {
         <button
           type="button"
           onClick={() => setActiveTab("activity")}
-          className={` px-4 py-1.5 text-xs font-semibold transition ${activeTab === "activity" ? "bg-ink text-white" : "text-black/70 hover:bg-black/5"}`}
+          className={` px-4 py-1.5 text-xs font-semibold transition ${activeTab === "activity" ? "bg-sand text-canvas" : "text-sand/70 hover:bg-white/10"}`}
         >
           Activity Logs
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("docker")}
-          className={` px-4 py-1.5 text-xs font-semibold transition ${activeTab === "docker" ? "bg-ink text-white" : "text-black/70 hover:bg-black/5"}`}
+          className={` px-4 py-1.5 text-xs font-semibold transition ${activeTab === "docker" ? "bg-sand text-canvas" : "text-sand/70 hover:bg-white/10"}`}
         >
           Docker Logs
         </button>

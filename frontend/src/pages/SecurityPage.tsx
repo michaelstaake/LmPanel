@@ -13,9 +13,6 @@ export default function SecurityPage() {
   const [settings, setSettings] = useState<AppSettingsRecord>({
     users_can_register: false,
     sitename: DEFAULT_SITENAME,
-    background_color: "#efe8d2",
-    background_image_path: null,
-    background_image_mode: "fill",
     favicon_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
@@ -148,17 +145,17 @@ export default function SecurityPage() {
         <h2 className="font-display text-xl">Security</h2>
 
         <div className="mt-5 grid gap-3">
-          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div className="text-sm font-semibold text-black">CAPTCHA</div>
-            <p className="mt-1 text-sm text-black/65">
+          <div className=" py-4">
+            <div className="text-sm font-semibold text-sand">CAPTCHA</div>
+            <p className="mt-1 text-sm text-sand/65">
               Enable Cloudflare Turnstile to protect login and registration from automated submissions.
             </p>
 
             <div className="mt-4 grid gap-3">
               <label className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-sm font-semibold text-black">Enable CAPTCHA</div>
-                  <p className="mt-1 text-sm text-black/65">
+                  <div className="text-sm font-semibold text-sand">Enable CAPTCHA</div>
+                  <p className="mt-1 text-sm text-sand/65">
                     {settings.cloudflare_turnstile_enabled
                       ? "CAPTCHA is enabled. Disable to remove the verification step."
                       : "Require CAPTCHA verification on login and registration."}
@@ -173,15 +170,15 @@ export default function SecurityPage() {
               </label>
 
               <label className="grid gap-2">
-                <span className="text-sm font-semibold text-black">Site Key</span>
-                <p className="text-sm text-black/65">
+                <span className="text-sm font-semibold text-sand">Site Key</span>
+                <p className="text-sm text-sand/65">
                   {settings.cloudflare_turnstile_site_key
                     ? "A site key is saved. Enter a new value to replace it, or clear it below."
                     : "Enter your Cloudflare Turnstile site key."}
                 </p>
                 <input
                   type="text"
-                  className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                   value={localSiteKey}
                   onChange={(e) => setLocalSiteKey(e.target.value)}
                   onBlur={() => {
@@ -204,7 +201,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_site_key ? (
                 <button
                   type="button"
-                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -233,15 +230,15 @@ export default function SecurityPage() {
               ) : null}
 
               <label className="grid gap-2">
-                <span className="text-sm font-semibold text-black">Secret Key</span>
-                <p className="text-sm text-black/65">
+                <span className="text-sm font-semibold text-sand">Secret Key</span>
+                <p className="text-sm text-sand/65">
                   {settings.cloudflare_turnstile_secret_key_set
                     ? "A secret key is saved. Enter a new value to replace it, or clear it below."
                     : "Enter your Cloudflare Turnstile secret key."}
                 </p>
                 <input
                   type="password"
-                  className="max-w-md  border border-black/15 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-ink/20"
+                  className="max-w-md  border border-white/15 bg-white/10 px-3 text-sand py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
                   value={localSecretKey}
                   onChange={(e) => setLocalSecretKey(e.target.value)}
                   onBlur={() => {
@@ -265,7 +262,7 @@ export default function SecurityPage() {
               {settings.cloudflare_turnstile_secret_key_set ? (
                 <button
                   type="button"
-                  className=" border border-black/10 bg-white px-3 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:opacity-60"
+                  className=" border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm font-semibold text-sand disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={() => {
                     if (!token) return;
                     void (async () => {
@@ -299,13 +296,13 @@ export default function SecurityPage() {
             </div>
           </div>
 
-          <div className=" border border-black/10 bg-[#fffdf7] px-4 py-4">
-            <div className="text-sm font-semibold text-black">2FA</div>
-            <p className="mt-1 text-sm text-black/65">
+          <div className=" py-4">
+            <div className="text-sm font-semibold text-sand">2FA</div>
+            <p className="mt-1 text-sm text-sand/65">
               Two-factor authentication for user accounts.
             </p>
-            <div className="mt-4  border border-black/10 bg-white px-4 py-3">
-              <p className="text-sm text-black/65">Coming soon...</p>
+            <div className="mt-4  border border-white/10 bg-white px-4 py-3">
+              <p className="text-sm text-sand/65">Coming soon...</p>
             </div>
           </div>
         </div>

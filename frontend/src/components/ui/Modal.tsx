@@ -109,7 +109,7 @@ export default function Modal({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[100] overflow-y-auto bg-black/45 ${fullScreen ? "" : "p-4 backdrop-blur-sm sm:p-6"} ${overlayClassName}`.trim()}
+      className={`fixed inset-0 z-[100] overflow-y-auto bg-black/70 ${fullScreen ? "" : "p-4 backdrop-blur-sm sm:p-6"} ${overlayClassName}`.trim()}
       aria-hidden={false}
     >
       <div
@@ -123,7 +123,7 @@ export default function Modal({
           aria-labelledby={labelledBy}
           aria-describedby={describedBy}
           tabIndex={-1}
-          className={`relative z-[101] w-full overflow-y-auto outline-none overscroll-contain ${fullScreen ? "min-h-dvh max-h-none -none border-0 bg-[#fffdf7] shadow-none" : "max-h-[calc(100dvh-4rem)] -[28px] border border-black/10 bg-[#fffdf7] shadow-2xl sm:max-h-[min(calc(100dvh-7rem),860px)]"} ${panelClassName}`}
+          className={`relative z-[101] w-full overflow-y-auto outline-none overscroll-contain ${fullScreen ? "min-h-dvh max-h-none border-0 bg-canvas shadow-none" : "max-h-[calc(100dvh-4rem)] border border-white/15 bg-canvas shadow-2xl sm:max-h-[min(calc(100dvh-7rem),860px)]"} ${panelClassName}`}
         >
           {children}
         </div>

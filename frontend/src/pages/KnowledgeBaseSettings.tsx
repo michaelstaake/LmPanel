@@ -56,7 +56,7 @@ export default function KnowledgeBaseSettings() {
 
   if (isLoading) {
     return (
-      <section className=" border border-black/10 bg-white/80 p-5 text-sm text-black/60 shadow-sm">
+      <section className=" p-5 text-sm text-sand/60">
         Loading...
       </section>
     );
@@ -68,17 +68,17 @@ export default function KnowledgeBaseSettings() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg">Knowledge Base</h2>
-          <p className="mt-1 max-w-2xl text-sm text-black/60">
+          <p className="mt-1 max-w-2xl text-sm text-sand/60">
             When enabled, users can access the Knowledge Base at /kb and models with RAG enabled can retrieve relevant documents during chat.
           </p>
         </div>
         <label className="flex items-center gap-3">
-          <span className="text-sm text-black/70">Enable Knowledge Base</span>
+          <span className="text-sm text-sand/70">Enable Knowledge Base</span>
           <button
             type="button"
             onClick={toggleKnowledgeBase}
             disabled={isSaving}
-            className={`relative inline-flex h-6 w-11 items-center  transition ${knowledgeBaseEnabled ? "bg-ink" : "bg-black/20"} disabled:opacity-50`}
+            className={`relative inline-flex h-6 w-11 items-center  transition ${knowledgeBaseEnabled ? "bg-sand" : "bg-white/20"} disabled:opacity-50`}
           >
             <span
               className={`inline-block h-4 w-4 transform  bg-white transition ${knowledgeBaseEnabled ? "translate-x-6" : "translate-x-1"}`}
