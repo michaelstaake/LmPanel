@@ -630,7 +630,7 @@ export default function PackagesPage() {
       </Modal>
 
       {/* Delete confirmation modal */}
-      <Modal open={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} labelledBy="delete-package-title">
+      <Modal open={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} labelledBy="delete-package-title" panelClassName="max-w-md">
         <div className="p-5">
           <div className="flex items-start justify-between">
             <h2 id="delete-package-title" className="font-display text-xl">Delete package</h2>
