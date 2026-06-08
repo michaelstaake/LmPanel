@@ -11,6 +11,8 @@ import TermsAndPoliciesPage from "./TermsAndPoliciesPage";
 import LogsPage from "./LogsPage";
 import UpdatesPage from "./UpdatesPage";
 import SettingsHomePage from "./SettingsHomePage";
+import NotificationSettingsPage from "./NotificationSettingsPage";
+import MailSettingsPage from "./MailSettingsPage";
 
 export default function SettingsPage() {
   return (
@@ -27,6 +29,8 @@ export default function SettingsPage() {
       <Route path="terms" element={<TermsAndPoliciesPage />} />
       <Route path="logs" element={<LogsPage />} />
       <Route path="updates" element={<UpdatesPage />} />
+      <Route path="notifications" element={<NotificationSettingsPage />} />
+      <Route path="mail" element={<MailSettingsPage />} />
       <Route path="*" element={<SettingsHomePage />} />
     </Routes>
   );

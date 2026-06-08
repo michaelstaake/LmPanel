@@ -292,6 +292,19 @@ class AppSettingsResponse(BaseModel):
     brute_force_max_failures: int = 10
     brute_force_window_minutes: int = 15
     brute_force_block_minutes: int = 15
+    notifications_enabled: bool = False
+    notification_server_errors_enabled: bool = False
+    notification_ip_blocked_enabled: bool = False
+    notification_user_login_enabled: bool = False
+    notification_user_registers_enabled: bool = False
+    notification_usage_limit_reached_enabled: bool = False
+    mail_email_address: str | None = None
+    mail_email_username: str | None = None
+    mail_email_password_set: bool = False
+    mail_email_server: str | None = None
+    mail_email_port: int = 587
+    mail_email_security: str = "starttls"
+    mail_email_from_name: str | None = None
 
     @field_validator("public_url", mode="before")
     @classmethod
@@ -322,6 +335,19 @@ class AppSettingsUpdateRequest(BaseModel):
     brute_force_max_failures: int | None = None
     brute_force_window_minutes: int | None = None
     brute_force_block_minutes: int | None = None
+    notifications_enabled: bool | None = None
+    notification_server_errors_enabled: bool | None = None
+    notification_ip_blocked_enabled: bool | None = None
+    notification_user_login_enabled: bool | None = None
+    notification_user_registers_enabled: bool | None = None
+    notification_usage_limit_reached_enabled: bool | None = None
+    mail_email_address: str | None = None
+    mail_email_username: str | None = None
+    mail_email_password: str | None = None
+    mail_email_server: str | None = None
+    mail_email_port: int | None = None
+    mail_email_security: str | None = None
+    mail_email_from_name: str | None = None
 
     @field_validator("public_url", mode="before")
     @classmethod

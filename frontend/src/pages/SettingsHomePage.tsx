@@ -20,6 +20,8 @@ const settingsNavItems: SettingsNavItem[] = [
   { id: "terms", label: "Terms and Policies", iconClassName: "bi bi-file-text", description: "Terms of service and policies" },
   { id: "logs", label: "Logs", iconClassName: "bi bi-journal-text", description: "Application logs and audit trail" },
   { id: "updates", label: "Updates", iconClassName: "bi bi-arrow-down-circle", description: "Check for and manage updates" },
+  { id: "notifications", label: "Notifications", iconClassName: "bi bi-bell", description: "Alert types and notification preferences" },
+  { id: "mail", label: "Mail", iconClassName: "bi bi-envelope", description: "Email server configuration" },
 ];
 
 export default function SettingsHomePage() {

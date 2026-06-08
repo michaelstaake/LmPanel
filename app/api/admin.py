@@ -101,6 +101,33 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
     if payload.update_check_mode is not None:
         app_settings.update_check_mode = payload.update_check_mode
 
+    notification_updates = {
+        "notifications_enabled": payload.notifications_enabled,
+        "notification_server_errors_enabled": payload.notification_server_errors_enabled,
+        "notification_ip_blocked_enabled": payload.notification_ip_blocked_enabled,
+        "notification_user_login_enabled": payload.notification_user_login_enabled,
+        "notification_user_registers_enabled": payload.notification_user_registers_enabled,
+        "notification_usage_limit_reached_enabled": payload.notification_usage_limit_reached_enabled,
+    }
+    for field_name, value in notification_updates.items():
+        if value is not None:
+            setattr(app_settings, field_name, value)
+
+    mail_updates = {
+        "mail_email_address": payload.mail_email_address,
+        "mail_email_username": payload.mail_email_username,
+        "mail_email_server": payload.mail_email_server,
+        "mail_email_port": payload.mail_email_port,
+        "mail_email_security": payload.mail_email_security,
+        "mail_email_from_name": payload.mail_email_from_name,
+    }
+    for field_name, value in mail_updates.items():
+        if value is not None:
+            setattr(app_settings, field_name, value)
+
+    if payload.mail_email_password is not None:
+        app_settings.mail_email_password = payload.mail_email_password
+
     usage_limit_updates = {
         "usage_limit_tokens_60_minutes": payload.usage_limit_tokens_60_minutes,
         "usage_limit_tokens_24_hours": payload.usage_limit_tokens_24_hours,
@@ -620,6 +647,19 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         brute_force_max_failures=app_settings.brute_force_max_failures,
         brute_force_window_minutes=app_settings.brute_force_window_minutes,
         brute_force_block_minutes=app_settings.brute_force_block_minutes,
+        notifications_enabled=app_settings.notifications_enabled,
+        notification_server_errors_enabled=app_settings.notification_server_errors_enabled,
+        notification_ip_blocked_enabled=app_settings.notification_ip_blocked_enabled,
+        notification_user_login_enabled=app_settings.notification_user_login_enabled,
+        notification_user_registers_enabled=app_settings.notification_user_registers_enabled,
+        notification_usage_limit_reached_enabled=app_settings.notification_usage_limit_reached_enabled,
+        mail_email_address=app_settings.mail_email_address,
+        mail_email_username=app_settings.mail_email_username,
+        mail_email_password_set=app_settings.mail_email_password is not None,
+        mail_email_server=app_settings.mail_email_server,
+        mail_email_port=app_settings.mail_email_port,
+        mail_email_security=app_settings.mail_email_security,
+        mail_email_from_name=app_settings.mail_email_from_name,
     )
 
 

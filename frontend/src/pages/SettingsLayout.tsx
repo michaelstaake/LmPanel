@@ -18,6 +18,8 @@ const settingsRouteLabels: Record<string, string> = {
   terms: "Terms and Policies",
   logs: "Logs",
   updates: "Updates",
+  notifications: "Notifications",
+  mail: "Mail",
 };
 
 export default function SettingsLayout({ children, title }: SettingsLayoutProps) {

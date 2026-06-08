@@ -198,7 +198,7 @@ export default function App() {
     if (path === "/status") return "Status";
     if (path === "/apikeys" || path === "/api") return "API";
     if (path === "/settings") return "Settings";
-    if (path.startsWith("/settings/")) {
+   if (path.startsWith("/settings/")) {
       const subPath = path.split("/")[2];
       const labels: Record<string, string> = {
         general: "Configuration",
@@ -212,6 +212,8 @@ export default function App() {
         terms: "Terms and Policies",
         logs: "Logs",
         updates: "Updates",
+        notifications: "Notifications",
+        mail: "Mail",
       };
       return labels[subPath] || "Settings";
     }
