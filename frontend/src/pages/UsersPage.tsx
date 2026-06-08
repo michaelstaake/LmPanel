@@ -447,7 +447,7 @@ export default function UsersPage() {
         <div className="p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 id="user-usage-title" className="font-display text-2xl">
+              <h2 id="user-usage-title" className="font-display text-2xl text-sand">
                 Usage for {selectedUsageUser?.username}
               </h2>
             </div>
@@ -463,7 +463,7 @@ export default function UsersPage() {
               const usage = userTokenUsages[selectedUsageUser?.id ?? -1];
               return (
                 <div className="mt-5 space-y-4">
-                  <div className=" border border-white/10 bg-white/70 p-4">
+                  <div className="surface-muted p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-sand/50 uppercase tracking-wide">Token Usage &amp; Estimated Cost</span>
                       <span className="text-sm font-semibold text-sand">
@@ -508,7 +508,7 @@ export default function UsersPage() {
                       </div>
                     </div>
                   </div>
-                  <div className=" border border-white/10 bg-white/70 p-4">
+                  <div className="surface-muted p-4">
                     <span className="text-xs font-semibold text-sand/50 uppercase tracking-wide">Web Search Usage</span>
                     <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                       <div className="surface-muted px-2 py-1.5 text-center">
