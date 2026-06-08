@@ -23,6 +23,16 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
 
 
+def get_client_ip(request: Request) -> str | None:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip
+    return request.client.host if request.client else None
+
+
 @router.get("/bootstrap-status", response_model=BootstrapStatusResponse)
 def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
     has_admin_user = db.query(User.id).filter(User.is_admin.is_(True), User.is_active.is_(True)).first() is not None
@@ -71,7 +81,7 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
         db.commit()
         db.refresh(admin_user)
         scan_models_dir(db)
-        log_event(db, "auth.bootstrap_admin", user_id=admin_user.id, username=admin_user.username, ip_address=request.client.host if request.client else None)
+        log_event(db, "auth.bootstrap_admin", user_id=admin_user.id, username=admin_user.username, ip_address=get_client_ip(request))
         token = create_access_token(admin_user.username)
         return LoginResponse(access_token=token)
     except HTTPException:
@@ -103,7 +113,7 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
 
 @router.post("/login", response_model=LoginResponse)
 async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     app_settings = get_or_create_app_settings(db)
 
     if app_settings.cloudflare_turnstile_enabled:
@@ -141,16 +151,16 @@ async def register(payload: UserRegistrationRequest, request: Request, db: Sessi
 
     if app_settings.cloudflare_turnstile_enabled:
         if not payload.turnstile_response:
-            log_event(db, "auth.register_failed", username=payload.username, ip_address=request.client.host if request.client else None)
+            log_event(db, "auth.register_failed", username=payload.username, ip_address=get_client_ip(request))
             raise HTTPException(status_code=400, detail="Cloudflare Turnstile verification is required")
         if app_settings.cloudflare_turnstile_secret_key:
             turnstile_valid = await verify_cloudflare_turnstile(
                 app_settings.cloudflare_turnstile_secret_key,
                 payload.turnstile_response,
-                request.client.host if request.client else None,
+                get_client_ip(request),
             )
             if not turnstile_valid:
-                log_event(db, "auth.register_failed", username=payload.username, ip_address=request.client.host if request.client else None)
+                log_event(db, "auth.register_failed", username=payload.username, ip_address=get_client_ip(request))
                 raise HTTPException(status_code=400, detail="Cloudflare Turnstile verification failed")
 
     existing_user = db.query(User.id).filter((User.username == payload.username) | (User.email == payload.email)).first()
@@ -168,7 +178,7 @@ async def register(payload: UserRegistrationRequest, request: Request, db: Sessi
     db.add(user)
     db.commit()
     db.refresh(user)
-    log_event(db, "auth.register", user_id=user.id, username=user.username, ip_address=request.client.host if request.client else None)
+    log_event(db, "auth.register", user_id=user.id, username=user.username, ip_address=get_client_ip(request))
     token = create_access_token(user.username)
     return LoginResponse(
         access_token=token,
@@ -232,7 +242,7 @@ def update_current_user(
         if package:
             package_name = package.name
 
-    ip = request.client.host if request.client else None
+    ip = get_client_ip(request)
     if email_changed:
         log_event(db, "auth.email_changed", user_id=current_user.id, username=current_user.username, ip_address=ip)
     if password_changed:
