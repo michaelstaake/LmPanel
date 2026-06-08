@@ -442,39 +442,38 @@ export default function PackagesPage() {
         <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {packages.map((pkg) => (
             <div key={pkg.id} className="surface-muted p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-display text-lg text-sand">{pkg.name}</h3>
-                {pkg.is_admin_package ? (
-                  <span className="badge-warning px-2.5 py-1 text-xs font-semibold">Admin</span>
-                ) : pkg.is_default_package ? (
-                  <span className="badge-info px-2.5 py-1 text-xs font-semibold">Default</span>
-                ) : null}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {!pkg.is_admin_package ? (
-                  <>
-                    <button
-                      className="btn-secondary px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10"
-                      type="button"
-                      onClick={() => openEditModal(pkg)}
-                    >
-                      Edit
-                    </button>
-                    {!pkg.is_default_package ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {pkg.is_admin_package ? (
+                    <span className="badge-warning px-2.5 py-1 text-xs font-semibold">Admin</span>
+                  ) : pkg.is_default_package ? (
+                    <span className="badge-info px-2.5 py-1 text-xs font-semibold">Default</span>
+                  ) : null}
+                  {!pkg.is_admin_package ? (
+                    <>
                       <button
-                        className=" border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                        className="btn-secondary px-2.5 py-1.5 text-xs font-semibold text-sand transition hover:bg-white/10"
                         type="button"
-                        onClick={() => openDeleteModal(pkg)}
+                        onClick={() => openEditModal(pkg)}
                       >
-                        Delete
+                        Edit
                       </button>
-                    ) : null}
-                  </>
-                ) : null}
+                      {!pkg.is_default_package ? (
+                        <button
+                          className=" border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                          type="button"
+                          onClick={() => openDeleteModal(pkg)}
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
+                </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <p className="col-span-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sand/40">Tokens</p>
                 {TOKEN_PERIOD_FIELDS.map((period) => (
                   <div key={period.key} className="surface-muted px-2 py-1.5 text-center">
