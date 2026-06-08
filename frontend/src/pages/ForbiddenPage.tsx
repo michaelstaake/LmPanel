@@ -2,7 +2,7 @@
 
 export default function ForbiddenPage() {
   return (
-    <section className=" text-center">
+    <section className="surface p-10 text-center">
       <p className="font-display text-6xl font-semibold tracking-tight text-sand/20 mb-4">403</p>
       <h2 className="text-xl font-semibold mb-2">Access denied</h2>
       <p className="text-sm text-sand/50 mb-6">You don't have permission to view this page.</p>

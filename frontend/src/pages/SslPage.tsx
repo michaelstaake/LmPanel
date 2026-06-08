@@ -137,7 +137,7 @@ export default function SslPage() {
           Obtain a trusted certificate from Let&apos;s Encrypt using Cloudflare DNS validation. Your homelab can keep custom HTTPS ports; validation does not require port 80 on LmPanel.
         </p>
 
-        <div className="mt-4  py-4 text-sm text-sand/70">
+        <div className="surface-muted mt-4 px-4 py-4 text-sm text-sand/70">
           <p className="font-semibold text-sand">Prerequisites</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
@@ -203,7 +203,7 @@ export default function SslPage() {
             )}
           </div>
 
-          <div className="grid gap-3  py-4">
+          <div className="surface-muted grid gap-3 px-4 py-4">
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-sand">Let&apos;s Encrypt account email</span>
               <input

@@ -290,7 +290,7 @@ export default function UsageLimitsPage() {
 
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
-      <section className="surface p-6">
+      <section>
         <h2 className="font-display text-2xl text-sand">Usage Limits</h2>
         <p className="mt-2 max-w-3xl text-sm text-sand/60">
           Set per-account limits for standard users. Admin users are not limited. Use zero to disable a time window.

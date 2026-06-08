@@ -895,7 +895,7 @@ export default function ChatPage() {
   return (
     <section className={`grid gap-0 ${isSidebarOpen ? "xl:grid-cols-[280px_minmax(0,1fr)]" : "xl:grid-cols-[72px_minmax(0,1fr)]"}`}>
       <aside
-        className={`surface transition-all ${
+        className={`surface p-4 transition-all ${
           isSidebarOpen ? "hidden p-4 xl:block" : "hidden p-3 xl:block"
         }`}
       >
@@ -933,7 +933,7 @@ export default function ChatPage() {
           </div>
         )}
       </aside>
-      <main className={`min-w-0  p-4 shadow-sm ${isNewChatEmptyState ? "flex min-h-[68vh] flex-col justify-center" : ""}`}>
+      <main className={`surface min-w-0 p-4 ${isNewChatEmptyState ? "flex min-h-[68vh] flex-col justify-center" : ""}`}>
         {!isNewChatEmptyState ? (
           <div className="mb-4 flex items-center justify-between gap-2">
             <div>

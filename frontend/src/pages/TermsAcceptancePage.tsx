@@ -18,7 +18,7 @@ export default function TermsAcceptancePage() {
 
   return (
     <section className="mx-auto max-w-2xl">
-      <article className="">
+      <article className="surface p-5">
         <h2 className="font-display text-2xl">Terms and Policies</h2>
         <p className="mt-2 text-sm text-sand/65">
           Please review and accept the terms and policies to continue.

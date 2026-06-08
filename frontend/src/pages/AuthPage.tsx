@@ -82,7 +82,7 @@ export default function AuthPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <article>
+      <article className="surface p-6">
         <h2 className="font-display text-2xl">Sign in</h2>
 
         <form className="mt-6 grid gap-4" onSubmit={handleLogin}>

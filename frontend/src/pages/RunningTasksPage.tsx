@@ -134,7 +134,7 @@ export default function RunningTasksPage() {
   return (
     <SettingsLayout title="Running Tasks">
       <div className="grid gap-4">
-      <div>
+      <div className="surface-muted px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm text-sand/55">Current model requests and model fetches</p>
@@ -158,7 +158,7 @@ export default function RunningTasksPage() {
           {groups.map(([username, groupTasks]) => {
             const isExpanded = expandedGroups[username] ?? true;
             return (
-              <div key={username} className="overflow-hidden border border-white/10">
+              <div key={username} className="surface overflow-hidden">
                 <button
                   type="button"
                   onClick={() => toggleGroup(username)}

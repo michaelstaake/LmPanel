@@ -100,7 +100,7 @@ export default function RegisterPage() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <article className="-[2rem]">
+      <article className="surface p-6">
         <h2 className="font-display text-2xl">Create an account</h2>
 
         <form className="mt-6 grid gap-4" onSubmit={handleRegister}>

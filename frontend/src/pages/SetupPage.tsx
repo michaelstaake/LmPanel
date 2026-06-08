@@ -44,7 +44,7 @@ export default function SetupPage() {
 
   return (
     <section className="grid gap-4">
-      <article className="">
+      <article className="surface p-5">
         <h3 className="font-display text-lg">Create admin account</h3>
         <form className="mt-5 grid gap-3 md:max-w-xl" onSubmit={handleBootstrap}>
           <label className="grid gap-1 text-sm text-sand/70">

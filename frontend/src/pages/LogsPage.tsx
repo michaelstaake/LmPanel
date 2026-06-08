@@ -121,7 +121,7 @@ function ActivityLogsTab() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden border border-white/10">
+      <div className="surface overflow-hidden">
         {error && <p className="p-4 text-sm text-red-400">{error}</p>}
         {loading ? (
           <p className="p-6 text-center text-sm text-sand/50">Loading…</p>
@@ -325,7 +325,7 @@ function DockerLogsTab() {
       </div>
 
       {/* Log output */}
-      <div className="overflow-hidden border border-white/10">
+      <div className="surface overflow-hidden">
         {logsError ? (
           <p className="p-4 text-sm text-red-600">{logsError}</p>
         ) : loadingLogs && lines.length === 0 ? (

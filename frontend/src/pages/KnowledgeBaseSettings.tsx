@@ -56,7 +56,7 @@ export default function KnowledgeBaseSettings() {
 
   if (isLoading) {
     return (
-      <section className="surface p-5 text-sm text-sand/60">
+      <section className="text-sm text-sand/60">
         Loading...
       </section>
     );
@@ -65,7 +65,7 @@ export default function KnowledgeBaseSettings() {
   return (
     <SettingsLayout title="Knowledge Base">
       <article>
-      <div className="flex items-center justify-between gap-4">
+      <div className="surface-muted flex items-center justify-between gap-4 px-4 py-4">
         <div>
           <h2 className="font-display text-lg">Knowledge Base</h2>
           <p className="mt-1 max-w-2xl text-sm text-sand/60">

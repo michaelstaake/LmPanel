@@ -62,7 +62,7 @@ export default function SettingsLayout({ children, title }: SettingsLayoutProps)
         </nav>
       )}
 
-      <div className="grid gap-0">
+      <div className="surface grid gap-4 p-5">
         {children}
       </div>
     </div>

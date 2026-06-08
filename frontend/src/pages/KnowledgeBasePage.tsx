@@ -241,7 +241,7 @@ export default function KnowledgeBasePage() {
   return (
     <div className="grid gap-4 lg:grid-cols-[260px_1fr] lg:gap-5">
       {/* Sidebar - Categories */}
-      <aside className=" lg:order-1 lg:sticky lg:top-[72px] lg:max-h-[calc(100vh-88px)] lg:overflow-y-auto">
+      <aside className="surface p-4 lg:order-1 lg:sticky lg:top-[72px] lg:max-h-[calc(100vh-88px)] lg:overflow-y-auto">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-base">Categories</h2>
           <button
@@ -378,7 +378,7 @@ export default function KnowledgeBasePage() {
       <div className="grid gap-4 lg:order-2">
         {/* Draft form */}
         {(draftMode === "creating" || draftMode === "editing") && (
-          <article className="">
+          <article className="surface p-5">
             <form onSubmit={saveDraft}>
               <div className="mb-3 flex items-center justify-between">
                 <h2 className="font-display text-lg">{draftMode === "creating" ? "Add Document" : "Edit Document"}</h2>
@@ -443,7 +443,7 @@ export default function KnowledgeBasePage() {
 
         {/* Document list */}
         {draftMode === "idle" && (
-        <article className="">
+        <article className="surface p-5">
           <div className="mb-4 flex items-center gap-2 text-sm">
             <span className="font-display text-base">Documents</span>
             {selectedCategoryId !== null && (

@@ -25,7 +25,7 @@ const settingsNavItems: SettingsNavItem[] = [
 export default function SettingsHomePage() {
   return (
     <SettingsLayout>
-      <div className="mb-4">
+      <div className="surface-muted mb-4 px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl">LmPanel</h2>
@@ -51,7 +51,7 @@ export default function SettingsHomePage() {
             key={item.id}
             to={item.id}
             className={({ isActive }) =>
-              `group border border-white/10 p-5 transition hover:border-white/20 hover:bg-white/5 ${isActive ? "border-white/25 bg-white/10" : ""}`
+              `group surface-muted p-5 transition hover:border-white/20 hover:bg-white/10 ${isActive ? "border-white/25 bg-white/10" : ""}`
             }
           >
             <div className="flex items-start gap-4">

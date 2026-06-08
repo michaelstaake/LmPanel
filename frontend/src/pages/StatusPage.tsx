@@ -217,11 +217,11 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
   ] : [];
 
   return (
-    <article className="overflow-hidden -[28px]">
+    <article className="surface overflow-hidden p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-display text-xl text-sand">{device.name}</h3>
         <div className="flex flex-wrap items-center gap-2">
-          <span className=" border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{device.display_suffix}</span>
+          <span className="badge-warning px-2 py-0.5 text-xs font-semibold">{device.display_suffix}</span>
           {isPooled && (
             <span className="badge-accent px-2 py-0.5 text-xs font-semibold">Pooled: {poolName}</span>
           )}
@@ -518,9 +518,9 @@ export default function StatusPage() {
   );
 
   return (
-    <section className="grid gap-4 overflow-hidden p-6">
+    <section className="surface grid gap-4 overflow-hidden p-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-          <div className=" lg:col-span-3">
+          <div className="surface-muted p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">System Health</p>
             <div className="mt-2 flex items-center gap-3">
               <i className={`${systemHealth.iconClassName} ${systemHealth.iconColorClassName} text-[28px] leading-none`} aria-hidden="true" />
@@ -529,19 +529,19 @@ export default function StatusPage() {
             <p className="mt-1 text-sm text-sand/55">{systemHealth.detail}</p>
           </div>
 
-          <div className=" lg:col-span-3">
+          <div className="surface-muted p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Free Disk Space</p>
             <p className="mt-2 font-display text-3xl text-sand">{formatDiskSpace(systemDiskFreeBytes)}</p>
             <p className="mt-1 text-sm text-sand/55">Available on /</p>
           </div>
 
-          <div className=" lg:col-span-3">
+          <div className="surface-muted p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Host CPU</p>
             <p className="mt-2 font-display text-3xl text-sand">{systemCpuUsagePercent !== null ? `${systemCpuUsagePercent.toFixed(1)}%` : "N/A"}</p>
             <p className="mt-1 text-sm text-sand/55">Total utilization</p>
           </div>
 
-          <div className=" lg:col-span-3">
+          <div className="surface-muted p-4 lg:col-span-3">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">AI Memory</p>
             <p className="mt-2 font-display text-3xl text-sand">{summary.memoryUsagePercent !== null ? `${summary.memoryUsagePercent.toFixed(1)}%` : "N/A"}</p>
             <p className="mt-1 text-sm text-sand/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
@@ -550,7 +550,7 @@ export default function StatusPage() {
           <button
             type="button"
             onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
-            className="flex w-full items-center justify-between  p-4 text-left hover:bg-white/90 lg:col-span-12"
+            className="surface-muted flex w-full items-center justify-between p-4 text-left hover:bg-white/10 lg:col-span-12"
           >
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Token Usage</p>
             <i className={`bi bi-chevron-down text-lg text-sand/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
@@ -565,7 +565,7 @@ export default function StatusPage() {
           ))}
 
           {isTokenStatsOpen && (
-            <div className=" lg:col-span-3">
+            <div className="surface-muted p-4 lg:col-span-3">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Estimated Savings</p>
               <p className="mt-2 font-display text-3xl text-sand">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
               {user?.is_admin ? (
@@ -636,13 +636,13 @@ export default function StatusPage() {
       )}
 
       {isLoading ? (
-        <div className=" px-4 py-8 text-sm text-sand/55">Loading...</div>
+        <div className="surface-muted px-4 py-8 text-sm text-sand/55">Loading...</div>
       ) : visibleDevices.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} />)}
         </div>
       ) : (
-        <div className=" border border-dashed border-white/15 px-4 py-8 text-sm text-sand/55">No ready devices are available.</div>
+        <div className="surface-muted border border-dashed border-white/15 px-4 py-8 text-sm text-sand/55">No ready devices are available.</div>
       )}
     </section>
   );

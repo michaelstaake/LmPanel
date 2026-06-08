@@ -190,7 +190,7 @@ export default function WebSearchPage() {
               return (
                 <article
                   key={provider.provider_type}
-                  className="surface p-5"
+                  className="surface-muted p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>

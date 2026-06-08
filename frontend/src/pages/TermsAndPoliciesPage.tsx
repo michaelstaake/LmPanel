@@ -83,7 +83,7 @@ export default function TermsAndPoliciesPage() {
           </p>
 
           <div className="mt-5 grid gap-3">
-            <label className="flex items-start justify-between gap-4  py-4">
+            <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-sand">Enable terms and policies</div>
                 <p className="mt-1 text-sm text-sand/65">
