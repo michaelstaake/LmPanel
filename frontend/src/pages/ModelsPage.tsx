@@ -44,14 +44,6 @@ function buildAssignmentTargets(devices: DeviceRecord[], pools: GpuPoolRecord[])
   ];
 }
 
-function isAnpuAssignmentTarget(targetValue: string, devices: DeviceRecord[]): boolean {
-  if (!targetValue.startsWith("device:")) {
-    return false;
-  }
-  const deviceId = Number(targetValue.split(":")[1]);
-  return devices.some((device) => device.id === deviceId && device.vendor === "anpu");
-}
-
 function getAssignmentTargetValue(model: ModelRecord): string {
   if (model.assignment_mode === "pool" && model.pinned_pool_id != null) {
     return `pool:${model.pinned_pool_id}`;
@@ -836,9 +828,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
   const activeModels = models.filter((model) => model.activated).length;
   const assignmentTargets = buildAssignmentTargets(devices, pools);
-  const modalUsesAnpu = modalDraft
-    ? isAnpuAssignmentTarget(getDeviceDropdownValue(modalDraft, assignmentTargets), devices)
-    : false;
   const uploadContextModel = uploadTargetModelId != null ? models.find((model) => model.id === uploadTargetModelId) ?? null : null;
 
   function closeUploadModal() {
@@ -919,15 +908,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       {model.file_size != null ? <span className="ml-2">({formatFileSize(model.file_size)})</span> : null}
                     </p>
                     {model.description ? <p className="mt-1 text-sm text-sand/70">{model.description}</p> : null}
-                    {model.anpu_compatible ? (
-                      <span className="mt-2 inline-flex badge-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]">
-                        AMD NPU compatible
-                      </span>
-                    ) : (
-                      <span className="mt-2 inline-flex border border-white/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-sand/45">
-                        Not NPU compatible
-                      </span>
-                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {savingModelIds.includes(model.id) || pendingModelIds.includes(model.id) ? (
@@ -1069,7 +1049,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>CPU threads</span>
                     <span className="text-xs text-sand/45">CPU worker threads for this model.</span>
-                    <input className=" field px-3 py-2 text-sm disabled:bg-white/10 disabled:text-sand/45" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} disabled={modalUsesAnpu} title={modalUsesAnpu ? "CPU threads are not used for AMD NPU inference." : undefined} />
+                    <input className=" field px-3 py-2 text-sm" type="number" min={1} value={modalNumericDrafts.threads ?? String(modalDraft.threads)} onChange={(event) => setModalNumericDraft("threads", event.target.value)} onBlur={(event) => commitModalNumericDraft("threads", event.target.value, (n) => Math.max(1, Math.round(n)))} />
                   </label>
                 </div>
               </section>
@@ -1227,17 +1207,17 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-sand/45">Advanced</p>
                 <div className="grid gap-3">
                   <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
-                    <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} disabled={modalUsesAnpu} />
+                    <input className="mt-1" type="checkbox" checked={modalDraft.flash_attention_enabled} onChange={(event) => updateModalDraft({ flash_attention_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
                       <span className="text-sm text-sand/70">Flash Attention</span>
-                      <span className="text-xs text-sand/45">{modalUsesAnpu ? "Not applicable for AMD NPU inference." : "Use flash attention to speed up inference."}</span>
+                      <span className="text-xs text-sand/45">Use flash attention to speed up inference.</span>
                     </span>
                   </label>
                   <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
-                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} disabled={modalUsesAnpu} />
+                    <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />
                     <span className="grid gap-0.5">
                       <span className="text-sm text-sand/70">Memory Mapping</span>
-                      <span className="text-xs text-sand/45">{modalUsesAnpu ? "Not applicable for AMD NPU inference." : "Map model weights from disk into memory. Disable if loading fails on your system."}</span>
+                      <span className="text-xs text-sand/45">Map model weights from disk into memory. Disable if loading fails on your system.</span>
                     </span>
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">

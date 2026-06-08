@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-RUNTIME_VENDOR_KEYS = {"cpu", "nvidia", "vulkan", "rocm", "anpu", "default"}
+RUNTIME_VENDOR_KEYS = {"cpu", "nvidia", "vulkan", "rocm", "default"}
 
 
 def _default_llama_server_path() -> str:
@@ -77,14 +77,6 @@ class Settings(BaseSettings):
     inference_runtime_urls: str = ""
     inference_service_timeout_seconds: int = 300
     max_upload_size_mb: int = 102400
-
-    anpu_backend: str = "flm"
-    flm_bin: str = "/usr/bin/flm"
-    flm_model_path: str = "/app/models/flm"
-    flm_template_models: str = "/opt/flm-templates"
-    flm_converter_root: str = "/opt/FLM_Q4NX_Converter"
-    anpu_conversion_timeout_seconds: int = 3600
-    anpu_default_template_family: str = "llama3.2:3b"
 
     def supported_device_list(self) -> list[str]:
         return [item.strip().lower() for item in self.supported_devices.split(",") if item.strip()]

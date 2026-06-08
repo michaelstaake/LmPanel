@@ -16,7 +16,6 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 - **NVIDIA GPU**: CUDA (`--profile nvidia`)
 - **AMD GPU**: Vulkan (`--profile vulkan`, recommended) or ROCm (`--profile rocm`, experimental - only if you are willing to troubleshoot issues)
 - **Intel Arc GPU**: Vulkan (`--profile vulkan`)
-- **AMD NPU**: FastFlowLM (`--profile anpu`, Ryzen AI XDNA2 with Linux `amdxdna` driver - experimental)
 
 ### Ubuntu 26.04
 
@@ -82,16 +81,6 @@ ROCm support is available but currently buggy. Use Vulkan for AMD GPUs unless yo
 docker compose --profile rocm up -d --build
 ```
 
-#### CPU + AMD NPU (Experimental)
-
-Requires a Ryzen AI 300/400-series processor with XDNA2 NPU, kernel 7.0+ with in-tree `amdxdna`, NPU firmware 1.1.0.0+, and `/dev/accel/accel0` on the host. Do not use `amd_iommu=off` on the kernel command line (it disables NPU detection). Set unlimited memlock in `/etc/security/limits.conf` or rely on Docker `ulimits.memlock`.
-
-```bash
-docker compose --profile anpu up -d --build
-```
-
-GGUF models compatible with the FLM Q4NX converter are converted to NPU format on first activation. Validate host setup with `flm validate` and `xrt-smi examine` before enabling the profile.
-
 #### Mixed Vendors:
 
 If you would like to use devices from more than one vendor, no problem. Just add additional profiles. Here's an example with NVIDIA and Vulkan support:
@@ -110,7 +99,7 @@ The initial build process or the build process when changing or adding profiles 
 
 **4. Proceed to web interface**
 
-Once Docker reports the containers are healthy and started, open the LmPanel web interface: [https://localhost:8443](https://localhost:8443) or replace localhost with your server's local IP. You will receive an SSL error since LmPanel generates a self-signed SSL certificate. It is safe to bypass this error.
+Once Docker reports the containers are healthy and started, open the LmPanel web interface: https://localhost:8443 or replace localhost with your server's local IP. You will receive an SSL error since LmPanel generates a self-signed SSL certificate. It is safe to bypass this error.
 
 On a new install you will be redirected to the setup page where you can create your first admin account.
 
@@ -135,7 +124,6 @@ docker compose down
 docker compose --profile nvidia down
 docker compose --profile vulkan down
 docker compose --profile rocm down
-docker compose --profile anpu down
 ```
 
 ## Interacting with the AI Models
@@ -150,12 +138,10 @@ The API is the recommended way to use LmPanel through integrations with other so
 
 By default, an API key is required for chat completions. Model listing is public by default so clients can discover available models before authenticating.
 
-
-| Setting                       | Endpoint               | Default |
-| ----------------------------- | ---------------------- | ------- |
-| `OPENAI_API_AUTH_REQUIRED`    | `/v1/chat/completions` | `true`  |
-| `OPENAI_MODELS_AUTH_REQUIRED` | `/v1/models`           | `false` |
-
+| Setting | Endpoint | Default |
+|---------|----------|---------|
+| `OPENAI_API_AUTH_REQUIRED` | `/v1/chat/completions` | `true` |
+| `OPENAI_MODELS_AUTH_REQUIRED` | `/v1/models` | `false` |
 
 Set `OPENAI_API_AUTH_REQUIRED=false` to allow anonymous chat completions (not recommended). Set `OPENAI_MODELS_AUTH_REQUIRED=true` if you want model listing to require authentication.
 
@@ -228,15 +214,19 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
   sudo usermod -aG docker $USER
   # Log out and back in, or use: newgrp docker
   ```
+
 - **Docker image build fails**:
   - Check available disk space
   - Run `docker system prune` to clean up old images
+
 - **Backend container is unhealthy after an update**:
   - Inspect `docker logs lmpanel-backend` for migration errors
   - LmPanel ersion 1.0.0 requires a clean install — upgrades from Pawpile (the project LmPanel is based on) are not supported.
+
 - **Docker Desktop**:
   - While Ubuntu Server 26.04 is the recommended OS, LmPanel runs great on  Ubuntu Desktop 26.04. However, if you have Docker Desktop installed, and attempt to run LmPanel using the Docker Desktop system context, it will not be able to use all the system resources like RAM and GPUs.
   - Run `docker context use default` to correct the system context.
+
 
 ### Device Issues
 
@@ -275,7 +265,6 @@ Note: Some devices may fall back to a slower PCI-E speed at idle. This is normal
 If you're using a GPU individually, PCI-E speeds don't matter too much, but if you are using the GPU Pools feature, PCI-E speeds can make a big difference.
 
 The two things that matter for PCI-E speed is the version and the number of active lanes.
-
 - It's like a highway - if you are trying to move X amount of cars, you can either add more lanes or the cars can drive faster.
 - Each version of PCI-Express doubles the available bandwidth per lane.
 - Most GPUs should be on an x16 bus, although some GPUs run on x8.
@@ -304,4 +293,3 @@ You can try different types of model distribution when using GPU Pools - layer a
 GPL-3.0 license
 
 ## Prior to 6/5/26, LmPanel was formerly known as Pawpile
-

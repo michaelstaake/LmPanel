@@ -165,7 +165,6 @@ class InferenceManager:
             "model_id": model.id,
             "alias": model.alias,
             "file_path": model.file_path,
-            "model_dir_name": model.model_dir_name,
             "mmproj_path": _resolve_mmproj_path(model),
             "context_length": model.context_length,
             "threads": model.threads,
@@ -177,8 +176,6 @@ class InferenceManager:
             "stable_hardware_id": device.stable_hardware_id,
             "stable_hardware_ids": stable_ids,
             "discourage_thinking": model.discourage_thinking,
-            "anpu_architecture": model.anpu_architecture,
-            "anpu_flm_tag": model.anpu_flm_tag,
         }
         timeout = self.settings.inference_service_timeout_seconds
         async with httpx.AsyncClient(timeout=timeout) as client:

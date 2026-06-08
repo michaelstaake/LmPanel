@@ -18,7 +18,6 @@ from app.core.activity_logger import log_event
 from app.core.config import get_settings
 from app.core.db import SessionLocal, get_db
 from app.core.device_manager import is_supported_vendor
-from app.core.anpu_conversion import refresh_anpu_metadata
 from app.core.gguf import read_gguf_max_context_length
 from app.core.gguf_shards import (
     collect_shard_files,
@@ -136,11 +135,6 @@ def _register_uploaded_model(
         db.rollback()
         raise HTTPException(status_code=500, detail="Uploaded model could not be registered") from exc
 
-    refresh_anpu_metadata(model)
-    db.add(model)
-    db.commit()
-    db.refresh(model)
-
     log_event(
         db,
         "model.uploaded",
@@ -232,11 +226,6 @@ async def _run_fetch_job(
             _set_fetch_job_error(job_id, "Fetched model could not be registered")
             return
 
-        refresh_anpu_metadata(model)
-        db.add(model)
-        db.commit()
-        db.refresh(model)
-
         _fetch_jobs[job_id]["status"] = "completed"
         _fetch_jobs[job_id]["model"] = _serialize_model(model)
         _fetch_jobs[job_id]["model_id"] = model.id
@@ -285,8 +274,6 @@ def scan_models_dir(db: Session) -> tuple[int, int]:
         existing_by_file[file_name] = model
         added += 1
 
-    for model in db.query(ModelConfig).all():
-        refresh_anpu_metadata(model)
     db.commit()
     return len(discovered_files), added
 
@@ -737,15 +724,6 @@ async def activate_model(model_id: int, _: User = Depends(get_admin_user), db: S
     if resolution is None:
         raise HTTPException(status_code=409, detail="No enabled device available for model")
 
-    if isinstance(resolution, Device) and resolution.vendor == "anpu" and not model.anpu_compatible:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "This GGUF model is not compatible with AMD NPU inference. "
-                f"Detected architecture: {model.anpu_architecture or 'unknown'}."
-            ),
-        )
-
     activation_started_at = time.perf_counter()
 
     try:
@@ -778,49 +756,6 @@ async def activate_model(model_id: int, _: User = Depends(get_admin_user), db: S
     except RuntimeError as exc:
         log_event(db, "model.activation_failed", details={"alias": model.alias, "error": str(exc)})
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.post("/{model_id}/anpu/convert")
-def convert_model_for_anpu(model_id: int, _: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> dict:
-    model = db.query(ModelConfig).filter(ModelConfig.id == model_id).first()
-    if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    if not model.anpu_compatible:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Model architecture {model.anpu_architecture or 'unknown'} is not supported on AMD NPU",
-        )
-
-    from app.core.anpu_conversion import ensure_anpu_artifacts
-
-    model.anpu_conversion_status = "pending"
-    model.anpu_conversion_error = ""
-    db.add(model)
-    db.commit()
-
-    try:
-        flm_tag = ensure_anpu_artifacts(
-            model_id=model.id,
-            gguf_path=model.file_path,
-            model_dir_name=model.model_dir_name,
-            architecture=model.anpu_architecture,
-            context_length=model.context_length,
-            mmproj_path=str(_model_directory_path(model) / model.mmproj_file_name) if model.mmproj_file_name else None,
-        )
-        model.anpu_flm_tag = flm_tag
-        model.anpu_conversion_status = "ready"
-        model.anpu_conversion_error = ""
-    except Exception as exc:
-        model.anpu_conversion_status = "failed"
-        model.anpu_conversion_error = str(exc)
-        db.add(model)
-        db.commit()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    db.add(model)
-    db.commit()
-    db.refresh(model)
-    return {"status": "ok", "model": _serialize_model(model)}
 
 
 @router.post("/{model_id}/deactivate")
@@ -862,7 +797,7 @@ def delete_model(model_id: int, _: User = Depends(get_admin_user), db: Session =
 
 
 async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: InferenceManager) -> Device | PoolActivationTarget | None:
-    supported_vendors = [vendor for vendor in ["cpu", "nvidia", "vulkan", "rocm", "anpu"] if is_supported_vendor(vendor)]
+    supported_vendors = [vendor for vendor in ["cpu", "nvidia", "vulkan", "rocm"] if is_supported_vendor(vendor)]
     model_size_mb = _estimate_model_size_mb(model)
     memory_metrics = await inference.get_device_memory_mb()
 
@@ -988,14 +923,6 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
             # No memory info or model size unknown; pick best GPU by priority
             gpu_candidates.sort(key=lambda g: (g.priority, g.id))
             return gpu_candidates[0]
-
-    if model.anpu_compatible:
-        anpu_candidates = [
-            c for c in candidates if c.vendor == "anpu" and inference.has_runtime_for_vendor(c.vendor)
-        ]
-        if anpu_candidates:
-            anpu_candidates.sort(key=lambda g: (g.priority, g.id))
-            return anpu_candidates[0]
 
     # CPU fallback
     if cpu_candidates:
@@ -1154,11 +1081,6 @@ def _serialize_model(model: ModelConfig) -> dict:
         "pinned_device_id": model.pinned_device_id,
         "pinned_pool_id": model.pinned_pool_id,
         "activated": model.activated,
-        "anpu_architecture": model.anpu_architecture,
-        "anpu_compatible": model.anpu_compatible,
-        "anpu_flm_tag": model.anpu_flm_tag,
-        "anpu_conversion_status": model.anpu_conversion_status,
-        "anpu_conversion_error": model.anpu_conversion_error,
     }
 
 
