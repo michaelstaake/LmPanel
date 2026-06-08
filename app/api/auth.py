@@ -11,12 +11,13 @@ from app.core.activity_logger import log_event
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
 from app.core.db import get_db
-from app.core.security import create_access_token, generate_api_key, hash_api_key, hash_password, verify_api_key, verify_cloudflare_turnstile, verify_password
+from app.core.security import create_access_token, generate_api_key, hash_api_key, hash_password, verify_cloudflare_turnstile, verify_password
 from app.models.api_key import ApiKey
 from app.models.device import Device
 from app.models.model_config import ModelConfig
 from app.models.package import Package
 from app.models.user import User
+from app.utils.brute_force import get_brute_force_manager
 from app.utils.schemas import ApiKeyCreateRequest, BootstrapAdminRequest, BootstrapStatusResponse, LoginRequest, LoginResponse, ProfileUpdateRequest, UserRegistrationRequest, UserResponse, build_api_base_url
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -31,6 +32,45 @@ def get_client_ip(request: Request) -> str | None:
     if real_ip:
         return real_ip
     return request.client.host if request.client else None
+
+
+def _check_brute_force(ip: str | None, username: str | None, app_settings) -> None:
+    if not app_settings.brute_force_enabled:
+        return
+
+    manager = get_brute_force_manager()
+    window_seconds = app_settings.brute_force_window_minutes * 60
+    block_seconds = app_settings.brute_force_block_minutes * 60
+
+    if ip:
+        if manager.is_blocked(ip):
+            raise HTTPException(status_code=429, detail="Too many failed login attempts. Please try again later.")
+    if username:
+        if manager.is_blocked(f"user:{username}"):
+            raise HTTPException(status_code=429, detail="Too many failed login attempts. Please try again later.")
+
+
+def _record_brute_force_failure(ip: str | None, username: str | None, app_settings) -> None:
+    if not app_settings.brute_force_enabled:
+        return
+
+    manager = get_brute_force_manager()
+    window_seconds = app_settings.brute_force_window_minutes * 60
+    block_seconds = app_settings.brute_force_block_minutes * 60
+    max_failures = app_settings.brute_force_max_failures
+
+    if ip:
+        manager.record_failure(ip, window_seconds, max_failures, block_seconds)
+    if username:
+        manager.record_failure(f"user:{username}", window_seconds, max_failures, block_seconds)
+
+
+def _record_brute_force_success(ip: str | None, username: str | None) -> None:
+    manager = get_brute_force_manager()
+    if ip:
+        manager.record_success(ip)
+    if username:
+        manager.record_success(f"user:{username}")
 
 
 @router.get("/bootstrap-status", response_model=BootstrapStatusResponse)
@@ -65,8 +105,13 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
 
 @router.post("/bootstrap-admin", response_model=LoginResponse)
 def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
+    ip = get_client_ip(request)
+    app_settings = get_or_create_app_settings(db)
+    _check_brute_force(ip, None, app_settings)
+
     try:
         if db.query(User.id).first() is not None:
+            _record_brute_force_failure(ip, None, app_settings)
             raise HTTPException(status_code=409, detail="Initial admin has already been created")
 
         admin_user = User(
@@ -83,8 +128,11 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
         scan_models_dir(db)
         log_event(db, "auth.bootstrap_admin", user_id=admin_user.id, username=admin_user.username, ip_address=get_client_ip(request))
         token = create_access_token(admin_user.username)
+        _record_brute_force_success(ip, None)
         return LoginResponse(access_token=token)
-    except HTTPException:
+    except HTTPException as exc:
+        if exc.status_code not in (200,):
+            _record_brute_force_failure(ip, None, app_settings)
         raise
     except IntegrityError as exc:
         db.rollback()
@@ -115,6 +163,7 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
 async def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
     ip = get_client_ip(request)
     app_settings = get_or_create_app_settings(db)
+    _check_brute_force(ip, payload.username, app_settings)
 
     if app_settings.cloudflare_turnstile_enabled:
         if not payload.turnstile_response:
@@ -127,14 +176,17 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
                 ip,
             )
             if not turnstile_valid:
+                _record_brute_force_failure(ip, payload.username, app_settings)
                 log_event(db, "auth.login_failed", username=payload.username, ip_address=ip)
                 raise HTTPException(status_code=400, detail="Cloudflare Turnstile verification failed")
 
     user = db.query(User).filter(User.username == payload.username, User.is_active.is_(True)).first()
     if not user or not verify_password(payload.password, user.password_hash):
+        _record_brute_force_failure(ip, payload.username, app_settings)
         log_event(db, "auth.login_failed", username=payload.username, ip_address=ip)
         raise HTTPException(status_code=401, detail="Invalid username or password")
     log_event(db, "auth.login", user_id=user.id, username=user.username, ip_address=ip)
+    _record_brute_force_success(ip, payload.username)
     token = create_access_token(user.username)
     return LoginResponse(
         access_token=token,
@@ -145,26 +197,32 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
 
 @router.post("/register", response_model=LoginResponse)
 async def register(payload: UserRegistrationRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
+    ip = get_client_ip(request)
     app_settings = get_or_create_app_settings(db)
+    _check_brute_force(ip, payload.username, app_settings)
     if not app_settings.users_can_register:
+        _record_brute_force_failure(ip, payload.username, app_settings)
         raise HTTPException(status_code=403, detail="User registration is disabled")
 
     if app_settings.cloudflare_turnstile_enabled:
         if not payload.turnstile_response:
-            log_event(db, "auth.register_failed", username=payload.username, ip_address=get_client_ip(request))
+            _record_brute_force_failure(ip, payload.username, app_settings)
+            log_event(db, "auth.register_failed", username=payload.username, ip_address=ip)
             raise HTTPException(status_code=400, detail="Cloudflare Turnstile verification is required")
         if app_settings.cloudflare_turnstile_secret_key:
             turnstile_valid = await verify_cloudflare_turnstile(
                 app_settings.cloudflare_turnstile_secret_key,
                 payload.turnstile_response,
-                get_client_ip(request),
+                ip,
             )
             if not turnstile_valid:
-                log_event(db, "auth.register_failed", username=payload.username, ip_address=get_client_ip(request))
+                _record_brute_force_failure(ip, payload.username, app_settings)
+                log_event(db, "auth.register_failed", username=payload.username, ip_address=ip)
                 raise HTTPException(status_code=400, detail="Cloudflare Turnstile verification failed")
 
     existing_user = db.query(User.id).filter((User.username == payload.username) | (User.email == payload.email)).first()
     if existing_user is not None:
+        _record_brute_force_failure(ip, payload.username, app_settings)
         raise HTTPException(status_code=409, detail="Username or email already exists")
 
     user = User(
@@ -178,7 +236,8 @@ async def register(payload: UserRegistrationRequest, request: Request, db: Sessi
     db.add(user)
     db.commit()
     db.refresh(user)
-    log_event(db, "auth.register", user_id=user.id, username=user.username, ip_address=get_client_ip(request))
+    log_event(db, "auth.register", user_id=user.id, username=user.username, ip_address=ip)
+    _record_brute_force_success(ip, payload.username)
     token = create_access_token(user.username)
     return LoginResponse(
         access_token=token,

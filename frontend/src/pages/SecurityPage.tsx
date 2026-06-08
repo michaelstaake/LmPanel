@@ -30,6 +30,10 @@ export default function SecurityPage() {
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
     update_check_mode: "disabled",
+    brute_force_enabled: true,
+    brute_force_max_failures: 10,
+    brute_force_window_minutes: 15,
+    brute_force_block_minutes: 15,
   });
   const [localSiteKey, setLocalSiteKey] = useState("");
   const [localSecretKey, setLocalSecretKey] = useState("");
@@ -67,7 +71,7 @@ export default function SecurityPage() {
     }
   }
 
-  async function updateSetting(settingName: keyof AppSettingsRecord, nextValue: boolean | string) {
+  async function updateSetting(settingName: keyof AppSettingsRecord, nextValue: boolean | string | number) {
     if (!token) {
       return;
     }
@@ -293,6 +297,85 @@ export default function SecurityPage() {
               {isCheckboxDisabled && !settings.cloudflare_turnstile_enabled ? (
                 <p className="text-sm text-amber-900/80">Enable CAPTCHA only after filling in both the Site Key and Secret Key.</p>
               ) : null}
+            </div>
+          </div>
+
+          <div className="surface-muted py-4 px-4">
+            <div className="text-sm font-semibold text-sand">Brute Force Protection</div>
+            <p className="mt-1 text-sm text-sand/65">
+              Automatically block IP addresses and usernames after repeated failed login attempts to prevent brute force attacks.
+            </p>
+
+            <div className="mt-4 grid gap-3">
+              <label className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold text-sand">Enable Brute Force Protection</div>
+                  <p className="mt-1 text-sm text-sand/65">
+                    {settings.brute_force_enabled
+                      ? "Brute force protection is enabled."
+                      : "Block sources after repeated failed authentication attempts."}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.brute_force_enabled}
+                  disabled={isLoading || isSaving === "brute_force_enabled"}
+                  onChange={(event) => void updateSetting("brute_force_enabled", event.target.checked)}
+                />
+              </label>
+
+              <div className="grid grid-cols-2 gap-3">
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-sand">Max Failed Attempts</span>
+                  <p className="text-sm text-sand/65">
+                    Block after this many failed attempts within the time window.
+                  </p>
+                  <select
+                    className="max-w-xs field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                    value={settings.brute_force_max_failures}
+                    onChange={(e) => void updateSetting("brute_force_max_failures", Number(e.target.value))}
+                    disabled={isLoading || isSaving === "brute_force_max_failures" || !settings.brute_force_enabled}
+                  >
+                    <option value={10}>10</option>
+                    <option value={100}>100</option>
+                  </select>
+                </label>
+
+                <label className="grid gap-2">
+                  <span className="text-sm font-semibold text-sand">Time Window</span>
+                  <p className="text-sm text-sand/65">
+                    Count failures within this time period.
+                  </p>
+                  <select
+                    className="max-w-xs field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                    value={settings.brute_force_window_minutes}
+                    onChange={(e) => void updateSetting("brute_force_window_minutes", Number(e.target.value))}
+                    disabled={isLoading || isSaving === "brute_force_window_minutes" || !settings.brute_force_enabled}
+                  >
+                    <option value={1}>1 minute</option>
+                    <option value={5}>5 minutes</option>
+                    <option value={15}>15 minutes</option>
+                    <option value={60}>1 hour</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-sand">Block Duration</span>
+                <p className="text-sm text-sand/65">
+                  How long the source is blocked after exceeding the failure threshold.
+                </p>
+                <select
+                  className="max-w-xs field px-3 py-2 text-sm text-sand focus:outline-none focus:ring-2 focus:ring-sand/20"
+                  value={settings.brute_force_block_minutes}
+                  onChange={(e) => void updateSetting("brute_force_block_minutes", Number(e.target.value))}
+                  disabled={isLoading || isSaving === "brute_force_block_minutes" || !settings.brute_force_enabled}
+                >
+                  <option value={15}>15 minutes</option>
+                  <option value={60}>1 hour</option>
+                  <option value={1440}>24 hours</option>
+                </select>
+              </label>
             </div>
           </div>
 

@@ -37,3 +37,7 @@ class AppSettings(Base):
     terms_content: Mapped[str | None] = mapped_column(Text, nullable=True)
     favicon_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
     update_check_mode: Mapped[str] = mapped_column(String(16), default="disabled", nullable=False)
+    brute_force_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    brute_force_max_failures: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    brute_force_window_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
+    brute_force_block_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)

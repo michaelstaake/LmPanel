@@ -90,6 +90,14 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.cloudflare_turnstile_secret_key = payload.cloudflare_turnstile_secret_key
     if payload.two_factor_enabled is not None:
         app_settings.two_factor_enabled = payload.two_factor_enabled
+    if payload.brute_force_enabled is not None:
+        app_settings.brute_force_enabled = payload.brute_force_enabled
+    if payload.brute_force_max_failures is not None:
+        app_settings.brute_force_max_failures = payload.brute_force_max_failures
+    if payload.brute_force_window_minutes is not None:
+        app_settings.brute_force_window_minutes = payload.brute_force_window_minutes
+    if payload.brute_force_block_minutes is not None:
+        app_settings.brute_force_block_minutes = payload.brute_force_block_minutes
     if payload.update_check_mode is not None:
         app_settings.update_check_mode = payload.update_check_mode
 
@@ -608,6 +616,10 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         usage_limit_tools_7_days=app_settings.usage_limit_tools_7_days,
         usage_limit_tools_30_days=app_settings.usage_limit_tools_30_days,
         update_check_mode=app_settings.update_check_mode,
+        brute_force_enabled=app_settings.brute_force_enabled,
+        brute_force_max_failures=app_settings.brute_force_max_failures,
+        brute_force_window_minutes=app_settings.brute_force_window_minutes,
+        brute_force_block_minutes=app_settings.brute_force_block_minutes,
     )
 
 
