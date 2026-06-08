@@ -28,6 +28,12 @@ from app.core.device_manager import (
     _parse_vulkan_vendor_id,
     _parse_vulkaninfo_gpu_memory_metrics,
 )
+from app.core.amdgpu_memory import (
+    is_vulkan_integrated_gpu,
+    list_amdgpu_device_paths,
+    parse_vulkan_device_type,
+    read_amdgpu_memory_metrics,
+)
 from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metrics
 
 logger = logging.getLogger(__name__)
@@ -703,9 +709,7 @@ class InferenceRuntime:
                                 metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
 
         try:
-            amd_card_paths = sorted(
-                p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent") if p.is_file()
-            )
+            amd_card_paths = list_amdgpu_device_paths()
             rocm_indices = sorted(int(device.hardware_id.split(":")[1]) for device in devices)
             for rocm_idx, device_path in zip(rocm_indices, amd_card_paths, strict=False):
                 hardware_id = f"rocm:{rocm_idx}"
@@ -724,14 +728,13 @@ class InferenceRuntime:
                 if usage is not None:
                     metric["usage_percent"] = usage
                     metric["usage_source"] = "sysfs"
-                total_bytes = self._read_sysfs_int(device_path / "mem_info_vram_total")
-                used_bytes = self._read_sysfs_int(device_path / "mem_info_vram_used")
-                if total_bytes is not None and total_bytes > 0:
-                    metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
-                if used_bytes is not None and used_bytes >= 0:
-                    metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
-                if total_bytes is not None or used_bytes is not None:
-                    metric["memory_source"] = "sysfs"
+                amdgpu_metrics = read_amdgpu_memory_metrics(device_path, integrated=False)
+                if amdgpu_metrics.get("memory_total_mb"):
+                    metric["memory_total_mb"] = amdgpu_metrics["memory_total_mb"]
+                if amdgpu_metrics.get("memory_used_mb") is not None:
+                    metric["memory_used_mb"] = amdgpu_metrics["memory_used_mb"]
+                if amdgpu_metrics.get("memory_source"):
+                    metric["memory_source"] = amdgpu_metrics["memory_source"]
         except Exception:
             pass
 
@@ -741,6 +744,7 @@ class InferenceRuntime:
         output = self._run_command(["vulkaninfo"])
         metrics: dict[str, dict] = {}
         amd_vulkan_indices: list[int] = []
+        amd_integrated_by_idx: dict[int, bool] = {}
         intel_vulkan_by_idx: dict[int, str] = {}
         memory_by_idx = _parse_vulkaninfo_gpu_memory_metrics(output) if output else {}
         if output:
@@ -758,6 +762,7 @@ class InferenceRuntime:
                 vendor_id = _parse_vulkan_vendor_id(block)
                 if vendor_id == AMD_VENDOR_ID:
                     amd_vulkan_indices.append(idx)
+                    amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(parse_vulkan_device_type(block))
                     if device_manager._should_hide_vulkan_amd():
                         continue
 
@@ -780,13 +785,9 @@ class InferenceRuntime:
                     "process_memory_by_pid": {},
                 }
 
-        # Prefer amdgpu sysfs VRAM counters when available. They match tools like nvtop
-        # more closely than vulkaninfo heap usage on AMD cards and also expose total VRAM.
+        # Prefer amdgpu sysfs counters when available. For integrated/APU GPUs include GTT.
         try:
-            amd_card_paths = sorted(
-                p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent")
-                if p.is_file()
-            )
+            amd_card_paths = list_amdgpu_device_paths()
             for vulkan_idx, device_path in zip(amd_vulkan_indices, amd_card_paths, strict=False):
                 hardware_id = f"vulkan:{vulkan_idx}"
                 metric = metrics.setdefault(
@@ -806,14 +807,14 @@ class InferenceRuntime:
                     metric["usage_percent"] = usage
                     metric["usage_source"] = "sysfs"
 
-                total_bytes = self._read_sysfs_int(device_path / "mem_info_vram_total")
-                used_bytes = self._read_sysfs_int(device_path / "mem_info_vram_used")
-                if total_bytes is not None and total_bytes > 0:
-                    metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
-                if used_bytes is not None and used_bytes >= 0:
-                    metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
-                if total_bytes is not None or used_bytes is not None:
-                    metric["memory_source"] = "sysfs"
+                integrated = amd_integrated_by_idx.get(vulkan_idx, False)
+                amdgpu_metrics = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+                if amdgpu_metrics.get("memory_total_mb"):
+                    metric["memory_total_mb"] = amdgpu_metrics["memory_total_mb"]
+                if amdgpu_metrics.get("memory_used_mb") is not None:
+                    metric["memory_used_mb"] = amdgpu_metrics["memory_used_mb"]
+                if amdgpu_metrics.get("memory_source"):
+                    metric["memory_source"] = amdgpu_metrics["memory_source"]
         except Exception:
             pass
 

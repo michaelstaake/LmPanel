@@ -10,6 +10,11 @@ import httpx
 import psutil
 from sqlalchemy.orm import Session
 
+from app.core.amdgpu_memory import (
+    is_vulkan_integrated_gpu,
+    list_amdgpu_device_paths,
+    read_amdgpu_memory_metrics,
+)
 from app.core.config import get_settings
 from app.core.gpu_pool_manager import delete_unavailable_devices
 from app.models.device import Device
@@ -231,10 +236,12 @@ class DeviceManager:
         devices = self._parse_rocm_json(json_output)
         if devices:
             self._attach_rocm_pci_bdfs(devices)
+            self._apply_amdgpu_sysfs_memory_totals(devices)
             return devices
 
         text_devices = self._parse_rocm_text(self._run("rocm-smi --showproductname --showmeminfo vram"))
         self._attach_rocm_pci_bdfs(text_devices)
+        self._apply_amdgpu_sysfs_memory_totals(text_devices)
         return text_devices
 
     @staticmethod
@@ -375,6 +382,7 @@ class DeviceManager:
             return []
         devices: list[DetectedDevice] = []
         amd_vulkan_indices: list[int] = []
+        amd_integrated_by_idx: dict[int, bool] = {}
         # vulkaninfo --summary groups each physical device under a "GPU<N>:" header
         blocks = re.split(r"GPU(\d+):", output)
         # blocks layout: [preamble, idx0, block0, idx1, block1, ...]
@@ -399,6 +407,7 @@ class DeviceManager:
 
             if vendor_id == AMD_VENDOR_ID:
                 amd_vulkan_indices.append(idx)
+                amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(device_type_str)
                 if exclude_amd:
                     continue
 
@@ -417,7 +426,7 @@ class DeviceManager:
 
         if devices:
             memory_by_idx = self._parse_vulkan_device_memory()
-            memory_by_idx.update(self._read_amdgpu_vram_totals(amd_vulkan_indices))
+            memory_by_idx.update(self._read_amdgpu_memory_totals(amd_vulkan_indices, amd_integrated_by_idx))
             for device in devices:
                 idx = int(device.hardware_id.split(":")[1])
                 device.memory_mb = memory_by_idx.get(idx, 0)
@@ -440,25 +449,32 @@ class DeviceManager:
             return {}
         return _parse_vulkaninfo_device_local_heap_mb(output)
 
-    def _read_amdgpu_vram_totals(self, amd_vulkan_indices: list[int]) -> dict[int, int]:
+    def _read_amdgpu_memory_totals(
+        self,
+        amd_vulkan_indices: list[int],
+        integrated_by_idx: dict[int, bool] | None = None,
+    ) -> dict[int, int]:
         memory_by_idx: dict[int, int] = {}
         if not amd_vulkan_indices:
             return memory_by_idx
-        try:
-            amd_card_paths = sorted(
-                p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent")
-                if p.is_file()
-            )
-        except Exception:
-            return memory_by_idx
 
+        amd_card_paths = list_amdgpu_device_paths()
         for vulkan_idx, device_path in zip(amd_vulkan_indices, amd_card_paths, strict=False):
-            total_bytes = self._read_sysfs_int(device_path / "mem_info_vram_total")
-            if total_bytes is None or total_bytes <= 0:
-                continue
-            memory_by_idx[vulkan_idx] = int(total_bytes / (1024 * 1024))
+            integrated = (integrated_by_idx or {}).get(vulkan_idx, False)
+            metrics = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+            total_mb = metrics.get("memory_total_mb", 0)
+            if total_mb > 0:
+                memory_by_idx[vulkan_idx] = total_mb
 
         return memory_by_idx
+
+    def _apply_amdgpu_sysfs_memory_totals(self, devices: list[DetectedDevice]) -> None:
+        amd_card_paths = list_amdgpu_device_paths()
+        for device, device_path in zip(devices, amd_card_paths, strict=False):
+            metrics = read_amdgpu_memory_metrics(device_path, integrated=False)
+            total_mb = metrics.get("memory_total_mb")
+            if total_mb:
+                device.memory_mb = total_mb
 
     @staticmethod
     def _read_sysfs_int(path: Path) -> int | None:
