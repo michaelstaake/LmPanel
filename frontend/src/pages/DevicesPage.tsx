@@ -87,6 +87,8 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const [editingPoolId, setEditingPoolId] = useState<number | null>(null);
   const [isPoolModalOpen, setIsPoolModalOpen] = useState(false);
   const [showDeletePoolConfirmId, setShowDeletePoolConfirmId] = useState<number | null>(null);
+  const [draggedDeviceId, setDraggedDeviceId] = useState<number | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
     latestDevicesRef.current = devices;
@@ -120,6 +122,71 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
       setPools(sortPools(response));
     } catch {
       // pool endpoint errors are non-fatal
+    }
+  }
+
+  function sortDevices(devices: DeviceRecord[]) {
+    return [...devices].sort((left, right) => left.priority - right.priority || left.id - right.id);
+  }
+
+  function moveDevices(devices: DeviceRecord[], fromIndex: number, toIndex: number) {
+    const nextDevices = [...devices];
+    const [movedDevice] = nextDevices.splice(fromIndex, 1);
+    nextDevices.splice(toIndex, 0, movedDevice);
+    return nextDevices.map((device, index) => ({ ...device, priority: index }));
+  }
+
+  function handleDragStart(event: DragEvent<HTMLElement>, deviceId: number) {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
+      event.preventDefault();
+      return;
+    }
+    setDraggedDeviceId(deviceId);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+  }
+
+  function handleDragEnd() {
+    setDraggedDeviceId(null);
+  }
+
+  async function handleDeviceDrop(targetDeviceId: number) {
+    if (draggedDeviceId === null || draggedDeviceId === targetDeviceId || isReordering) {
+      setDraggedDeviceId(null);
+      return;
+    }
+    const sorted = sortDevices(devices);
+    const fromIndex = sorted.findIndex((device) => device.id === draggedDeviceId);
+    const toIndex = sorted.findIndex((device) => device.id === targetDeviceId);
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedDeviceId(null);
+      return;
+    }
+    const previousDevices = devices;
+    const nextDevices = moveDevices(sorted, fromIndex, toIndex);
+    setDraggedDeviceId(null);
+    setDevices(nextDevices);
+    if (!token) {
+      return;
+    }
+    setIsReordering(true);
+    try {
+      await apiPost<{ devices: { id: number; priority: number }[] }, { status: string }>(
+        "/api/devices/reorder",
+        {
+          devices: nextDevices.map((device, index) => ({ id: device.id, priority: index })),
+        },
+        token,
+      );
+      showSuccess("Saved device order.", { id: "devices-success" });
+    } catch (error) {
+      setDevices(previousDevices);
+      showError(error instanceof Error ? error.message : "Failed to save device order", { id: "devices-error" });
+    } finally {
+      setIsReordering(false);
     }
   }
 
@@ -601,7 +668,12 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
             return (
               <article
                 key={device.id}
-                className="surface-muted p-4"
+                className={`surface-muted p-4 transition-shadow ${draggedDeviceId === device.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
+                draggable={!isReordering}
+                onDragStart={(event) => handleDragStart(event, device.id)}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+                onDrop={() => handleDeviceDrop(device.id)}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
