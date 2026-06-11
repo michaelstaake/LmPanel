@@ -80,10 +80,10 @@ type AttachmentExtractionResponse = {
 };
 
 function formatExportText(messages: ChatMessage[]): string {
-  const responses = messages.filter((msg) => msg.role === "assistant");
-  return responses.map((msg, i) => {
+  return messages.map((msg, i) => {
+    const label = msg.role === "assistant" ? "AI" : "User";
     const thinking = msg.thinking ? `> [Thinking] ${msg.thinking.trim()}\n\n` : "";
-    return `${thinking}${msg.content}` + (i < responses.length - 1 ? "\n---\n" : "");
+    return `${label}: ${thinking}${msg.content}` + (i < messages.length - 1 ? "\n---\n" : "");
   }).join("");
 }
 
