@@ -17,7 +17,7 @@ def list_chats(current_user: User = Depends(get_current_user), db: Session = Dep
     rows = (
         db.query(Chat)
         .filter(Chat.user_id == current_user.id)
-        .order_by(Chat.id.desc())
+        .order_by(Chat.last_reply_at.desc(), Chat.created_at.desc())
         .all()
     )
     return [_serialize_chat(c) for c in rows]
@@ -97,6 +97,7 @@ def append_message(
         tokens_per_second=payload.stats.tokens_per_second if payload.stats else None,
     )
     db.add(message)
+    chat.last_reply_at = message.created_at
     db.commit()
     db.refresh(message)
     if payload.role == "assistant" and payload.stats is not None:
@@ -152,6 +153,7 @@ def _serialize_chat(chat: Chat) -> dict:
         "title": chat.title,
         "user_id": chat.user_id,
         "created_at": chat.created_at.isoformat() if chat.created_at else None,
+        "last_reply_at": chat.last_reply_at.isoformat() if chat.last_reply_at else None,
     }
 
 

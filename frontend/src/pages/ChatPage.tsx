@@ -43,6 +43,7 @@ type ChatSummary = {
   title: string;
   user_id: number;
   created_at: string | null;
+  last_reply_at: string | null;
 };
 
 type ChatDetailResponse = {
