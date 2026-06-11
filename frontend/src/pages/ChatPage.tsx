@@ -79,6 +79,14 @@ type AttachmentExtractionResponse = {
   }[];
 };
 
+function formatExportText(messages: ChatMessage[]): string {
+  const responses = messages.filter((msg) => msg.role === "assistant");
+  return responses.map((msg, i) => {
+    const thinking = msg.thinking ? `> [Thinking] ${msg.thinking.trim()}\n\n` : "";
+    return `${thinking}${msg.content}` + (i < responses.length - 1 ? "\n---\n" : "");
+  }).join("");
+}
+
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 type Attachment = {
@@ -941,6 +949,18 @@ export default function ChatPage() {
               <h2 className="font-display text-lg">Chat</h2>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                title="Export chat"
+                className="flex items-center gap-1 text-sm text-sand/60 hover:text-sand"
+                onClick={() => {
+                  const text = formatExportText(messages);
+                  navigator.clipboard.writeText(text);
+                  showError("Chat exported to clipboard!");
+                }}
+              >
+                <i className="bi bi-file-earmark-text" /> Export
+              </button>
               <select
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
