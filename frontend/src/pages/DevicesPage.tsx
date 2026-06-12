@@ -90,6 +90,11 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const [draggedDeviceId, setDraggedDeviceId] = useState<number | null>(null);
   const [isReordering, setIsReordering] = useState(false);
 
+  // Device settings modal state
+  const [editingDeviceId, setEditingDeviceId] = useState<number | null>(null);
+  const [deviceModalDraft, setDeviceModalDraft] = useState<DeviceRecord | null>(null);
+  const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+
   useEffect(() => {
     latestDevicesRef.current = devices;
   }, [devices]);
@@ -470,6 +475,33 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     }
   }
 
+  function openDeviceSettingsModal(device: DeviceRecord) {
+    setEditingDeviceId(device.id);
+    setDeviceModalDraft({ ...device });
+    setIsDeviceModalOpen(true);
+  }
+
+  function closeDeviceSettingsModal() {
+    if (editingDeviceId !== null && deviceModalDraft !== null) {
+      updateDeviceDraft(editingDeviceId, deviceModalDraft);
+      void persistDevice(editingDeviceId);
+    }
+    setEditingDeviceId(null);
+    setDeviceModalDraft(null);
+    setIsDeviceModalOpen(false);
+  }
+
+  function handleDeviceModalSave() {
+    if (editingDeviceId === null || !deviceModalDraft) return;
+    updateDeviceDraft(editingDeviceId, deviceModalDraft);
+    void persistDevice(editingDeviceId);
+    setEditingDeviceId(null);
+    setDeviceModalDraft(null);
+    setIsDeviceModalOpen(false);
+  }
+
+  const editableDevice = editingDeviceId === null ? null : devices.find((d) => d.id === editingDeviceId) ?? null;
+
   return (
     <section className="grid gap-4">
       <article className="surface p-5">
@@ -530,7 +562,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                               onClick={() => startEditingPool(pool)}
                               className="cursor-pointer  badge-accent px-3 py-1.5 text-xs font-semibold hover:bg-violet-500/25"
                             >
-                              Edit
+                              Settings
                             </button>
                             <button
                               type="button"
@@ -661,6 +693,77 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
             </Modal>
           ) : null}
 
+           {isDeviceModalOpen && editingDeviceId !== null && deviceModalDraft ? (
+             <Modal
+               open={isDeviceModalOpen}
+               onClose={closeDeviceSettingsModal}
+               labelledBy="device-settings-modal-title"
+               panelClassName="w-full max-w-2xl"
+             >
+               <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+                 <div className="flex items-start justify-between gap-4">
+                   <div>
+                     <h3 id="device-settings-modal-title" className="mt-2 font-display text-xl text-sand">
+                       {editableDevice?.name ?? "Device Settings"}
+                     </h3>
+                     <p className="mt-1 text-sm text-sand/60">{editableDevice?.vendor} {editableDevice?.device_type} · {editableDevice && formatDeviceIdLabel(editableDevice)} · {editableDevice?.memory_mb.toLocaleString()} MB</p>
+                   </div>
+                   <button
+                     type="button"
+                     onClick={closeDeviceSettingsModal}
+                     className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm font-semibold text-sand/70 hover:bg-white/10"
+                   >
+                     Close
+                   </button>
+                 </div>
+               </div>
+
+               <div className="grid gap-4 px-5 py-5 sm:px-6">
+                 <label className="grid gap-1 text-sm text-sand/70">
+                   <span>Name</span>
+                   <span className="text-xs text-sand/45">Shown throughout the app.</span>
+                   <input
+                     className=" field px-3 py-2 text-sm"
+                     value={deviceModalDraft.name}
+                     onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, name: event.target.value })}
+                   />
+                 </label>
+                 <label className="grid gap-1 text-sm text-sand/70">
+                   <span>Priority</span>
+                   <span className="text-xs text-sand/45">Higher values are chosen first.</span>
+                   <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.priority} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, priority: Number(event.target.value) || 0 })} />
+                 </label>
+                 <label className="grid gap-1 text-sm text-sand/70">
+                   <span>Max Threads</span>
+                   <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
+                   <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.max_threads} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_threads: Number(event.target.value) || 0 })} />
+                 </label>
+                 <label className="grid gap-1 text-sm text-sand/70">
+                   <span>Max Slots</span>
+                   <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
+                   <input className=" field px-3 py-2 text-sm" type="number" min={0} value={deviceModalDraft.max_slots} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_slots: parseNonNegativeInput(event.target.value) })} />
+                 </label>
+               </div>
+
+               <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-5 py-4 sm:px-6">
+                 <button
+                   type="button"
+                   onClick={closeDeviceSettingsModal}
+                   className="cursor-pointer  border border-white/15 bg-white/10 px-3 text-sand py-1.5 text-sm font-semibold text-sand/70 hover:bg-white/10"
+                 >
+                   Cancel
+                 </button>
+                 <button
+                   type="button"
+                   onClick={handleDeviceModalSave}
+                   className="cursor-pointer bg-sand px-4 py-1.5 text-sm font-semibold text-canvas hover:bg-sand/80 disabled:cursor-not-allowed disabled:opacity-60"
+                 >
+                   Save Changes
+                 </button>
+               </div>
+             </Modal>
+           ) : null}
+
           {isLoading && devices.length === 0 ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
           {devices.map((device) => {
             const owningPool = poolDeviceToPool.get(device.id);
@@ -682,56 +785,35 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                     </div>
                     <p className="mt-1 text-sm text-sand/70">{device.vendor} {device.device_type} · {formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</p>
                   </div>
-                  {inPool ? (
-                    <span className="badge-accent px-3 py-1.5 text-xs font-semibold">
-                      {owningPool.name}
-                    </span>
-                  ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {inPool ? (
+                      <span className="badge-accent px-3 py-1.5 text-xs font-semibold">
+                        {owningPool.name}
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => updateDeviceDraft(device.id, { enabled: !device.enabled })}
+                        className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${device.enabled ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25" : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10"}`}
+                      >
+                        {device.enabled ? "Enabled" : "Disabled"}
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => updateDeviceDraft(device.id, { enabled: !device.enabled })}
-                      className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors ${device.enabled ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25" : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10"}`}
+                      onClick={() => openDeviceSettingsModal(device)}
+                      className="cursor-pointer btn-secondary px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-white/10"
                     >
-                      {device.enabled ? "Enabled" : "Disabled"}
+                      Settings
                     </button>
-                  )}
+                  </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <label className="grid gap-1 text-sm text-sand/70">
-                    <span>Name</span>
-                    <span className="text-xs text-sand/45">Shown throughout the app.</span>
-                    <input
-                      className=" field px-3 py-2 text-sm"
-                      value={device.name}
-                      onChange={(event) => updateDeviceDraft(device.id, { name: event.target.value })}
-                      onBlur={() => commitDeviceName(device.id)}
-                    />
-                  </label>
-                  <label className="grid gap-1 text-sm text-sand/70">
-                    <span>Priority</span>
-                    <span className="text-xs text-sand/45">Higher values are chosen first.</span>
-                    <input className=" field px-3 py-2 text-sm" type="number" value={device.priority} onChange={(event) => updateDeviceDraft(device.id, { priority: Number(event.target.value) || 0 })} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-sand/70">
-                    <span>Max Threads</span>
-                    <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
-                    <input className=" field px-3 py-2 text-sm" type="number" value={device.max_threads} onChange={(event) => updateDeviceDraft(device.id, { max_threads: Number(event.target.value) || 0 })} />
-                  </label>
-                  <label className="grid gap-1 text-sm text-sand/70">
-                    <span>Max Slots</span>
-                    <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
-                    <input className=" field px-3 py-2 text-sm" type="number" min={0} value={device.max_slots} onChange={(event) => updateDeviceDraft(device.id, { max_slots: parseNonNegativeInput(event.target.value) })} />
-                  </label>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  {savingDeviceIds.includes(device.id) || pendingDeviceIds.includes(device.id) ? (
-                    <p className="text-sm text-sand/55">
-                      {savingDeviceIds.includes(device.id) ? "Saving..." : "Saving changes..."}
-                    </p>
-                  ) : null}
-                </div>
+                {savingDeviceIds.includes(device.id) || pendingDeviceIds.includes(device.id) ? (
+                  <p className="mt-3 text-sm text-sand/55">
+                    {savingDeviceIds.includes(device.id) ? "Saving..." : "Saving changes..."}
+                  </p>
+                ) : null}
               </article>
             );
           })}
