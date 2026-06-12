@@ -1445,6 +1445,7 @@ export default function ChatPage() {
         open={showExportModal}
         onClose={() => setShowExportModal(false)}
         labelledBy="export-chat-modal-title"
+        panelClassName="max-w-lg"
       >
         <div className="p-6 sm:p-8">
           <h2 id="export-chat-modal-title" className="font-display text-xl text-sand">Export Chat</h2>
