@@ -17,6 +17,10 @@ from app.core.amdgpu_memory import (
 )
 from app.core.config import get_settings
 from app.core.gpu_pool_manager import delete_unavailable_devices
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.core.inference_manager import InferenceManager
 from app.models.device import Device
 
 logger = logging.getLogger(__name__)
@@ -104,14 +108,20 @@ class DeviceManager:
 
         return device.name
 
-    def sync_detected_devices(self, db: Session, *, auto_enable_defaults: bool = False) -> list[Device]:
+    def sync_detected_devices(
+        self,
+        db: Session,
+        *,
+        auto_enable_defaults: bool = False,
+        inference: "InferenceManager | None" = None,
+    ) -> list[Device]:
         detected = self.detect_all()
         self._default_names_by_hardware_id = {item.hardware_id: item.name for item in detected}
         existing = {d.hardware_id: d for d in db.query(Device).all()}
         detected_ids = {device.hardware_id for device in detected}
         gpu_detected = any(device.device_type == "gpu" and device.vendor != "cpu" for device in detected)
 
-        removed_device_ids = delete_unavailable_devices(db, detected_ids)
+        removed_device_ids = delete_unavailable_devices(db, detected_ids, inference)
         if removed_device_ids:
             logger.info(
                 "Removed %s device(s) no longer reported by active runtimes: %s",

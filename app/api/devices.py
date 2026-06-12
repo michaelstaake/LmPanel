@@ -23,7 +23,8 @@ device_manager = DeviceManager()
 
 @router.get("")
 def list_devices(_: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> list[dict]:
-    rows = device_manager.sync_detected_devices(db)
+    inference = router.inference_manager  # type: ignore[attr-defined]
+    rows = device_manager.sync_detected_devices(db, inference=inference)
     return [_serialize_device(d, device_manager.default_name_for_device(d)) for d in rows]
 
 
@@ -159,6 +160,20 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
         deactivated_models: list[ModelConfig] = []
         for membership in pool_memberships:
             deactivated_models.extend(deactivate_pool_models(db, membership.pool_id, inference))
+        pinned_models = db.query(ModelConfig).filter(
+            ModelConfig.assignment_mode == "pinned",
+            ModelConfig.pinned_device_id == device_id,
+        ).all()
+        for model in pinned_models:
+            if model.activated and inference is not None:
+                inference.deactivate_model(model.id)
+            if model.activated:
+                model.activated = False
+            model.assignment_mode = "auto"
+            model.pinned_device_id = None
+            model.pinned_pool_id = None
+            db.add(model)
+            deactivated_models.append(model)
         if deactivated_models:
             db.commit()
             for model in deactivated_models:

@@ -112,7 +112,11 @@ def delete_pools_with_unavailable_devices(
     return results
 
 
-def delete_unavailable_devices(db: Session, detected_hardware_ids: set[str]) -> list[int]:
+def delete_unavailable_devices(
+    db: Session,
+    detected_hardware_ids: set[str],
+    inference: "'InferenceManager | None'" = None,
+) -> list[int]:
     """Remove DB devices that are no longer reported by any active inference runtime."""
     from app.models.inference_job import InferenceJob
 
@@ -121,7 +125,7 @@ def delete_unavailable_devices(db: Session, detected_hardware_ids: set[str]) -> 
         return []
 
     device_ids = [device.id for device in to_delete]
-    revert_models_pinned_to_devices(db, device_ids, inference=None)
+    revert_models_pinned_to_devices(db, device_ids, inference)
 
     db.query(InferenceJob).filter(InferenceJob.device_id.in_(device_ids)).update(
         {InferenceJob.device_id: None},

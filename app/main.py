@@ -44,7 +44,7 @@ async def lifespan(_: FastAPI):
     db = SessionLocal()
     try:
         prune_old_logs(db)
-        device_manager.sync_detected_devices(db, auto_enable_defaults=True)
+        device_manager.sync_detected_devices(db, auto_enable_defaults=True, inference=inference_manager)
         stale_memberships = delete_stale_pool_memberships(db)
         if stale_memberships.removed_rows:
             log_event(
