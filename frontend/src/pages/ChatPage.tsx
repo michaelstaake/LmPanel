@@ -1367,7 +1367,15 @@ export default function ChatPage() {
               </button>
             )}
           </div>
-          </form>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".txt,.md,.py,.js,.ts,.json,.csv,.html,.css,.yaml,.yml,.xml,.toml,.ini,.env,.log,.sh,.conf,.pdf,.docx,.xlsx,.ods,.odt"
+          />
+        </form>
         ) : null}
       </main>
     </section>
