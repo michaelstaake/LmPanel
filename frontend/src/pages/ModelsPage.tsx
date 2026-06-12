@@ -905,7 +905,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <h3 className="font-display text-base">{model.alias}</h3>
                     <p className="mt-0.5 text-sm text-sand/55">
                       {model.file_name}
-                      {model.file_size != null ? <span className="ml-2">({formatFileSize(model.file_size)})</span> : null}
                       {model.directory_size > 0 ? <span className="ml-2 text-xs text-sand/35">({formatFileSize(model.directory_size)} on disk{model.directory_files && model.directory_files.length > 1 ? ` · ${model.directory_files.length} files` : ""})</span> : null}
                     </p>
                     {model.description ? <p className="mt-1 text-sm text-sand/70">{model.description}</p> : null}
