@@ -597,6 +597,7 @@ def _serialize_package(package: Package) -> dict:
         "id": package.id,
         "name": package.name,
         "is_admin_package": package.is_admin_package,
+        "is_default_package": package.is_default_package,
         "usage_limit_tokens_60_minutes": package.usage_limit_tokens_60_minutes,
         "usage_limit_tokens_24_hours": package.usage_limit_tokens_24_hours,
         "usage_limit_tokens_7_days": package.usage_limit_tokens_7_days,
