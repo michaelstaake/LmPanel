@@ -167,15 +167,6 @@ def _record_usage_from_sse_chunk(chunk: bytes | str, *, user_id: int | None, too
     return _record_usage(usage_counts, user_id=user_id, tool_calls=tool_calls)
 
 
-def _count_tool_calls(messages: list[dict]) -> int:
-    count = 0
-    for message in messages:
-        tool_calls = message.get("tool_calls")
-        if isinstance(tool_calls, list):
-            count += len(tool_calls)
-    return count
-
-
 def _prepend_rag_context(messages: list[dict], rag_context: str) -> list[dict]:
     """Prepend RAG context as a system message at the beginning of the messages list."""
     if not rag_context:
@@ -460,7 +451,6 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
             request_payload["repetition_penalty"] = model.repetition_penalty
         request_payload["enable_thinking"] = resolve_thinking_enabled(model, payload.enable_thinking)
         thinking_enabled = bool(request_payload["enable_thinking"])
-        request_payload["tool_calls"] = _count_tool_calls(request_payload["messages"])
         request_payload["messages"] = [
             {
                 key: value
@@ -597,7 +587,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                         usage_recorded = _record_usage_from_sse_chunk(
                             chunk,
                             user_id=current_user_id,
-                            tool_calls=request_payload.get("tool_calls", 0),
+                            tool_calls=0,
                         )
                     yield filter_thinking_from_sse_chunk(chunk, thinking_enabled)
                 task_manager.complete_task(task_id)
@@ -622,7 +612,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
         task_manager.fail_task(task_id, str(exc))
         raise
     task_manager.complete_task(task_id)
-    _record_usage(result.get("usage"), user_id=current_user_id, tool_calls=request_payload.get("tool_calls", 0))
+    _record_usage(result.get("usage"), user_id=current_user_id, tool_calls=0)
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
