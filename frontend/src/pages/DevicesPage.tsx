@@ -28,7 +28,7 @@ function splitModeDescription(mode: string) {
 
 function deviceTypeLabel(device: { vendor: string; device_type: string }) {
   if (device.vendor === "cpu" && device.device_type === "cpu") return "CPU";
-  return `${vendorLabel(device.vendor)} ${device.device_type.toUpperCase()}`;
+  return `${vendorLabel(device.vendor).toUpperCase()} ${device.device_type.toUpperCase()}`;
 }
 
 function buildDevicePayload(device: DeviceRecord) {
