@@ -38,6 +38,24 @@ from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metr
 
 logger = logging.getLogger(__name__)
 
+
+def _runtime_error_detail(response: httpx.Response) -> str:
+    try:
+        payload = response.json()
+    except (ValueError, json.JSONDecodeError):
+        payload = None
+
+    if isinstance(payload, dict):
+        detail = payload.get("detail")
+        if isinstance(detail, str) and detail.strip():
+            return detail.strip()
+
+    text = response.text.strip()
+    if text:
+        return text
+
+    return f"Inference runtime request failed with status {response.status_code}"
+
 _GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan", "rocm"})
 
 
@@ -390,13 +408,19 @@ class InferenceRuntime:
         decoder = codecs.getincrementaldecoder("utf-8")("ignore")
         event_buffer = ""
         async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
-            async with client.stream("POST", url, json=payload) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    if chunk:
-                        event_buffer = self._track_stream_chunk(event_buffer, decoder, chunk)
-                        yield chunk
-                self._finalize_tracked_stream(event_buffer, decoder)
+            try:
+                async with client.stream("POST", url, json=payload) as response:
+                    if response.is_error:
+                        await response.aread()
+                        raise RuntimeError(_runtime_error_detail(response))
+
+                    async for chunk in response.aiter_bytes():
+                        if chunk:
+                            event_buffer = self._track_stream_chunk(event_buffer, decoder, chunk)
+                            yield chunk
+                    self._finalize_tracked_stream(event_buffer, decoder)
+            except httpx.HTTPError as exc:
+                raise RuntimeError(f"Inference stream error: {exc}") from exc
 
     def _resolve_llama_server_path(self) -> str:
         configured_path = Path(self.settings.llama_server_path)
