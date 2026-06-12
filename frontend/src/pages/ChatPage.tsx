@@ -561,7 +561,11 @@ export default function ChatPage() {
     setIsLoadingChats(true);
     try {
       const rows = await apiGet<ChatSummary[]>("/api/chat", activeToken);
-      setSavedChats(rows);
+      setSavedChats([...rows].sort((a, b) => {
+        const aTime = a.last_reply_at ? new Date(a.last_reply_at).getTime() : 0;
+        const bTime = b.last_reply_at ? new Date(b.last_reply_at).getTime() : 0;
+        return bTime - aTime;
+      }));
     } catch {
       setSavedChats([]);
     } finally {
@@ -692,7 +696,7 @@ export default function ChatPage() {
         token
       );
       setActiveChatId(response.chat.id);
-      setSavedChats((current: ChatSummary[]) => [response.chat, ...current]);
+      setSavedChats((current: ChatSummary[]) => [...current, response.chat]);
       return response.chat.id;
     } catch {
       return null;
