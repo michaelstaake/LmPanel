@@ -8,6 +8,7 @@ import { useToast } from "../context/ToastContext";
 import { getStoredToken } from "../lib/session";
 import ChatSidebarContent from "../components/ui/ChatSidebarContent";
 import MessageContent from "../components/ui/MessageContent";
+import Modal from "../components/ui/Modal";
 
 type ChatRole = "system" | "user" | "assistant";
 
@@ -85,6 +86,66 @@ function formatExportText(messages: ChatMessage[]): string {
     const thinking = msg.thinking ? `> [Thinking] ${msg.thinking.trim()}\n\n` : "";
     return `${label}: ${thinking}${msg.content}` + (i < messages.length - 1 ? "\n---\n" : "");
   }).join("");
+}
+
+function formatExportJson(messages: ChatMessage[]): string {
+  const data = messages.map((msg) => ({
+    role: msg.role,
+    content: msg.content,
+    ...(msg.thinking ? { thinking: msg.thinking } : {}),
+    ...(msg.modelName ? { model: msg.modelName } : {}),
+    ...(msg.stats ? { stats: msg.stats } : {}),
+  }));
+  return JSON.stringify(data, null, 2);
+}
+
+function formatExportHtml(messages: ChatMessage[], chatId: number | null): string {
+  const chatTitle = chatId ? `Chat #${chatId}` : "New Chat";
+  const rows = messages.map((msg) => {
+    const label = msg.role === "assistant" ? "AI" : "User";
+    const thinking = msg.thinking ? `<details><summary>Thinking (${msg.thinkingElapsedSeconds?.toFixed(1)}s)</summary><blockquote>${msg.thinking.trim().replace(/</g, "&lt;").replace(/>/g, "&gt;")}</blockquote></details>\n        ` : "";
+    const content = msg.content.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+    return `<div class="message ${msg.role}">\n          <div class="role">${label}</div>\n          ${thinking}<div class="content">${content}</div>\n        </div>`;
+  }).join("\n      ");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${chatTitle}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 2rem; line-height: 1.6; }
+    h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: #f0f0f0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem; }
+    .message { margin-bottom: 1rem; padding: 1rem; border-radius: 8px; background: rgba(255,255,255,0.05); }
+    .role { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #888; margin-bottom: 0.5rem; }
+    .content { font-size: 0.95rem; white-space: pre-wrap; word-wrap: break-word; }
+    details { margin: 0.5rem 0; padding: 0.5rem; background: rgba(255,255,255,0.03); border-radius: 4px; }
+    summary { cursor: pointer; font-size: 0.8rem; color: #aaa; }
+    blockquote { margin: 0.5rem 0 0 1rem; padding: 0.5rem 1rem; border-left: 3px solid #eab308; color: #999; font-style: italic; }
+    @media (max-width: 640px) { body { padding: 1rem; } }
+  </style>
+</head>
+<body>
+  <h1>${chatTitle}</h1>
+  <div class="messages">
+      ${rows}
+    </div>
+</body>
+</html>`;
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -314,7 +375,7 @@ function ModelCardSkeleton() {
 export default function ChatPage() {
   const { token, user } = useAuth();
   const { closeMobileNav, setMobileNavSection } = useMobileNav();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const {
@@ -339,6 +400,7 @@ export default function ChatPage() {
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const isNavigatingAwayRef = useRef(false);
   const prevLocationRef = useRef(location.pathname);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
@@ -953,11 +1015,7 @@ export default function ChatPage() {
                 type="button"
                 title="Export chat"
                 className="flex items-center gap-1 text-sm text-sand/60 hover:text-sand"
-                onClick={() => {
-                  const text = formatExportText(messages);
-                  navigator.clipboard.writeText(text);
-                  showError("Chat exported to clipboard!");
-                }}
+                onClick={() => setShowExportModal(true)}
               >
                 <i className="bi bi-file-earmark-text" /> Export
               </button>
@@ -1378,6 +1436,64 @@ export default function ChatPage() {
         </form>
         ) : null}
       </main>
+
+      <Modal
+        open={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        labelledBy="export-chat-modal-title"
+      >
+        <div className="p-6 sm:p-8">
+          <h2 id="export-chat-modal-title" className="font-display text-xl text-sand">Export Chat</h2>
+          <p className="mt-2 text-sm text-sand/60">Choose a format to download your chat history.</p>
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => {
+                const text = formatExportText(messages);
+                const filename = activeChatId ? `chat-${activeChatId}.txt` : "chat.txt";
+                downloadFile(filename, text, "text/plain");
+                setShowExportModal(false);
+                showSuccess("Chat exported as plain text!");
+              }}
+              className="flex flex-col items-center gap-3 rounded-lg border border-white/15 bg-white/5 p-5 text-sand transition hover:bg-white/10"
+            >
+              <i className="bi bi-file-earmark-text text-2xl" aria-hidden="true" />
+              <div className="text-sm font-semibold">Plain Text</div>
+              <div className="text-xs text-sand/50">.txt</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const json = formatExportJson(messages);
+                const filename = activeChatId ? `chat-${activeChatId}.json` : "chat.json";
+                downloadFile(filename, json, "application/json");
+                setShowExportModal(false);
+                showSuccess("Chat exported as JSON!");
+              }}
+              className="flex flex-col items-center gap-3 rounded-lg border border-white/15 bg-white/5 p-5 text-sand transition hover:bg-white/10"
+            >
+              <i className="bi bi-file-earmark-code text-2xl" aria-hidden="true" />
+              <div className="text-sm font-semibold">JSON</div>
+              <div className="text-xs text-sand/50">.json</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const html = formatExportHtml(messages, activeChatId);
+                const filename = activeChatId ? `chat-${activeChatId}.html` : "chat.html";
+                downloadFile(filename, html, "text/html");
+                setShowExportModal(false);
+                showSuccess("Chat exported as HTML!");
+              }}
+              className="flex flex-col items-center gap-3 rounded-lg border border-white/15 bg-white/5 p-5 text-sand transition hover:bg-white/10"
+            >
+              <i className="bi bi-file-earmark-code-fill text-2xl" aria-hidden="true" />
+              <div className="text-sm font-semibold">HTML</div>
+              <div className="text-xs text-sand/50">.html</div>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </section>
   );
 }
