@@ -26,6 +26,11 @@ function splitModeDescription(mode: string) {
   return "";
 }
 
+function deviceTypeLabel(device: { vendor: string; device_type: string }) {
+  if (device.vendor === "cpu" && device.device_type === "cpu") return "CPU";
+  return `${vendorLabel(device.vendor)} ${device.device_type.toUpperCase()}`;
+}
+
 function buildDevicePayload(device: DeviceRecord) {
   return {
     name: device.name,
@@ -706,7 +711,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                      <h3 id="device-settings-modal-title" className="mt-2 font-display text-xl text-sand">
                        {editableDevice?.name ?? "Device Settings"}
                      </h3>
-                     <p className="mt-1 text-sm text-sand/60">{editableDevice?.vendor} {editableDevice?.device_type} · {editableDevice && formatDeviceIdLabel(editableDevice)} · {editableDevice?.memory_mb.toLocaleString()} MB</p>
+                     <p className="mt-1 text-sm text-sand/60">{editableDevice && deviceTypeLabel(editableDevice)} · {editableDevice && formatDeviceIdLabel(editableDevice)} · {editableDevice?.memory_mb.toLocaleString()} MB</p>
                    </div>
                    <button
                      type="button"
@@ -783,7 +788,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display text-base">{device.name}</h3>
                     </div>
-                    <p className="mt-1 text-sm text-sand/70">{device.vendor} {device.device_type} · {formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</p>
+                    <p className="mt-1 text-sm text-sand/70">{deviceTypeLabel(device)} · {formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {inPool ? (
