@@ -133,6 +133,7 @@ export type DeviceRecord = {
   priority: number;
   max_threads: number;
   max_slots: number;
+  in_pool: boolean;
 };
 
 export type GpuPoolRecord = {
@@ -140,6 +141,9 @@ export type GpuPoolRecord = {
   name: string;
   vendor: string;
   split_mode: string;
+  max_slots: number;
+  pool_order: number;
+  enabled: boolean;
   devices: DeviceRecord[];
 };
 

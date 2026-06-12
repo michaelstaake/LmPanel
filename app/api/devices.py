@@ -15,7 +15,7 @@ from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice, VALID_SPLIT_MODES
 from app.models.model_config import ModelConfig
 from app.models.user import User
-from app.utils.schemas import DeviceReorderRequest, DeviceUpdateRequest, GpuPoolCreateRequest, GpuPoolUpdateRequest
+from app.utils.schemas import DeviceReorderRequest, DeviceUpdateRequest, GpuPoolCreateRequest, GpuPoolUpdateRequest, PoolReorderRequest
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
 device_manager = DeviceManager()
@@ -25,7 +25,14 @@ device_manager = DeviceManager()
 def list_devices(_: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> list[dict]:
     inference = router.inference_manager  # type: ignore[attr-defined]
     rows = device_manager.sync_detected_devices(db, inference=inference)
-    return [_serialize_device(d, device_manager.default_name_for_device(d)) for d in rows]
+    pool_device_rows = db.query(GpuPoolDevice).all()
+    pooled_device_ids = {row.device_id for row in pool_device_rows}
+    result = []
+    for d in rows:
+        serialized = _serialize_device(d, device_manager.default_name_for_device(d))
+        serialized["in_pool"] = d.id in pooled_device_ids
+        result.append(serialized)
+    return result
 
 
 @router.post("/reorder")
@@ -33,8 +40,22 @@ def reorder_devices(payload: DeviceReorderRequest, _: User = Depends(get_admin_u
     for item in payload.devices:
         device = db.query(Device).filter(Device.id == item.id).first()
         if device:
+            memberships = db.query(GpuPoolDevice).filter(GpuPoolDevice.device_id == item.id).all()
+            if memberships:
+                raise HTTPException(status_code=400, detail="Cannot reorder a device that is a member of a GPU pool")
             device.priority = item.priority
             db.add(device)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/pools/reorder")
+def reorder_pools(payload: PoolReorderRequest, _: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> dict:
+    for item in payload.pools:
+        pool = db.query(GpuPool).filter(GpuPool.id == item.id).first()
+        if pool:
+            pool.pool_order = item.pool_order
+            db.add(pool)
     db.commit()
     return {"status": "ok"}
 
@@ -66,7 +87,7 @@ def create_pool(payload: GpuPoolCreateRequest, _: User = Depends(get_admin_user)
     _validate_pool_membership(devices, db)
     inference = router.inference_manager  # type: ignore[attr-defined]
 
-    pool = GpuPool(name=payload.name.strip(), vendor=vendor, split_mode=split_mode)
+    pool = GpuPool(name=payload.name.strip(), vendor=vendor, split_mode=split_mode, max_slots=payload.max_slots)
     db.add(pool)
     db.flush()
 
@@ -74,6 +95,8 @@ def create_pool(payload: GpuPoolCreateRequest, _: User = Depends(get_admin_user)
 
     for device in devices:
         db.add(GpuPoolDevice(pool_id=pool.id, device_id=device.id))
+        device.max_slots = payload.max_slots
+        db.add(device)
 
     db.commit()
     db.refresh(pool)
@@ -106,13 +129,24 @@ def update_pool(pool_id: int, payload: GpuPoolUpdateRequest, _: User = Depends(g
     pool.vendor = vendor
     if payload.split_mode is not None:
         pool.split_mode = _validate_split_mode(payload.split_mode)
+    if payload.max_slots is not None:
+        pool.max_slots = payload.max_slots
     db.add(pool)
 
     reverted_models = revert_models_pinned_to_devices(db, added_device_ids, inference)
 
+    removed_device_ids = sorted(previous_device_ids - next_device_ids)
+    for device_id in removed_device_ids:
+        device = db.query(Device).filter(Device.id == device_id).first()
+        if device:
+            device.priority = 0
+            db.add(device)
+
     db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool.id).delete()
     for device in devices:
         db.add(GpuPoolDevice(pool_id=pool.id, device_id=device.id))
+        device.max_slots = pool.max_slots
+        db.add(device)
 
     db.commit()
     db.refresh(pool)
@@ -146,9 +180,12 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
 
     enabled_before = device.enabled
 
+    pool_memberships = db.query(GpuPoolDevice).filter(GpuPoolDevice.device_id == device_id).all()
     for field in ["name", "enabled", "priority", "max_threads", "max_slots"]:
         value = getattr(payload, field)
         if value is not None:
+            if field == "priority" and pool_memberships:
+                raise HTTPException(status_code=400, detail="Cannot change priority of a device that is a member of a GPU pool")
             if field == "name":
                 stripped = value.strip()
                 value = device_manager.default_name_for_device(device) if not stripped else stripped
@@ -156,7 +193,6 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
 
     if payload.enabled is not None and not device.enabled and enabled_before:
         inference = router.inference_manager  # type: ignore[attr-defined]
-        pool_memberships = db.query(GpuPoolDevice).filter(GpuPoolDevice.device_id == device_id).all()
         deactivated_models: list[ModelConfig] = []
         for membership in pool_memberships:
             deactivated_models.extend(deactivate_pool_models(db, membership.pool_id, inference))
@@ -189,7 +225,9 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
     elif payload.enabled is None:
         log_event(db, "device.updated", details={"device_name": device.name, "hardware_id": device.hardware_id})
 
-    return {"status": "ok", "device": _serialize_device(device, device_manager.default_name_for_device(device))}
+    device_serialized = _serialize_device(device, device_manager.default_name_for_device(device))
+    device_serialized["in_pool"] = len(pool_memberships) > 0
+    return {"status": "ok", "device": device_serialized}
 
 
 def _validate_pool_vendor(vendor: str) -> str:
@@ -245,11 +283,15 @@ def _serialize_pool(pool: GpuPool, db: Session) -> dict:
     pool_device_rows = db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool.id).all()
     device_ids = [row.device_id for row in pool_device_rows]
     devices = db.query(Device).filter(Device.id.in_(device_ids)).all()
+    pool_enabled = len(devices) > 0 and all(d.enabled for d in devices)
     return {
         "id": pool.id,
         "name": pool.name,
         "vendor": pool.vendor,
         "split_mode": "layer" if pool.split_mode == "row" else pool.split_mode,
+        "max_slots": pool.max_slots,
+        "pool_order": pool.pool_order,
+        "enabled": pool_enabled,
         "devices": [_serialize_device(d) for d in devices],
     }
 
@@ -271,4 +313,5 @@ def _serialize_device(device: Device, default_name: str | None = None) -> dict:
         "priority": device.priority,
         "max_threads": device.max_threads,
         "max_slots": device.max_slots,
+        "in_pool": False,
     }

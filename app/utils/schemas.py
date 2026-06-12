@@ -459,6 +459,7 @@ class GpuPoolCreateRequest(BaseModel):
     vendor: str = Field(default="nvidia", min_length=1, max_length=32)
     device_ids: list[int] = Field(min_length=2)
     split_mode: str = Field(default="layer", min_length=1, max_length=16)
+    max_slots: int = Field(default=0, ge=0)
 
 
 class GpuPoolUpdateRequest(BaseModel):
@@ -466,6 +467,7 @@ class GpuPoolUpdateRequest(BaseModel):
     vendor: str | None = Field(default=None, min_length=1, max_length=32)
     device_ids: list[int] = Field(min_length=2)
     split_mode: str | None = Field(default=None, min_length=1, max_length=16)
+    max_slots: int | None = Field(default=None, ge=0)
 
 
 class DeviceReorderItem(BaseModel):
@@ -475,6 +477,15 @@ class DeviceReorderItem(BaseModel):
 
 class DeviceReorderRequest(BaseModel):
     devices: list[DeviceReorderItem]
+
+
+class PoolReorderItem(BaseModel):
+    id: int
+    pool_order: int
+
+
+class PoolReorderRequest(BaseModel):
+    pools: list[PoolReorderItem]
 
 
 class ModelReorderItem(BaseModel):
