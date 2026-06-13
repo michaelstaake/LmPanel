@@ -546,9 +546,6 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
             <h2 className="mt-2 font-display text-xl">{setupMode ? "Step 2: Devices" : "Devices"}</h2>
             {setupMode ? <p className="mt-2 max-w-3xl text-sm text-sand/70">Enable at least one device so models have somewhere to run.</p> : null}
           </div>
-        </div>
-
-        <div className="mt-5 space-y-4">
           {showNewPoolButton ? (
             <div className="relative inline-block group">
               <button
@@ -563,7 +560,9 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               </div>
             </div>
           ) : null}
+        </div>
 
+        <div className="mt-5 space-y-4">
           {isLoading && devices.length === 0 && pools.length === 0 ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
 
           {nonPoolDevices.map((device) => (
@@ -837,33 +836,25 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, name: event.target.value })}
               />
             </label>
-            {editableDevice?.in_pool ? (
-              <div className="surface-muted border border-violet-500/30 px-3 py-2 text-xs text-sand/65">
-                Priority is managed by drag and drop order. Change the position of this device to adjust its priority.
-              </div>
-            ) : (
+            {!editableDevice?.in_pool ? (
               <label className="grid gap-1 text-sm text-sand/70">
                 <span>Priority</span>
                 <span className="text-xs text-sand/45">Higher values are chosen first.</span>
                 <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.priority} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, priority: Number(event.target.value) || 0 })} />
               </label>
-            )}
+            ) : null}
             <label className="grid gap-1 text-sm text-sand/70">
               <span>Max Threads</span>
               <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
               <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.max_threads} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_threads: Number(event.target.value) || 0 })} />
             </label>
-            {editableDevice?.in_pool ? (
-              <div className="surface-muted border border-violet-500/30 px-3 py-2 text-xs text-sand/65">
-                Max slots is determined by the pool this device belongs to. Adjust it in the pool settings.
-              </div>
-            ) : (
+            {!editableDevice?.in_pool ? (
               <label className="grid gap-1 text-sm text-sand/70">
                 <span>Max Slots</span>
                 <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
                 <input className=" field px-3 py-2 text-sm" type="number" min={0} value={deviceModalDraft.max_slots} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_slots: parseNonNegativeInput(event.target.value) })} />
               </label>
-            )}
+            ) : null}
           </div>
 
           <div className="flex flex-wrap justify-end gap-2 border-t border-white/10 px-5 py-4 sm:px-6">
