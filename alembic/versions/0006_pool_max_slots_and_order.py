@@ -1,7 +1,7 @@
 """add pool max_slots and pool_order
 
 Revision ID: 0006_pool_max_slots_and_order
-Revises: a1b2c3d4e5f6
+Revises: 0005_last_reply_at
 Create Date: 2026-06-12
 
 """
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0006_pool_max_slots_and_order'
-down_revision = 'a1b2c3d4e5f6'
+down_revision = '0005_last_reply_at'
 branch_labels = None
 depends_on = None
 
