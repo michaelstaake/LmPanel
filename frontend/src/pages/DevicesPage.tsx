@@ -7,6 +7,7 @@ import { formatDeviceIdLabel } from "../lib/deviceIds";
 import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/records";
 
 const AUTO_SAVE_DELAY_MS = 700;
+const REORDER_AUTO_SAVE_DELAY_MS = 1000;
 const POOL_VENDORS = ["nvidia", "vulkan", "rocm"] as const;
 const SPLIT_MODES = ["layer", "tensor"] as const;
 
@@ -97,9 +98,13 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   // Drag and drop state for devices
   const [draggedDeviceId, setDraggedDeviceId] = useState<number | null>(null);
   const [isReordering, setIsReordering] = useState(false);
+  const [deviceHoverIndex, setDeviceHoverIndex] = useState<number | null>(null);
+  const deviceReorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drag and drop state for pools
   const [draggedPoolId, setDraggedPoolId] = useState<number | null>(null);
+  const [poolHoverIndex, setPoolHoverIndex] = useState<number | null>(null);
+  const poolReorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Device settings modal state
   const [editingDeviceId, setEditingDeviceId] = useState<number | null>(null);
@@ -159,31 +164,55 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
       return;
     }
     setDraggedDeviceId(deviceId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(deviceId));
+  }
+
+  function handleDeviceDragEnter(event: DragEvent<HTMLElement>, deviceId: number) {
+    const sorted = sortDevices(devices);
+    const index = sorted.findIndex((d) => d.id === deviceId);
+    if (index !== -1) {
+      setDeviceHoverIndex(index);
+    }
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
   }
 
   function handleDeviceDragEnd() {
     setDraggedDeviceId(null);
+    setDeviceHoverIndex(null);
+    if (deviceReorderSaveTimerRef.current) {
+      clearTimeout(deviceReorderSaveTimerRef.current);
+      deviceReorderSaveTimerRef.current = null;
+    }
   }
 
   async function handleDeviceDrop(targetDeviceId: number) {
     if (draggedDeviceId === null || draggedDeviceId === targetDeviceId || isReordering) {
       setDraggedDeviceId(null);
+      setDeviceHoverIndex(null);
       return;
     }
     const sorted = sortDevices(devices);
     const fromIndex = sorted.findIndex((device) => device.id === draggedDeviceId);
-    const toIndex = sorted.findIndex((device) => device.id === targetDeviceId);
+    let toIndex: number;
+    if (deviceHoverIndex !== null && deviceHoverIndex !== fromIndex) {
+      toIndex = deviceHoverIndex;
+    } else {
+      toIndex = sorted.findIndex((device) => device.id === targetDeviceId);
+    }
     if (fromIndex === -1 || toIndex === -1) {
       setDraggedDeviceId(null);
+      setDeviceHoverIndex(null);
       return;
     }
     const previousDevices = devices;
     const nextDevices = moveDevices(sorted, fromIndex, toIndex);
     setDraggedDeviceId(null);
+    setDeviceHoverIndex(null);
     setDevices(nextDevices);
     if (!token) {
       return;
@@ -198,6 +227,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
         token,
       );
       showSuccess("Saved device order.", { id: "devices-success" });
+      scheduleReorderSave();
     } catch (error) {
       setDevices(previousDevices);
       showError(error instanceof Error ? error.message : "Failed to save device order", { id: "devices-error" });
@@ -206,25 +236,60 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     }
   }
 
-  // Pool drag and drop handlers
+  function scheduleReorderSave() {
+    if (deviceReorderSaveTimerRef.current) {
+      clearTimeout(deviceReorderSaveTimerRef.current);
+    }
+    deviceReorderSaveTimerRef.current = setTimeout(() => {
+      deviceReorderSaveTimerRef.current = null;
+      const latestDevices = latestDevicesRef.current;
+      for (const device of latestDevices) {
+        scheduleDeviceSave(device.id);
+      }
+    }, REORDER_AUTO_SAVE_DELAY_MS);
+  }
+
+ // Pool drag and drop handlers
   function handlePoolDragStart(event: DragEvent<HTMLElement>, poolId: number) {
     setDraggedPoolId(poolId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(poolId));
+  }
+
+  function handlePoolDragEnter(event: DragEvent<HTMLElement>, poolId: number) {
+    const sorted = sortPools(pools);
+    const index = sorted.findIndex((p) => p.id === poolId);
+    if (index !== -1) {
+      setPoolHoverIndex(index);
+    }
   }
 
   function handlePoolDragEnd() {
     setDraggedPoolId(null);
+    setPoolHoverIndex(null);
+    if (poolReorderSaveTimerRef.current) {
+      clearTimeout(poolReorderSaveTimerRef.current);
+      poolReorderSaveTimerRef.current = null;
+    }
   }
 
   async function handlePoolDrop(targetPoolId: number) {
     if (draggedPoolId === null || draggedPoolId === targetPoolId || isReordering) {
       setDraggedPoolId(null);
+      setPoolHoverIndex(null);
       return;
     }
     const sorted = sortPools(pools);
     const fromIndex = sorted.findIndex((pool) => pool.id === draggedPoolId);
-    const toIndex = sorted.findIndex((pool) => pool.id === targetPoolId);
+    let toIndex: number;
+    if (poolHoverIndex !== null && poolHoverIndex !== fromIndex) {
+      toIndex = poolHoverIndex;
+    } else {
+      toIndex = sorted.findIndex((pool) => pool.id === targetPoolId);
+    }
     if (fromIndex === -1 || toIndex === -1) {
       setDraggedPoolId(null);
+      setPoolHoverIndex(null);
       return;
     }
     const previousPools = pools;
@@ -233,10 +298,12 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     nextPools.splice(toIndex, 0, movedPool);
     const updatedPools = nextPools.map((pool, index) => ({ ...pool, pool_order: index }));
     setDraggedPoolId(null);
+    setPoolHoverIndex(null);
     setPools(updatedPools);
     if (!token) {
       return;
     }
+    setIsReordering(true);
     try {
       await apiPost<{ pools: { id: number; pool_order: number }[] }, { status: string }>(
         "/api/devices/pools/reorder",
@@ -245,14 +312,33 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
         },
         token,
       );
+      showSuccess("Saved pool order.", { id: "devices-success" });
+      schedulePoolReorderSave();
     } catch (error) {
       setPools(previousPools);
       showError(error instanceof Error ? error.message : "Failed to save pool order", { id: "devices-error" });
+    } finally {
+      setIsReordering(false);
     }
+  }
+
+  function schedulePoolReorderSave() {
+    if (poolReorderSaveTimerRef.current) {
+      clearTimeout(poolReorderSaveTimerRef.current);
+    }
+    poolReorderSaveTimerRef.current = setTimeout(() => {
+      poolReorderSaveTimerRef.current = null;
+      const latestDevices = latestDevicesRef.current;
+      for (const device of latestDevices) {
+        scheduleDeviceSave(device.id);
+      }
+    }, REORDER_AUTO_SAVE_DELAY_MS);
   }
 
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
+    if (deviceReorderSaveTimerRef.current) clearTimeout(deviceReorderSaveTimerRef.current);
+    if (poolReorderSaveTimerRef.current) clearTimeout(poolReorderSaveTimerRef.current);
   }, []);
 
   function scheduleDeviceSave(deviceId: number) {
@@ -538,6 +624,22 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   const nonPoolDevices = useMemo(() => sortDevices(devices.filter((d) => !d.in_pool)), [devices]);
 
+  const deviceInsertionIndex = useMemo(() => {
+    if (draggedDeviceId === null || deviceHoverIndex === null) return -1;
+    const sorted = sortDevices(devices);
+    const fromIndex = sorted.findIndex((d) => d.id === draggedDeviceId);
+    if (fromIndex === deviceHoverIndex) return -1;
+    return deviceHoverIndex;
+  }, [draggedDeviceId, deviceHoverIndex, devices]);
+
+  const poolInsertionIndex = useMemo(() => {
+    if (draggedPoolId === null || poolHoverIndex === null) return -1;
+    const sorted = sortPools(pools);
+    const fromIndex = sorted.findIndex((p) => p.id === draggedPoolId);
+    if (fromIndex === poolHoverIndex) return -1;
+    return poolHoverIndex;
+  }, [draggedPoolId, poolHoverIndex, pools]);
+
   return (
     <section className="grid gap-4">
       <article className="surface p-5">
@@ -565,16 +667,21 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
         <div className="mt-5 space-y-4">
           {isLoading && devices.length === 0 && pools.length === 0 ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
 
-          {nonPoolDevices.map((device) => (
-            <article
-              key={device.id}
-              className={`surface-muted p-4 transition-shadow ${draggedDeviceId === device.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
-              draggable={!isReordering}
-              onDragStart={(event) => handleDeviceDragStart(event, device.id)}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDeviceDragEnd}
-              onDrop={() => handleDeviceDrop(device.id)}
-            >
+          {nonPoolDevices.map((device, index) => (
+            <>
+              {deviceInsertionIndex === index && draggedDeviceId !== device.id && (
+                <div className="h-1 -ml-4 -mr-4 bg-amber-400/80 rounded-full shadow-sm" />
+              )}
+              <article
+                key={device.id}
+                className={`surface-muted p-4 transition-shadow ${draggedDeviceId === device.id ? "opacity-50 ring-2 ring-amber-500/60 shadow-lg" : ""}`}
+                draggable={!isReordering}
+                onDragStart={(event) => handleDeviceDragStart(event, device.id)}
+                onDragEnter={(e) => { e.stopPropagation(); handleDeviceDragEnter(e, device.id); }}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDeviceDragEnd}
+                onDrop={() => handleDeviceDrop(device.id)}
+              >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -606,20 +713,26 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 </p>
               ) : null}
             </article>
+            </>
           ))}
 
-          {pools.map((pool) => {
+          {pools.map((pool, index) => {
             const poolEnabled = isPoolEnabled(pool);
             return (
-              <div
-                key={pool.id}
-                className={`surface border border-white/10 p-4 transition-shadow ${draggedPoolId === pool.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
-                draggable={!isReordering}
-                onDragStart={(event) => handlePoolDragStart(event, pool.id)}
-                onDragOver={handleDragOver}
-                onDragEnd={handlePoolDragEnd}
-                onDrop={() => handlePoolDrop(pool.id)}
-              >
+              <>
+                {poolInsertionIndex === index && draggedPoolId !== pool.id && (
+                  <div className="h-1 -ml-4 -mr-4 bg-amber-400/80 rounded-full shadow-sm" />
+                )}
+                <div
+                  key={pool.id}
+                  className={`surface border border-white/10 p-4 transition-shadow ${draggedPoolId === pool.id ? "opacity-50 ring-2 ring-amber-500/60 shadow-lg" : ""}`}
+                  draggable={!isReordering}
+                  onDragStart={(event) => handlePoolDragStart(event, pool.id)}
+                  onDragEnter={(e) => { e.stopPropagation(); handlePoolDragEnter(e, pool.id); }}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handlePoolDragEnd}
+                  onDrop={() => handlePoolDrop(pool.id)}
+                >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -671,7 +784,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 <ul className="mt-3 space-y-2 pl-4 border-l-2 border-violet-500/30">
                   {pool.devices.map((device) => (
                     <li key={device.id}>
-                      <article className={`surface-muted p-3 transition-shadow ${draggedDeviceId === device.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}>
+                      <article className={`surface-muted p-3 transition-shadow ${draggedDeviceId === device.id ? "opacity-50 ring-2 ring-amber-500/60 shadow-lg" : ""}`}>
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <p className="text-sm text-sand">{device.name}</p>
@@ -690,6 +803,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                   ))}
                 </ul>
               </div>
+              </>
             );
           })}
 

@@ -1,4 +1,4 @@
-﻿import { type DragEvent, type FormEvent, useEffect, useRef, useState } from "react";
+﻿import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormWithProgress, pollUntilTaskComplete } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -9,6 +9,7 @@ import { AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationRespon
 import Modal from "../components/ui/Modal";
 
 const AUTO_SAVE_DELAY_MS = 700;
+const REORDER_AUTO_SAVE_DELAY_MS = 1000;
 const MODEL_ASSET_ACCEPT = ".gguf,.mmproj,.json,.txt,.yaml,.yml,.bin,.safetensors";
 
 const CONTEXT_LENGTH_MODE_OPTIONS = [
@@ -213,6 +214,8 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
   const [isSavingModal, setIsSavingModal] = useState(false);
   const [isDeletingModal, setIsDeletingModal] = useState(false);
   const [draggedModelId, setDraggedModelId] = useState<number | null>(null);
+  const [modelHoverIndex, setModelHoverIndex] = useState<number | null>(null);
+  const modelReorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTargetModelId, setUploadTargetModelId] = useState<number | null>(null);
   const [selectedUploadFiles, setSelectedUploadFiles] = useState<File[]>([]);
@@ -288,6 +291,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
 
   useEffect(() => () => {
     Object.values(saveTimeoutsRef.current).forEach((timeoutId) => window.clearTimeout(timeoutId));
+    if (modelReorderSaveTimerRef.current) clearTimeout(modelReorderSaveTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -645,6 +649,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         token,
       );
       showSuccess("Saved model order.", { id: "models-success" });
+      scheduleModelReorderSave();
     } catch (error) {
       setModels(previousModels);
       showError(error instanceof Error ? error.message : "Failed to save model order", { id: "models-error" });
@@ -789,46 +794,92 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }
   }
 
-  function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
+function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
     const target = event.target as HTMLElement;
     if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
       event.preventDefault();
       return;
     }
     setDraggedModelId(modelId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(modelId));
+  }
+
+  function handleModelDragEnter(event: DragEvent<HTMLElement>, modelId: number) {
+    const sorted = sortModels(models);
+    const index = sorted.findIndex((m) => m.id === modelId);
+    if (index !== -1) {
+      setModelHoverIndex(index);
+    }
   }
 
   function handleDragOver(event: DragEvent<HTMLElement>) {
     event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
   }
 
   function handleDragEnd() {
     setDraggedModelId(null);
+    setModelHoverIndex(null);
+    if (modelReorderSaveTimerRef.current) {
+      clearTimeout(modelReorderSaveTimerRef.current);
+      modelReorderSaveTimerRef.current = null;
+    }
   }
 
   function handleModelDrop(targetModelId: number) {
     if (draggedModelId === null || draggedModelId === targetModelId || isReordering) {
       setDraggedModelId(null);
+      setModelHoverIndex(null);
       return;
     }
 
-    const fromIndex = models.findIndex((model) => model.id === draggedModelId);
-    const toIndex = models.findIndex((model) => model.id === targetModelId);
+    const sorted = sortModels(models);
+    const fromIndex = sorted.findIndex((model) => model.id === draggedModelId);
+    let toIndex: number;
+    if (modelHoverIndex !== null && modelHoverIndex !== fromIndex) {
+      toIndex = modelHoverIndex;
+    } else {
+      toIndex = sorted.findIndex((model) => model.id === targetModelId);
+    }
     if (fromIndex === -1 || toIndex === -1) {
       setDraggedModelId(null);
+      setModelHoverIndex(null);
       return;
     }
 
     const previousModels = models;
-    const nextModels = moveModel(models, fromIndex, toIndex);
+    const nextModels = moveModel(sorted, fromIndex, toIndex);
     setDraggedModelId(null);
+    setModelHoverIndex(null);
     setModels(nextModels);
     void persistModelOrder(nextModels, previousModels);
+  }
+
+  function scheduleModelReorderSave() {
+    if (modelReorderSaveTimerRef.current) {
+      clearTimeout(modelReorderSaveTimerRef.current);
+    }
+    modelReorderSaveTimerRef.current = setTimeout(() => {
+      modelReorderSaveTimerRef.current = null;
+      const latestModels = latestModelsRef.current;
+      for (const model of latestModels) {
+        scheduleModelSave(model.id);
+      }
+    }, REORDER_AUTO_SAVE_DELAY_MS);
   }
 
   const activeModels = models.filter((model) => model.activated).length;
   const assignmentTargets = buildAssignmentTargets(devices, pools);
   const uploadContextModel = uploadTargetModelId != null ? models.find((model) => model.id === uploadTargetModelId) ?? null : null;
+
+  const modelInsertionIndex = useMemo(() => {
+    if (draggedModelId === null || modelHoverIndex === null) return -1;
+    const sorted = sortModels(models);
+    const fromIndex = sorted.findIndex((m) => m.id === draggedModelId);
+    if (fromIndex === modelHoverIndex) return -1;
+    return modelHoverIndex;
+  }, [draggedModelId, modelHoverIndex, models]);
 
   function closeUploadModal() {
     if (isUploading) {
@@ -881,7 +932,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         {setupMode ? <p className="mt-2 max-w-3xl text-sm text-sand/70">Register and activate at least one model to complete setup.</p> : null}
 
         <div className="mt-5 space-y-4">
-          {models.map((model) => {
+          {models.map((model, index) => {
             const isActivationLoading = loadingActivationIds.includes(model.id);
             const activationButtonClassName = isActivationLoading
               ? "border-sky-300 bg-sky-100 text-sky-800"
@@ -891,15 +942,20 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             const activationButtonLabel = isActivationLoading ? "Loading..." : model.activated ? "Enabled" : "Disabled";
 
             return (
-              <article
-                key={model.id}
-                className={`surface-muted p-4 transition-shadow ${draggedModelId === model.id ? "shadow-lg ring-2 ring-amber/60" : ""}`}
-                draggable={!isReordering}
-                onDragStart={(event) => handleDragStart(event, model.id)}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-                onDrop={() => handleModelDrop(model.id)}
-              >
+              <>
+                {modelInsertionIndex === index && draggedModelId !== model.id && (
+                  <div className="h-1 -ml-4 -mr-4 bg-amber-400/80 rounded-full shadow-sm" />
+                )}
+                <article
+                  key={model.id}
+                  className={`surface-muted p-4 transition-shadow ${draggedModelId === model.id ? "opacity-50 ring-2 ring-amber-500/60 shadow-lg" : ""}`}
+                  draggable={!isReordering}
+                  onDragStart={(event) => handleDragStart(event, model.id)}
+                  onDragEnter={(e) => { e.stopPropagation(); handleModelDragEnter(e, model.id); }}
+                  onDragOver={handleDragOver}
+                  onDragEnd={handleDragEnd}
+                  onDrop={() => handleModelDrop(model.id)}
+                >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <h3 className="font-display text-base">{model.alias}</h3>
@@ -931,6 +987,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   </div>
                 </div>
               </article>
+              </>
             );
           })}
           {!hasLoadedModels ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
