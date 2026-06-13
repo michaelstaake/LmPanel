@@ -42,7 +42,7 @@ def reorder_devices(payload: DeviceReorderRequest, _: User = Depends(get_admin_u
         if device:
             memberships = db.query(GpuPoolDevice).filter(GpuPoolDevice.device_id == item.id).all()
             if memberships:
-                raise HTTPException(status_code=400, detail="Cannot reorder a device that is a member of a GPU pool")
+                continue
             device.priority = item.priority
             db.add(device)
     db.commit()
