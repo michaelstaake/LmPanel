@@ -95,6 +95,7 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
         users_can_register=app_settings.users_can_register,
         sitename=app_settings.sitename,
         favicon_path=app_settings.favicon_path,
+        logo_path=app_settings.logo_path,
         knowledge_base_enabled=app_settings.knowledge_base_enabled,
         cloudflare_turnstile_enabled=app_settings.cloudflare_turnstile_enabled,
         cloudflare_turnstile_site_key=app_settings.cloudflare_turnstile_site_key,

@@ -58,6 +58,8 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 app_config = get_settings()
 FAVICON_MAX_BYTES = 2 * 1024 * 1024
 FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+LOGO_MAX_BYTES = 5 * 1024 * 1024
+LOGO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".svg", ".gif"}
 
 
 @router.get("/settings", response_model=AppSettingsResponse)
@@ -222,6 +224,52 @@ def delete_favicon(admin_user: User = Depends(get_admin_user), db: Session = Dep
     app_settings = get_or_create_app_settings(db)
     _delete_favicon_file(app_settings.favicon_path)
     app_settings.favicon_path = None
+    db.add(app_settings)
+    db.commit()
+    db.refresh(app_settings)
+    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
+    return _serialize_app_settings(app_settings)
+
+
+@router.post("/settings/logo", response_model=AppSettingsResponse)
+async def upload_logo(
+    file: UploadFile = File(...),
+    admin_user: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> AppSettingsResponse:
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in LOGO_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Logo must be a JPG, PNG, SVG, or GIF file")
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Logo upload was empty")
+    if len(content) > LOGO_MAX_BYTES:
+        raise HTTPException(status_code=400, detail="Logo must be 5 MB or smaller")
+
+    app_settings = get_or_create_app_settings(db)
+    logos_directory = _logos_directory()
+    logos_directory.mkdir(parents=True, exist_ok=True)
+
+    _delete_logo_file(app_settings.logo_path)
+
+    stored_name = f"logo-{uuid4().hex}{extension}"
+    destination = logos_directory / stored_name
+    destination.write_bytes(content)
+
+    app_settings.logo_path = f"/static/logos/{stored_name}"
+    db.add(app_settings)
+    db.commit()
+    db.refresh(app_settings)
+    log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
+    return _serialize_app_settings(app_settings)
+
+
+@router.delete("/settings/logo", response_model=AppSettingsResponse)
+def delete_logo(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> AppSettingsResponse:
+    app_settings = get_or_create_app_settings(db)
+    _delete_logo_file(app_settings.logo_path)
+    app_settings.logo_path = None
     db.add(app_settings)
     db.commit()
     db.refresh(app_settings)
@@ -629,6 +677,7 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         users_can_register=app_settings.users_can_register,
         sitename=app_settings.sitename,
         favicon_path=app_settings.favicon_path,
+        logo_path=app_settings.logo_path,
         knowledge_base_enabled=app_settings.knowledge_base_enabled,
         input_price_per_1m=app_settings.input_price_per_1m,
         output_price_per_1m=app_settings.output_price_per_1m,
@@ -676,5 +725,18 @@ def _delete_favicon_file(favicon_path: str | None) -> None:
         return
 
     file_path = _favicons_directory() / Path(favicon_path).name
+    if file_path.exists():
+        file_path.unlink()
+
+
+def _logos_directory() -> Path:
+    return Path(app_config.data_dir) / "logos"
+
+
+def _delete_logo_file(logo_path: str | None) -> None:
+    if not logo_path or not logo_path.startswith("/static/logos/"):
+        return
+
+    file_path = _logos_directory() / Path(logo_path).name
     if file_path.exists():
         file_path.unlink()

@@ -183,7 +183,7 @@ function SetupRoute() {
 }
 
 export default function App() {
-  const { bootstrapError, faviconPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { bootstrapError, faviconPath, logoPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
@@ -338,7 +338,15 @@ export default function App() {
           <div className="mx-auto max-w-7xl px-4 md:px-8">
             <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible py-4 isolate">
               <NavLink to="/" className="inline-flex items-baseline gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sand/30">
-                <h1 className="font-display text-2xl font-semibold tracking-tight text-sand">{sitename}</h1>
+                {logoPath ? (
+                  <img
+                    src={resolveApiUrl(logoPath)}
+                    alt={sitename}
+                    className="h-8 max-w-[200px] object-contain"
+                  />
+                ) : (
+                  <h1 className="font-display text-2xl font-semibold tracking-tight text-sand">{sitename}</h1>
+                )}
               </NavLink>
               {showMainNav ? (
                 <>

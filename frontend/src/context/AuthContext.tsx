@@ -18,6 +18,7 @@ type AuthContextValue = {
   usersCanRegister: boolean;
   sitename: string;
   faviconPath: string | null;
+  logoPath: string | null;
   knowledgeBaseEnabled: boolean;
   cloudflareTurnstileEnabled: boolean;
   cloudflareTurnstileSiteKey: string | null;
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usersCanRegister, setUsersCanRegister] = useState(false);
   const [sitename, setSitename] = useState("LmPanel");
   const [faviconPath, setFaviconPath] = useState<string | null>(null);
+  const [logoPath, setLogoPath] = useState<string | null>(null);
   const [knowledgeBaseEnabled, setKnowledgeBaseEnabled] = useState(false);
   const [cloudflareTurnstileEnabled, setCloudflareTurnstileEnabled] = useState(false);
   const [cloudflareTurnstileSiteKey, setCloudflareTurnstileSiteKey] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
       setFaviconPath(bootstrap.favicon_path || null);
+      setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -93,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
       setFaviconPath(bootstrap.favicon_path || null);
+      setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -118,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUsersCanRegister(false);
       setSitename("LmPanel");
       setFaviconPath(null);
+      setLogoPath(null);
       setKnowledgeBaseEnabled(false);
       setCloudflareTurnstileEnabled(false);
       setCloudflareTurnstileSiteKey(null);
@@ -163,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
       setFaviconPath(bootstrap.favicon_path || null);
+      setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
@@ -189,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCloudflareTurnstileEnabled(bootstrap.cloudflare_turnstile_enabled);
       setCloudflareTurnstileSiteKey(bootstrap.cloudflare_turnstile_site_key || null);
       setFaviconPath(bootstrap.favicon_path || null);
+      setLogoPath(bootstrap.logo_path || null);
       setBootstrapError(null);
       setUser(currentUser);
       if (response.terms_enabled) {
@@ -247,6 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         usersCanRegister,
         sitename,
         faviconPath,
+        logoPath,
         knowledgeBaseEnabled,
         cloudflareTurnstileEnabled,
         cloudflareTurnstileSiteKey,

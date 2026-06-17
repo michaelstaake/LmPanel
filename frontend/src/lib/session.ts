@@ -8,6 +8,7 @@ export type BootstrapStatus = {
   users_can_register: boolean;
   sitename: string;
   favicon_path: string | null;
+  logo_path: string | null;
   knowledge_base_enabled: boolean;
   cloudflare_turnstile_enabled: boolean;
   cloudflare_turnstile_site_key: string | null;

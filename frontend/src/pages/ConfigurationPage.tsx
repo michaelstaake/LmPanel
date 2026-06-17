@@ -8,6 +8,8 @@ import SettingsLayout from "./SettingsLayout";
 const DEFAULT_SITENAME = "LmPanel";
 const ALLOWED_FAVICON_TYPES = new Set(["image/jpeg", "image/png"]);
 const MAX_FAVICON_BYTES = 2 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/svg+xml", "image/gif"]);
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
 function normalizePublicUrl(rawUrl: string): string | null {
   const trimmed = rawUrl.trim();
@@ -49,6 +51,7 @@ export default function ConfigurationPage() {
     users_can_register: false,
     sitename: DEFAULT_SITENAME,
     favicon_path: null,
+    logo_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
     public_url: "",
@@ -72,7 +75,9 @@ export default function ConfigurationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<keyof AppSettingsRecord | null>(null);
   const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const faviconInputRef = useRef<HTMLInputElement | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -178,6 +183,62 @@ export default function ConfigurationPage() {
       setIsUploadingFavicon(false);
       if (faviconInputRef.current) {
         faviconInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function uploadLogo(file: File) {
+    if (!token) {
+      return;
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!ALLOWED_LOGO_TYPES.has(file.type) && !["jpg", "jpeg", "png", "svg", "gif"].includes(extension)) {
+      showError("Logo must be a JPG, PNG, SVG, or GIF file.");
+      return;
+    }
+
+    if (file.size > MAX_LOGO_BYTES) {
+      showError("Logo must be 5 MB or smaller.");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await apiPostForm<AppSettingsRecord>("/api/admin/settings/logo", formData, token);
+      setSettings(response);
+      await refreshPublicSettings();
+      showSuccess("Logo updated.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Failed to upload logo");
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = "";
+      }
+    }
+  }
+
+  async function deleteLogo() {
+    if (!token) {
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const response = await apiDelete<AppSettingsRecord>("/api/admin/settings/logo", token);
+      setSettings(response);
+      await refreshPublicSettings();
+      showSuccess("Logo removed.");
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Failed to remove logo");
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = "";
       }
     }
   }
@@ -306,6 +367,54 @@ export default function ConfigurationPage() {
               </div>
             ) : (
               <p className="text-sm text-sand/65">No favicon uploaded. Using default favicon.</p>
+            )}
+          </div>
+          <div className="surface-muted flex flex-col gap-3 px-4 py-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-sand">Custom logo</div>
+                <p className="mt-1 text-sm text-sand/65">
+                  Upload a JPG, PNG, SVG, or GIF to replace the site name in the header. Max 5 MB.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="btn-secondary inline-flex cursor-pointer items-center px-3 py-2 text-sm font-semibold">
+                  <span>{isUploadingLogo ? "Uploading..." : "Upload logo"}</span>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.svg,.gif,image/jpeg,image/png,image/svg+xml,image/gif"
+                    className="hidden"
+                    disabled={isLoading || isUploadingLogo}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) {
+                        void uploadLogo(file);
+                      }
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn-secondary px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => void deleteLogo()}
+                  disabled={isLoading || isUploadingLogo || !settings.logo_path}
+                >
+                  Delete logo
+                </button>
+              </div>
+            </div>
+            {settings.logo_path ? (
+              <div className="grid gap-3">
+                <p className="text-sm text-sand/65">The uploaded logo replaces the site name in the header.</p>
+                <img
+                  src={resolveApiUrl(settings.logo_path)}
+                  alt="Current logo"
+                  className="h-12 max-w-[200px] border border-white/15 object-contain"
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-sand/65">No logo uploaded. Using site name in the header.</p>
             )}
           </div>
           <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">

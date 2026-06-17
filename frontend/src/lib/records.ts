@@ -305,6 +305,7 @@ export type AppSettingsRecord = {
   users_can_register: boolean;
   sitename: string;
   favicon_path: string | null;
+  logo_path: string | null;
   input_price_per_1m: number;
   output_price_per_1m: number;
   public_url: string;
