@@ -1,14 +1,14 @@
 """add request timeout setting
 
 Revision ID: 0007_request_timeout
-Revises: a1b2c3d4e5f6
+Revises: 0006_pool_max_slots_and_order
 Create Date: 2026-06-17 00:00:00.000000
 """
 from alembic import op
 import sqlalchemy as sa
 
 revision = "0007_request_timeout"
-down_revision = "a1b2c3d4e5f6"
+down_revision = "0006_pool_max_slots_and_order"
 branch_labels = None
 depends_on = None
 
