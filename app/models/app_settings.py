@@ -54,3 +54,4 @@ class AppSettings(Base):
     mail_email_port: Mapped[int] = mapped_column(Integer, default=587, nullable=False)
     mail_email_security: Mapped[str] = mapped_column(String(16), default="starttls", nullable=False)
     mail_email_from_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    request_timeout_seconds: Mapped[int] = mapped_column(Integer, default=300, nullable=False)

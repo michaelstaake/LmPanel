@@ -305,6 +305,7 @@ class AppSettingsResponse(BaseModel):
     mail_email_port: int = 587
     mail_email_security: str = "starttls"
     mail_email_from_name: str | None = None
+    request_timeout_seconds: int = 300
 
     @field_validator("public_url", mode="before")
     @classmethod
@@ -348,6 +349,7 @@ class AppSettingsUpdateRequest(BaseModel):
     mail_email_port: int | None = None
     mail_email_security: str | None = None
     mail_email_from_name: str | None = None
+    request_timeout_seconds: int | None = None
 
     @field_validator("public_url", mode="before")
     @classmethod

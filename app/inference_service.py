@@ -387,19 +387,20 @@ class InferenceRuntime:
         )
         return False
 
-    async def chat_completion(self, model_id: int, payload: dict) -> dict:
+    async def chat_completion(self, model_id: int, payload: dict, *, request_timeout: int | None = None) -> dict:
         running = self._running.get(model_id)
         if not running:
             raise RuntimeError("Model is not active")
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
-        async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
+        timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
         response_payload = response.json()
         self._record_usage_from_payload(response_payload)
         return response_payload
 
-    async def stream_chat_completion(self, model_id: int, payload: dict):
+    async def stream_chat_completion(self, model_id: int, payload: dict, *, request_timeout: int | None = None):
         running = self._running.get(model_id)
         if not running:
             raise RuntimeError("Model is not active")
@@ -407,7 +408,8 @@ class InferenceRuntime:
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         decoder = codecs.getincrementaldecoder("utf-8")("ignore")
         event_buffer = ""
-        async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
+        timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
+        async with httpx.AsyncClient(timeout=timeout) as client:
             try:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.is_error:

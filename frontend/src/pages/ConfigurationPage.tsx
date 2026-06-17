@@ -65,6 +65,7 @@ export default function ConfigurationPage() {
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
     update_check_mode: "disabled",
+    request_timeout_seconds: 300,
   });
   const [localSitename, setLocalSitename] = useState(DEFAULT_SITENAME);
   const [localPublicUrl, setLocalPublicUrl] = useState("");
@@ -321,6 +322,26 @@ export default function ConfigurationPage() {
               onChange={(event) => void updateSetting("users_can_register", event.target.checked)}
             />
           </label>
+          <div className="surface-muted flex flex-col gap-2 px-4 py-4">
+            <div>
+              <div className="text-sm font-semibold text-sand">Request timeout</div>
+              <p className="mt-1 text-sm text-sand/65">
+                How long a single chat or API request is allowed to run before being terminated.
+              </p>
+            </div>
+            <div className="mt-2 max-w-sm">
+              <select
+                className="field w-auto px-3 py-2 text-sm"
+                value={settings.request_timeout_seconds}
+                disabled={isLoading || isSaving === "request_timeout_seconds"}
+                onChange={(e) => void updateSetting("request_timeout_seconds", Number(e.target.value))}
+              >
+                <option value={300}>5 minutes</option>
+                <option value={900}>15 minutes</option>
+                <option value={3600}>60 minutes</option>
+              </select>
+            </div>
+          </div>
         </div>
       </article>
       </section>

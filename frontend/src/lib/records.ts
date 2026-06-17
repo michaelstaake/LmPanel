@@ -338,6 +338,7 @@ export type AppSettingsRecord = {
   mail_email_port: number;
   mail_email_security: string;
   mail_email_from_name: string | null;
+  request_timeout_seconds: number;
 };
 
 export type SslCertificateStatus = {

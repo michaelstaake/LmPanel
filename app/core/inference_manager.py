@@ -276,25 +276,27 @@ class InferenceManager:
 
         return False
 
-    async def chat_completion(self, model_id: int, payload: dict) -> dict:
+    async def chat_completion(self, model_id: int, payload: dict, *, request_timeout: int | None = None) -> dict:
         running = self._running.get(model_id)
         if not running:
             raise RuntimeError("Model is not active")
 
         url = f"{running.base_url}/runtime/models/{model_id}/chat/completions"
-        async with httpx.AsyncClient(timeout=self.settings.inference_service_timeout_seconds) as client:
+        timeout = request_timeout if request_timeout is not None else self.settings.inference_service_timeout_seconds
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
         return response.json()
 
-    async def stream_chat_completion(self, model_id: int, payload: dict) -> AsyncIterator[bytes]:
+    async def stream_chat_completion(self, model_id: int, payload: dict, *, request_timeout: int | None = None) -> AsyncIterator[bytes]:
         running = self._running.get(model_id)
         if not running:
             raise RuntimeError("Model is not active")
 
         url = f"{running.base_url}/runtime/models/{model_id}/chat/completions"
+        timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
-            async with httpx.AsyncClient(timeout=self.settings.llama_request_timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.is_error:
                         await response.aread()

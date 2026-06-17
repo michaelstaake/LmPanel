@@ -228,6 +228,8 @@ async def _run_web_search_non_streaming(
     model_id: int,
     request_payload: dict[str, Any],
     provider: Any,
+    *,
+    request_timeout: int | None = None,
 ) -> tuple[dict[str, Any], int]:
     """Run the agentic web search loop for non-streaming requests.
 
@@ -241,7 +243,7 @@ async def _run_web_search_non_streaming(
     total_tool_calls = 0
 
     for _ in range(_WEB_SEARCH_MAX_ITERATIONS):
-        result = await inference.chat_completion(model_id, {**request_payload, "messages": messages, "tools": tools})
+        result = await inference.chat_completion(model_id, {**request_payload, "messages": messages, "tools": tools}, request_timeout=request_timeout)
         choices = result.get("choices", [])
         if not choices:
             return result, total_tool_calls
@@ -263,7 +265,7 @@ async def _run_web_search_non_streaming(
         messages = messages + tool_results
 
     # Exhausted iterations — request a final text answer without tools
-    final_result = await inference.chat_completion(model_id, {**request_payload, "messages": messages, "tools": []})
+    final_result = await inference.chat_completion(model_id, {**request_payload, "messages": messages, "tools": []}, request_timeout=request_timeout)
     return final_result, total_tool_calls
 
 
@@ -274,6 +276,7 @@ async def _stream_with_web_search(
     provider: Any,
     *,
     thinking_enabled: bool = True,
+    request_timeout: int | None = None,
     _tool_calls_container: dict[str, int] | None = None,
 ):
     """Async generator for streaming responses with web search support.
@@ -300,7 +303,7 @@ async def _stream_with_web_search(
         intermediate_payload["messages"] = messages
         intermediate_payload["tools"] = current_tools
         intermediate_payload["stream_options"] = stream_options
-        async for chunk in inference.stream_chat_completion(model_id, intermediate_payload):
+        async for chunk in inference.stream_chat_completion(model_id, intermediate_payload, request_timeout=request_timeout):
             buffered.append(chunk)
             yield filter_thinking_from_sse_chunk(chunk, thinking_enabled)
 
@@ -327,7 +330,7 @@ async def _stream_with_web_search(
     final_payload["messages"] = messages
     final_payload["tools"] = []
     final_payload["stream_options"] = stream_options
-    async for chunk in inference.stream_chat_completion(model_id, final_payload):
+    async for chunk in inference.stream_chat_completion(model_id, final_payload, request_timeout=request_timeout):
         yield filter_thinking_from_sse_chunk(chunk, thinking_enabled)
 
 
@@ -527,6 +530,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                         request_payload,
                         active_web_search_provider,
                         thinking_enabled=thinking_enabled,
+                        request_timeout=app_settings.request_timeout_seconds,
                         _tool_calls_container=_web_search_tool_calls,
                     ):
                         extracted_usage = _extract_usage_from_sse_chunk(chunk)
@@ -554,7 +558,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
 
         task_manager.attach_async_task(task_id, asyncio.current_task())
         try:
-            result, total_tool_calls = await _run_web_search_non_streaming(inference, model_id, request_payload, active_web_search_provider)
+            result, total_tool_calls = await _run_web_search_non_streaming(inference, model_id, request_payload, active_web_search_provider, request_timeout=app_settings.request_timeout_seconds)
         except asyncio.CancelledError:
             task_manager.mark_cancelled(task_id)
             raise
@@ -582,7 +586,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                 async for chunk in inference.stream_chat_completion(model_id, {
                     **request_payload,
                     "stream_options": {"include_usage": True},
-                }):
+                }, request_timeout=app_settings.request_timeout_seconds):
                     if not usage_recorded:
                         usage_recorded = _record_usage_from_sse_chunk(
                             chunk,
@@ -604,7 +608,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
 
     task_manager.attach_async_task(task_id, asyncio.current_task())
     try:
-        result = await inference.chat_completion(model_id, request_payload)
+        result = await inference.chat_completion(model_id, request_payload, request_timeout=app_settings.request_timeout_seconds)
     except asyncio.CancelledError:
         task_manager.mark_cancelled(task_id)
         raise
