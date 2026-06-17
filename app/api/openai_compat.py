@@ -489,6 +489,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
 
         model_id = model.id
         model_alias = model.alias
+        request_timeout_seconds = app_settings.request_timeout_seconds
     finally:
         db.close()
 
@@ -530,7 +531,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                         request_payload,
                         active_web_search_provider,
                         thinking_enabled=thinking_enabled,
-                        request_timeout=app_settings.request_timeout_seconds,
+                        request_timeout=request_timeout_seconds,
                         _tool_calls_container=_web_search_tool_calls,
                     ):
                         extracted_usage = _extract_usage_from_sse_chunk(chunk)
@@ -558,7 +559,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
 
         task_manager.attach_async_task(task_id, asyncio.current_task())
         try:
-            result, total_tool_calls = await _run_web_search_non_streaming(inference, model_id, request_payload, active_web_search_provider, request_timeout=app_settings.request_timeout_seconds)
+            result, total_tool_calls = await _run_web_search_non_streaming(inference, model_id, request_payload, active_web_search_provider, request_timeout=request_timeout_seconds)
         except asyncio.CancelledError:
             task_manager.mark_cancelled(task_id)
             raise
@@ -586,7 +587,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                 async for chunk in inference.stream_chat_completion(model_id, {
                     **request_payload,
                     "stream_options": {"include_usage": True},
-                }, request_timeout=app_settings.request_timeout_seconds):
+                }, request_timeout=request_timeout_seconds):
                     if not usage_recorded:
                         usage_recorded = _record_usage_from_sse_chunk(
                             chunk,
@@ -608,7 +609,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
 
     task_manager.attach_async_task(task_id, asyncio.current_task())
     try:
-        result = await inference.chat_completion(model_id, request_payload, request_timeout=app_settings.request_timeout_seconds)
+        result = await inference.chat_completion(model_id, request_payload, request_timeout=request_timeout_seconds)
     except asyncio.CancelledError:
         task_manager.mark_cancelled(task_id)
         raise
