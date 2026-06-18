@@ -159,7 +159,9 @@ def parse_sse_chunks(chunks: list) -> tuple[dict[str, Any], str | None]:
                 if choice.get("finish_reason"):
                     finish_reason = choice["finish_reason"]
 
-    message: dict[str, Any] = {"role": "assistant", "content": content or None}
+    message: dict[str, Any] = {"role": "assistant"}
+    if content:
+        message["content"] = content
     if tool_calls_by_index:
         message["tool_calls"] = [tool_calls_by_index[i] for i in sorted(tool_calls_by_index.keys())]
 

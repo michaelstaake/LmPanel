@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
+from app.utils.schemas import sanitize_inference_messages
 from app.core.device_manager import (
     AMD_VENDOR_ID,
     INTEL_VENDOR_ID,
@@ -391,10 +392,13 @@ class InferenceRuntime:
         running = self._running.get(model_id)
         if not running:
             raise RuntimeError("Model is not active")
+        request_payload = dict(payload)
+        if "messages" in request_payload:
+            request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=payload)
+            response = await client.post(url, json=request_payload)
         response.raise_for_status()
         response_payload = response.json()
         self._record_usage_from_payload(response_payload)
@@ -405,13 +409,17 @@ class InferenceRuntime:
         if not running:
             raise RuntimeError("Model is not active")
 
+        request_payload = dict(payload)
+        if "messages" in request_payload:
+            request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
+
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         decoder = codecs.getincrementaldecoder("utf-8")("ignore")
         event_buffer = ""
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         async with httpx.AsyncClient(timeout=timeout) as client:
             try:
-                async with client.stream("POST", url, json=payload) as response:
+                async with client.stream("POST", url, json=request_payload) as response:
                     if response.is_error:
                         await response.aread()
                         raise RuntimeError(_runtime_error_detail(response))

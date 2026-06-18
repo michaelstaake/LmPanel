@@ -31,7 +31,7 @@ from app.core.thinking_controls import (
     model_thinking_metadata,
     resolve_thinking_enabled,
 )
-from app.utils.schemas import OpenAIChatRequest
+from app.utils.schemas import OpenAIChatRequest, sanitize_inference_messages
 
 logger = logging.getLogger(__name__)
 
@@ -454,16 +454,12 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
             request_payload["repetition_penalty"] = model.repetition_penalty
         request_payload["enable_thinking"] = resolve_thinking_enabled(model, payload.enable_thinking)
         thinking_enabled = bool(request_payload["enable_thinking"])
-        request_payload["messages"] = [
-            {
-                key: value
-                for key, value in message.model_dump(exclude_none=True).items()
-                if key != "content" or value != ""
-            }
-            for message in payload.messages
-        ]
+        request_payload["messages"] = sanitize_inference_messages(
+            [message.model_dump(exclude_none=True) for message in payload.messages]
+        )
 
         request_payload = apply_thinking_to_request(request_payload, model, thinking_enabled)
+        request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
 
         rag_context = ""
         rag_enabled = payload.model_extra.get("rag_enabled", False) if payload.model_extra else False

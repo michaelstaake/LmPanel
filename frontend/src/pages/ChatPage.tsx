@@ -826,7 +826,7 @@ export default function ChatPage() {
     try {
       const stats = await streamCompletion(
         selectedModel,
-        nextMessages.map((message) => ({ role: message.role, content: message.apiContent ?? message.content })),
+        nextMessages.filter(shouldIncludeMessageInApiRequest).map(buildApiMessage),
         useWebSearch && selectedModelSupportsWebSearch,
         effectiveUseThinking,
         abortController.signal,
@@ -1700,6 +1700,24 @@ async function streamCompletion(
     totalTokens: usage?.total_tokens ?? null,
     tokensPerSecond: completionTokens !== null ? completionTokens / elapsedSeconds : null,
   };
+}
+
+function buildApiMessage(message: ChatMessage): { role: ChatRole; content: ChatMessageContent } {
+  const content = message.apiContent ?? message.content ?? message.thinking ?? "";
+  return { role: message.role, content };
+}
+
+function shouldIncludeMessageInApiRequest(message: ChatMessage): boolean {
+  if (message.role !== "assistant") {
+    return true;
+  }
+
+  const content = message.apiContent ?? message.content ?? message.thinking ?? "";
+  if (typeof content === "string") {
+    return content.length > 0;
+  }
+
+  return content.length > 0;
 }
 
 function buildUserMessageContent(inputText: string, attachments: Attachment[]): { displayContent: string; apiContent: ChatMessageContent } {

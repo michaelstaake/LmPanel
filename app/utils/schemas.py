@@ -107,6 +107,54 @@ def normalize_message_content(content: Any) -> str:
     raise ValueError("content must be a string or an array of content parts")
 
 
+def message_content_is_empty(content: Any) -> bool:
+    if content is None:
+        return True
+    if isinstance(content, str):
+        return content == ""
+    if isinstance(content, list):
+        if not content:
+            return True
+        for part in content:
+            if not isinstance(part, dict):
+                continue
+            part_type = part.get("type")
+            if part_type in {"text", "input_text"} and (part.get("text") or ""):
+                return False
+            if part_type == "image_url":
+                image_url = part.get("image_url")
+                if isinstance(image_url, dict) and image_url.get("url"):
+                    return False
+        return True
+    return True
+
+
+def normalize_message_for_inference(message: dict[str, Any]) -> dict[str, Any] | None:
+    role = message.get("role")
+    has_tool_calls = bool(message.get("tool_calls"))
+    content_empty = message_content_is_empty(message.get("content"))
+
+    if role == "assistant" and content_empty and not has_tool_calls:
+        return None
+
+    return {
+        key: value
+        for key, value in message.items()
+        if value is not None and (key != "content" or not message_content_is_empty(value))
+    }
+
+
+def sanitize_inference_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    sanitized: list[dict[str, Any]] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        normalized = normalize_message_for_inference(message)
+        if normalized is not None:
+            sanitized.append(normalized)
+    return sanitized
+
+
 def validate_openai_message_content(content: Any) -> str | list[dict[str, Any]]:
     """Validate OpenAI-style content while preserving multimodal parts."""
     if content is None:
