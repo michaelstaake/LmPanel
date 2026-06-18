@@ -83,7 +83,7 @@ export default function ApiPage() {
     }
   }
 
-  const DEFAULT_API_BASE_URL = "https://EXAMPLE.PUP:8443";
+  const DEFAULT_API_BASE_URL = "https://localhost:8444";
 
   const BASE_URL = setupStatus?.api_base_url || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 
