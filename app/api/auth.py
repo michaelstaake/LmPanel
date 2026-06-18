@@ -100,7 +100,7 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
         cloudflare_turnstile_enabled=app_settings.cloudflare_turnstile_enabled,
         cloudflare_turnstile_site_key=app_settings.cloudflare_turnstile_site_key,
         public_url=public_url,
-        api_base_url=build_api_base_url(public_url, settings.frontend_origin),
+        api_base_url=build_api_base_url(public_url, settings.app_port),
     )
 
 
