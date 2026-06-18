@@ -73,7 +73,7 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
   };
 
   return (
-    <div className={className}>
+    <div className={`markdown-content${className ? ` ${className}` : ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeHighlight]}
