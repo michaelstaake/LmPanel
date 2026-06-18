@@ -467,7 +467,7 @@ export default function KnowledgeBasePage() {
               {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="relative  border border-white/10 bg-white/60 p-4 transition hover:bg-white/10"
+                  className="relative  border border-white/10 bg-white/10 p-4 transition hover:bg-white/60"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
