@@ -506,7 +506,7 @@ class DeviceUpdateRequest(BaseModel):
 
 class GpuPoolCreateRequest(BaseModel):
     name: str = Field(default="GPU Pool", min_length=1, max_length=120)
-    vendor: str = Field(default="nvidia", min_length=1, max_length=32)
+    vendor: str = Field(default="vulkan", min_length=1, max_length=32)
     device_ids: list[int] = Field(min_length=2)
     split_mode: str = Field(default="layer", min_length=1, max_length=16)
     max_slots: int = Field(default=0, ge=0)

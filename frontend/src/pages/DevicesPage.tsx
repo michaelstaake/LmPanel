@@ -8,7 +8,7 @@ import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/record
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
-const POOL_VENDORS = ["nvidia", "vulkan"] as const;
+const POOL_VENDORS = ["vulkan"] as const;
 const SPLIT_MODES = ["layer", "tensor"] as const;
 
 function normalizePoolSplitMode(mode: string): (typeof SPLIT_MODES)[number] {
@@ -51,7 +51,6 @@ function sortPools(pools: GpuPoolRecord[]) {
 }
 
 function vendorLabel(vendor: string) {
-  if (vendor === "nvidia") return "NVIDIA";
   if (vendor === "vulkan") return "Vulkan";
   return vendor;
 }
@@ -87,7 +86,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const [poolLoadingTarget, setPoolLoadingTarget] = useState<string | null>(null);
   const [selectedPoolDeviceIds, setSelectedPoolDeviceIds] = useState<number[]>([]);
   const [poolDraftName, setPoolDraftName] = useState("GPU Pool");
-  const [poolDraftVendor, setPoolDraftVendor] = useState<(typeof POOL_VENDORS)[number]>("nvidia");
+  const [poolDraftVendor, setPoolDraftVendor] = useState<(typeof POOL_VENDORS)[number]>("vulkan");
   const [poolDraftSplitMode, setPoolDraftSplitMode] = useState<(typeof SPLIT_MODES)[number]>("layer");
   const [poolDraftMaxSlots, setPoolDraftMaxSlots] = useState(0);
   const [editingPoolId, setEditingPoolId] = useState<number | null>(null);
@@ -471,7 +470,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   function resetPoolDraft() {
     setEditingPoolId(null);
     setPoolDraftName("GPU Pool");
-    setPoolDraftVendor((draftVendorOptions[0] ?? availablePoolVendors[0] ?? "nvidia") as (typeof POOL_VENDORS)[number]);
+    setPoolDraftVendor((draftVendorOptions[0] ?? availablePoolVendors[0] ?? "vulkan") as (typeof POOL_VENDORS)[number]);
     setPoolDraftSplitMode("layer");
     setPoolDraftMaxSlots(0);
     setSelectedPoolDeviceIds([]);

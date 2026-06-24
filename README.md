@@ -13,9 +13,9 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 ### Supported Devices
 
 - **CPU**: x86_64
-- **NVIDIA GPU**: CUDA (`--profile nvidia`)
-- **AMD GPU**: Vulkan (`--profile vulkan`)
-- **Intel Arc GPU**: Vulkan (`--profile vulkan`)
+- **GPU** (NVIDIA, AMD, Intel Arc): Vulkan
+
+All devices are handled by the default Docker stack. No compose profiles are required.
 
 ### Ubuntu 26.04
 
@@ -25,7 +25,7 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 ### Docker
 
-Ensure Docker is installed and running in the system context and is using the correct runtimes for your hardware.
+Ensure Docker is installed and running in the system context. For NVIDIA GPUs, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) so Vulkan can access the GPU inside the container.
 
 ### Quick Start
 
@@ -51,41 +51,15 @@ cp .env.example .env
 
 **3. Run it.**
 
-The base stack always includes the CPU inference runtime. Add one or more GPU profiles depending on the hardware in the host. You can mix multiple hardware types.
-
-Choose one of these commands:
-
-#### CPU:
-
 ```bash
 docker compose up -d --build
 ```
 
-#### CPU + NVIDIA:
-
-```bash
-docker compose --profile nvidia up -d --build
-```
-
-#### CPU + Vulkan (Intel Arc, or AMD):
-
-```bash
-docker compose --profile vulkan up -d --build
-```
-
-#### Mixed Vendors:
-
-If you would like to use devices from more than one vendor, no problem. Just add additional profiles. Here's an example with NVIDIA and Vulkan support:
-
-```bash
-docker compose --profile nvidia --profile vulkan up -d --build
-```
-
 #### Notes
 
-At every startup, LmPanel will auto-detect all applicable devices. If you change profiles or remove/replace a GPU with a different one, any old ones will be removed from the database automatically. Models that were assigned to a specific device will revert to Auto mode.
+At every startup, LmPanel will auto-detect all applicable devices. If you remove or replace a GPU, any old ones will be removed from the database automatically. Models that were assigned to a specific device will revert to Auto mode.
 
-The initial build process or the build process when changing or adding profiles may take a while depending on your environment and host performance, as we are building llama-cpp based on your chosen inference runtime. This is normal. Subsequent builds should be much quicker, although occasionally updates may require a fresh build of llama-cpp.
+The initial build may take a while depending on your environment and host performance, as llama.cpp is compiled with Vulkan support. This is normal. Subsequent builds should be much quicker, although occasionally updates may require a fresh build of llama.cpp.
 
 **4. Proceed to web interface**
 
@@ -107,12 +81,10 @@ By default, models are in Auto mode for device selection. In this case, LmPanel 
 
 **7. ENJOY!**
 
-To stop LmPanel, use the command that matches the profiles you started with to ensure that all relevant containers are stopped. Docker Compose only stops services in the currently supplied profile set, so the `down` command must use the same profiles as `up`.
+To stop LmPanel:
 
 ```bash
 docker compose down
-docker compose --profile nvidia down
-docker compose --profile vulkan down
 ```
 
 ## Interacting with the AI Models
@@ -220,10 +192,9 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 ### Device Issues
 
 - **Device not detected**:
-  - Check vendor tooling is installed on the host system:
-    - Ubuntu 26.04: `nvidia-smi` (NVIDIA) or `vulkaninfo` (Intel Arc / AMD)
-  - Ensure the appropriate GPU Docker runtime is configured and accessible to the environment.
-  - Restart the application after installing drivers on the host.
+  - Check that `vulkaninfo` works on the host and lists your GPU(s).
+  - For NVIDIA hosts, install the NVIDIA Container Toolkit and confirm Docker can pass GPUs into containers.
+  - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues
 

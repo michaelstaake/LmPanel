@@ -57,7 +57,7 @@ def _runtime_error_detail(response: httpx.Response) -> str:
 
     return f"Inference runtime request failed with status {response.status_code}"
 
-_GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan"})
+_GPU_OFFLOAD_VENDORS = frozenset({"vulkan"})
 
 
 def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
@@ -93,8 +93,8 @@ def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) 
     lowered = text.lower()
     if "no usable gpu found" in lowered or "gpu-layers option will be ignored" in lowered:
         raise RuntimeError(
-            "llama-server has no usable GPU backend. Rebuild with the correct inference profile "
-            "(for AMD: docker compose --profile vulkan)."
+            "llama-server has no usable GPU backend. Confirm the GPU is visible inside the inference "
+            "container (vulkaninfo) and that host drivers are installed."
         )
 
     match = re.search(r"offloaded\s+(\d+)/(\d+)\s+layers", text, re.IGNORECASE)
@@ -367,16 +367,10 @@ class InferenceRuntime:
 
     def _build_env(self, vendor: str, hardware_id: str, threads: int, hardware_ids: list[str] | None = None) -> dict[str, str]:
         env = os.environ.copy()
-        if vendor == "nvidia_pool":
-            ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
-            env["CUDA_VISIBLE_DEVICES"] = ",".join(indices)
-        elif vendor == "vulkan_pool":
+        if vendor == "vulkan_pool":
             ids = hardware_ids if hardware_ids else [hardware_id]
             indices = [hid.split(":")[-1] for hid in ids]
             env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
-        elif vendor == "nvidia":
-            env["CUDA_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
         elif vendor == "vulkan":
             env["GGML_VK_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
         elif vendor == "cpu":
@@ -578,7 +572,6 @@ class InferenceRuntime:
             "process_memory_by_pid": {},
         }
 
-        metrics.update(self._collect_nvidia_metrics())
         metrics.update(self._collect_vulkan_metrics())
         return metrics
 
@@ -678,60 +671,6 @@ class InferenceRuntime:
             process_memory = intel_metrics.get("process_memory_by_pid")
             if isinstance(process_memory, dict) and process_memory:
                 metric["process_memory_by_pid"] = process_memory
-
-        return metrics
-
-    def _collect_nvidia_metrics(self) -> dict[str, dict]:
-        gpu_output = self._run_command(
-            [
-                "nvidia-smi",
-                "--query-gpu=index,uuid,utilization.gpu,memory.used,memory.total",
-                "--format=csv,noheader,nounits",
-            ]
-        )
-        if not gpu_output:
-            return {}
-
-        metrics: dict[str, dict] = {}
-        hardware_ids_by_uuid: dict[str, str] = {}
-        for line in gpu_output.splitlines():
-            parts = [part.strip() for part in line.split(",")]
-            if len(parts) < 5:
-                continue
-
-            hardware_id = f"nvidia:{parts[0]}"
-            uuid = parts[1]
-            hardware_ids_by_uuid[uuid] = hardware_id
-            metrics[hardware_id] = {
-                "usage_percent": self._parse_float(parts[2]),
-                "usage_source": "nvidia-smi",
-                "memory_used_mb": self._parse_int(parts[3]),
-                "memory_total_mb": self._parse_int(parts[4]),
-                "memory_source": "nvidia-smi",
-                "process_memory_by_pid": {},
-            }
-
-        process_output = self._run_command(
-            [
-                "nvidia-smi",
-                "--query-compute-apps=gpu_uuid,pid,used_gpu_memory",
-                "--format=csv,noheader,nounits",
-            ]
-        )
-        for line in process_output.splitlines():
-            parts = [part.strip() for part in line.split(",")]
-            if len(parts) < 3:
-                continue
-
-            hardware_id = hardware_ids_by_uuid.get(parts[0])
-            pid = self._parse_int(parts[1])
-            used_memory_mb = self._parse_int(parts[2])
-            if not hardware_id or pid is None or used_memory_mb is None:
-                continue
-
-            metrics.setdefault(hardware_id, {"process_memory_by_pid": {}})
-            process_memory_by_pid = metrics[hardware_id].setdefault("process_memory_by_pid", {})
-            process_memory_by_pid[pid] = used_memory_mb
 
         return metrics
 

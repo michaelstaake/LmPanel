@@ -34,7 +34,7 @@ def get_supported_vendors() -> set[str]:
     if configured:
         return set(configured)
 
-    return {"cpu", "nvidia", "vulkan"}
+    return {"cpu", "vulkan"}
 
 
 def is_supported_vendor(vendor: str) -> bool:
@@ -69,7 +69,6 @@ class DeviceManager:
 
     def detect_local(self) -> list[DetectedDevice]:
         devices: list[DetectedDevice] = []
-        devices.extend(self._detect_nvidia())
         devices.extend(self._detect_vulkan())
         devices.extend(self._detect_cpu())
         return devices
@@ -217,28 +216,6 @@ class DeviceManager:
             logger.debug("Device probe command failed (%s): %s", command, exc)
             return ""
 
-    def _detect_nvidia(self) -> list[DetectedDevice]:
-        output = self._run("nvidia-smi --query-gpu=index,gpu_uuid,name,memory.total --format=csv,noheader,nounits")
-        devices: list[DetectedDevice] = []
-        for line in output.splitlines():
-            parts = [p.strip() for p in line.split(",")]
-            if len(parts) < 4:
-                continue
-            stable_hardware_id = _normalize_optional_identifier(parts[1])
-            devices.append(
-                DetectedDevice(
-                    hardware_id=f"nvidia:{parts[0]}",
-                    stable_hardware_id=stable_hardware_id,
-                    stable_hardware_id_source="nvidia_uuid" if stable_hardware_id else None,
-                    name=parts[2],
-                    vendor="nvidia",
-                    device_type="gpu",
-                    memory_mb=int(parts[3] or "0"),
-                    max_slots=0,
-                )
-            )
-        return devices
-
     def _detect_vulkan(self) -> list[DetectedDevice]:
         if not is_supported_vendor("vulkan"):
             return []
@@ -376,19 +353,6 @@ class DeviceManager:
         cpu_device = self._detect_cpu()[0]
         if "cpu" in vendors:
             devices.append(cpu_device)
-        if "nvidia" in vendors:
-            devices.append(
-                DetectedDevice(
-                    hardware_id="nvidia:0",
-                    stable_hardware_id=None,
-                    stable_hardware_id_source=None,
-                    name="NVIDIA GPU",
-                    vendor="nvidia",
-                    device_type="gpu",
-                    memory_mb=0,
-                    max_slots=0,
-                )
-            )
         if "vulkan" in vendors:
             devices.append(
                 DetectedDevice(

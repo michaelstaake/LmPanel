@@ -797,7 +797,7 @@ def delete_model(model_id: int, _: User = Depends(get_admin_user), db: Session =
 
 
 async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: InferenceManager) -> Device | PoolActivationTarget | None:
-    supported_vendors = [vendor for vendor in ["cpu", "nvidia", "vulkan"] if is_supported_vendor(vendor)]
+    supported_vendors = [vendor for vendor in ["cpu", "vulkan"] if is_supported_vendor(vendor)]
     model_size_mb = _estimate_model_size_mb(model)
     memory_metrics = await inference.get_device_memory_mb()
 

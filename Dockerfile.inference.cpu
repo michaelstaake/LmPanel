@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM ubuntu:24.04
 
 WORKDIR /app
 
@@ -8,11 +8,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     curl \
     git \
+    libvulkan-dev \
+    glslc \
+    spirv-headers \
     libcurl4-openssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    mesa-vulkan-drivers \
+    vulkan-tools \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
+    && groupadd -f -g 44 video \
+    && groupadd -f -g 104 render
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+
+ENV PATH=/opt/venv/bin:$PATH
 
 ARG LLAMA_CPP_TAG=""
 RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
@@ -20,7 +34,10 @@ RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
     else \
         git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
     fi \
-    && cmake -S /opt/llama.cpp -B /opt/llama.cpp/build -DLLAMA_BUILD_SERVER=ON \
+    && cmake -S /opt/llama.cpp -B /opt/llama.cpp/build \
+        -DLLAMA_BUILD_SERVER=ON \
+        -DGGML_VULKAN=ON \
+        -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /opt/llama.cpp/build --config Release --target llama-server -j2
 
 COPY app ./app
@@ -28,6 +45,7 @@ COPY app ./app
 RUN mkdir -p /app/models /app/logs
 
 ENV LLAMA_SERVER_PATH=/opt/llama.cpp/build/bin/llama-server
+ENV SUPPORTED_DEVICES=cpu,vulkan
 
 EXPOSE 8100
 

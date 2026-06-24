@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest import mock
 
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
@@ -36,7 +37,7 @@ def _make_session():
 class DeleteUnavailableDevicesTests(unittest.TestCase):
     def test_removes_vulkan_device_when_not_detected(self) -> None:
         db = _make_session()
-        vulkan = Device(
+        stale = Device(
             hardware_id="vulkan:0",
             name="Intel Arc A380",
             vendor="vulkan",
@@ -44,23 +45,23 @@ class DeleteUnavailableDevicesTests(unittest.TestCase):
             memory_mb=6000,
             enabled=True,
         )
-        nvidia = Device(
-            hardware_id="nvidia:0",
-            name="NVIDIA GPU",
-            vendor="nvidia",
+        current = Device(
+            hardware_id="vulkan:1",
+            name="AMD GPU",
+            vendor="vulkan",
             device_type="gpu",
             memory_mb=32000,
             enabled=True,
         )
-        db.add_all([vulkan, nvidia])
+        db.add_all([stale, current])
         db.commit()
 
-        removed = delete_unavailable_devices(db, {"nvidia:0"})
+        removed = delete_unavailable_devices(db, {"vulkan:1"})
         db.commit()
 
-        self.assertEqual(removed, [vulkan.id])
+        self.assertEqual(removed, [stale.id])
         remaining = {row.hardware_id for row in db.query(Device).all()}
-        self.assertEqual(remaining, {"nvidia:0"})
+        self.assertEqual(remaining, {"vulkan:1"})
 
     def test_reverts_pinned_model_before_delete(self) -> None:
         db = _make_session()
@@ -115,44 +116,44 @@ class SyncDetectedDevicesTests(unittest.TestCase):
         manager = DeviceManager()
         detected = [
             DetectedDevice(
-                hardware_id="nvidia:0",
-                stable_hardware_id="GPU-abc123",
-                stable_hardware_id_source="nvidia_uuid",
-                name="NVIDIA GPU",
-                vendor="nvidia",
+                hardware_id="vulkan:1",
+                stable_hardware_id=None,
+                stable_hardware_id_source=None,
+                name="NVIDIA GeForce RTX 4090",
+                vendor="vulkan",
                 device_type="gpu",
                 memory_mb=32000,
             )
         ]
 
-        with unittest.mock.patch.object(DeviceManager, "detect_all", return_value=detected):
+        with mock.patch.object(DeviceManager, "detect_all", return_value=detected):
             rows = manager.sync_detected_devices(db)
 
         hardware_ids = {row.hardware_id for row in rows}
-        self.assertEqual(hardware_ids, {"nvidia:0"})
-        self.assertEqual(db.query(Device).filter(Device.vendor == "vulkan").count(), 0)
+        self.assertEqual(hardware_ids, {"vulkan:1"})
+        self.assertEqual(db.query(Device).filter(Device.hardware_id == "vulkan:0").count(), 0)
 
     def test_default_name_for_device_uses_last_detected_map(self) -> None:
         db = _make_session()
         manager = DeviceManager()
         detected = [
             DetectedDevice(
-                hardware_id="nvidia:0",
-                stable_hardware_id="GPU-abc123",
-                stable_hardware_id_source="nvidia_uuid",
-                name="NVIDIA GPU",
-                vendor="nvidia",
+                hardware_id="vulkan:0",
+                stable_hardware_id=None,
+                stable_hardware_id_source=None,
+                name="NVIDIA GeForce RTX 4090",
+                vendor="vulkan",
                 device_type="gpu",
                 memory_mb=32000,
             )
         ]
 
-        with unittest.mock.patch.object(DeviceManager, "detect_all", return_value=detected):
+        with mock.patch.object(DeviceManager, "detect_all", return_value=detected):
             rows = manager.sync_detected_devices(db)
 
         device = rows[0]
         device.name = "Custom GPU Label"
-        self.assertEqual(manager.default_name_for_device(device), "NVIDIA GPU")
+        self.assertEqual(manager.default_name_for_device(device), "NVIDIA GeForce RTX 4090")
 
 
 if __name__ == "__main__":

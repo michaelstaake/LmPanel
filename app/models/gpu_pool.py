@@ -13,7 +13,7 @@ class GpuPool(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False, default="GPU Pool")
-    vendor: Mapped[str] = mapped_column(String(32), nullable=False, default="nvidia")
+    vendor: Mapped[str] = mapped_column(String(32), nullable=False, default="vulkan")
     split_mode: Mapped[str] = mapped_column(String(16), nullable=False, default=SPLIT_MODE_LAYER)
     max_slots: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     pool_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

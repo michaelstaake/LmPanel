@@ -232,8 +232,8 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
 
 def _validate_pool_vendor(vendor: str) -> str:
     normalized = vendor.strip().lower()
-    if normalized not in {"nvidia", "vulkan"}:
-        raise HTTPException(status_code=400, detail="GPU pools only support nvidia or vulkan vendors")
+    if normalized != "vulkan":
+        raise HTTPException(status_code=400, detail="GPU pools only support the vulkan vendor")
     return normalized
 
 

@@ -8,8 +8,8 @@ services:
       # Listen on 8000 inside the container; host port 8444 is mapped in `ports` below.
       APP_PORT: "8000"
       FRONTEND_ORIGIN: "https://localhost:8443"
-      INFERENCE_SERVICE_URL: http://inference-cpu:8100
-      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100
+      INFERENCE_SERVICE_URL: http://inference:8100
+      INFERENCE_RUNTIME_URLS: cpu=http://inference:8100,vulkan=http://inference:8100
       SUPPORTED_DEVICES: ""
       LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
       LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
@@ -34,14 +34,8 @@ services:
       retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
       start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
     depends_on:
-      inference-cpu:
+      inference:
         condition: service_healthy
-      inference-nvidia:
-        condition: service_healthy
-        required: false
-      inference-vulkan:
-        condition: service_healthy
-        required: false
     restart: unless-stopped
 
   frontend:
@@ -62,72 +56,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  inference-cpu:
+  inference:
     build:
       context: .
       dockerfile: Dockerfile.inference.cpu
       args:
         LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
-    container_name: lmpanel-inference-cpu
+    container_name: lmpanel-inference
     environment:
-      SUPPORTED_DEVICES: cpu
-      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
-      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
-      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-    expose:
-      - "8100"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
-      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
-      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
-      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
-      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
-    restart: unless-stopped
-
-  inference-nvidia:
-    profiles: [nvidia]
-    build:
-      context: .
-      dockerfile: Dockerfile.inference.nvidia
-      args:
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
-    container_name: lmpanel-inference-nvidia
-    environment:
-      SUPPORTED_DEVICES: nvidia
-      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
-      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
-      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-    expose:
-      - "8100"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
-      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
-      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
-      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
-      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: ["gpu"]
-    restart: unless-stopped
-
-  inference-vulkan:
-    profiles: [vulkan]
-    build:
-      context: .
-      dockerfile: Dockerfile.inference.vulkan
-      args:
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
-    container_name: lmpanel-inference-vulkan
-    environment:
-      SUPPORTED_DEVICES: vulkan
+      SUPPORTED_DEVICES: cpu,vulkan
       LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
       LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
       LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
@@ -151,6 +88,11 @@ services:
       timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
       retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
       start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
     restart: unless-stopped
 
 volumes:
