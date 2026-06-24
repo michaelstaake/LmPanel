@@ -2,6 +2,10 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
 services:
   inference:
+    environment:
+      # "graphics" capability mounts Vulkan libraries (libnvvk.so) so vulkaninfo
+      # can discover NVIDIA GPUs for device detection and llama-server Vulkan backend.
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
     deploy:
       resources:
         reservations:
