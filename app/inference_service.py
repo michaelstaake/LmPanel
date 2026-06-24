@@ -24,6 +24,7 @@ from app.utils.schemas import sanitize_inference_messages
 from app.core.device_manager import (
     AMD_VENDOR_ID,
     INTEL_VENDOR_ID,
+    NVIDIA_VENDOR_ID,
     DeviceManager,
     get_supported_vendors,
     is_supported_vendor,
@@ -37,6 +38,12 @@ from app.core.amdgpu_memory import (
     read_amdgpu_memory_metrics,
 )
 from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metrics
+from app.core.nvidia_memory import (
+    map_vulkan_index_to_nvidia_index,
+    nvidia_smi_bdf_by_index,
+    read_nvidia_gpu_usage,
+    read_nvidia_memory_metrics,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -635,6 +642,7 @@ class InferenceRuntime:
         amd_vulkan_indices: list[int] = []
         amd_integrated_by_idx: dict[int, bool] = {}
         intel_vulkan_by_idx: dict[int, str] = {}
+        nvidia_vulkan_by_idx: dict[int, str] = {}
         memory_by_idx = _parse_vulkaninfo_gpu_memory_metrics(output) if output else {}
         if output:
             blocks = re.split(r"GPU(\d+):", output)
@@ -657,6 +665,11 @@ class InferenceRuntime:
                     pci_bdf = parse_vulkan_pci_bdf(block)
                     if pci_bdf:
                         intel_vulkan_by_idx[idx] = pci_bdf
+
+                if vendor_id == NVIDIA_VENDOR_ID:
+                    pci_bdf = parse_vulkan_pci_bdf(block)
+                    if pci_bdf:
+                        nvidia_vulkan_by_idx[idx] = pci_bdf
 
                 heap_metrics = memory_by_idx.get(idx)
                 if not heap_metrics or heap_metrics["total_mb"] <= 0:
@@ -725,6 +738,31 @@ class InferenceRuntime:
             process_memory = intel_metrics.get("process_memory_by_pid")
             if isinstance(process_memory, dict) and process_memory:
                 metric["process_memory_by_pid"] = process_memory
+
+        # Prefer nvidia-smi counters for NVIDIA GPUs (vulkaninfo usage is inaccurate).
+        try:
+            nvidia_bdf_map = nvidia_smi_bdf_by_index()
+            for vulkan_idx, pci_bdf in nvidia_vulkan_by_idx.items():
+                hardware_id = f"vulkan:{vulkan_idx}"
+                metric = metrics.get(hardware_id)
+                if metric is None:
+                    continue
+                nvidia_idx = map_vulkan_index_to_nvidia_index(pci_bdf, nvidia_bdf_map)
+                if nvidia_idx is None:
+                    continue
+                nvidia_metrics = read_nvidia_memory_metrics(nvidia_idx)
+                if nvidia_metrics.get("memory_total_mb"):
+                    metric["memory_total_mb"] = nvidia_metrics["memory_total_mb"]
+                if nvidia_metrics.get("memory_used_mb") is not None:
+                    metric["memory_used_mb"] = nvidia_metrics["memory_used_mb"]
+                if nvidia_metrics.get("memory_source"):
+                    metric["memory_source"] = nvidia_metrics["memory_source"]
+                gpu_usage = read_nvidia_gpu_usage(nvidia_idx)
+                if gpu_usage is not None:
+                    metric["usage_percent"] = gpu_usage
+                    metric["usage_source"] = "nvidia-smi"
+        except Exception:
+            pass
 
         return metrics
 

@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 AMD_VENDOR_ID = 0x1002
 INTEL_VENDOR_ID = 0x8086
+NVIDIA_VENDOR_ID = 0x10de
 
 
 def get_supported_vendors() -> set[str]:
