@@ -5,10 +5,10 @@ services:
       dockerfile: Dockerfile.backend
     container_name: lmpanel-backend
     environment:
-      # Listen on 8000 inside the container; host port 8444 is mapped in `ports` below.
+      # Listen on 8000 inside the container; host port is mapped in `ports` below.
       APP_PORT: "8000"
-      APP_EXTERNAL_PORT: "8444"
-      FRONTEND_ORIGIN: "https://localhost:8443"
+      APP_EXTERNAL_PORT: "${BACKEND_PORT:-8444}"
+      FRONTEND_ORIGIN: "https://localhost:${FRONTEND_PORT:-8443}"
       INFERENCE_SERVICE_URL: http://inference:8100
       INFERENCE_RUNTIME_URLS: cpu=http://inference:8100,vulkan=http://inference:8100
       SUPPORTED_DEVICES: ""
@@ -27,7 +27,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - build-info:/app/shared
     ports:
-      - "8444:8000"
+      - "${BACKEND_PORT:-8444}:8000"
     healthcheck:
       test: ["CMD", "curl", "-k", "-f", "https://localhost:8000/health"]
       interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
@@ -48,7 +48,7 @@ services:
         APP_VERSION: ${VITE_APP_VERSION:-}
     container_name: lmpanel-frontend
     ports:
-      - "8443:443"
+      - "${FRONTEND_PORT:-8443}:443"
     volumes:
       - ./certs:/etc/nginx/certs
       - build-info:/shared
