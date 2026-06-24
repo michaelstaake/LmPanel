@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     libvulkan-dev \
+    libegl1 \
+    libxext6 \
     glslc \
     spirv-headers \
     libcurl4-openssl-dev \

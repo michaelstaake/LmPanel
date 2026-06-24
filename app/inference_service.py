@@ -74,7 +74,8 @@ def _log_gpu_passthrough_warning() -> None:
     if physical_gpus == 0 and has_software_renderer:
         logger.warning(
             "No physical Vulkan GPU detected in inference container. "
-            "On NVIDIA hosts, run bash scripts/configure-gpu-compose.sh and recreate containers. "
+            "On NVIDIA hosts, run bash scripts/configure-gpu-compose.sh and recreate containers "
+            "(NVIDIA_DRIVER_CAPABILITIES must include graphics for Vulkan). "
             "Ensure nvidia-container-toolkit is installed."
         )
 
