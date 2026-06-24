@@ -33,6 +33,19 @@ else
   warn "nvidia-smi not found on host"
 fi
 
+section "Host Vulkan ICD"
+host_icd=""
+for path in /usr/share/vulkan/icd.d/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.json; do
+  if [[ -f "$path" ]]; then
+    host_icd="$path"
+    ok "Host has $path"
+    break
+  fi
+done
+if [[ -z "$host_icd" ]]; then
+  fail "nvidia_icd.json not found on host — install NVIDIA driver Vulkan support"
+fi
+
 section "Compose override"
 if [[ -f docker-compose.override.yml ]]; then
   if grep -q 'NVIDIA_DRIVER_CAPABILITIES' docker-compose.override.yml \
@@ -41,6 +54,18 @@ if [[ -f docker-compose.override.yml ]]; then
   else
     fail "docker-compose.override.yml missing graphics in NVIDIA_DRIVER_CAPABILITIES"
     echo "  Run: bash scripts/configure-gpu-compose.sh"
+  fi
+  if grep -q 'nvidia_icd.json' docker-compose.override.yml; then
+    ok "docker-compose.override.yml bind-mounts host nvidia_icd.json"
+  elif [[ -n "$host_icd" ]]; then
+    fail "docker-compose.override.yml missing nvidia_icd.json bind mount"
+    echo "  Re-run: bash scripts/configure-gpu-compose.sh"
+  fi
+  if grep -q 'capabilities:.*graphics' docker-compose.override.yml || grep -q '\[gpu, graphics\]' docker-compose.override.yml; then
+    ok "docker-compose.override.yml requests gpu+graphics capabilities"
+  else
+    fail "docker-compose.override.yml missing graphics in gpus capabilities"
+    echo "  Re-run: bash scripts/configure-gpu-compose.sh"
   fi
 else
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q 'GPU '; then

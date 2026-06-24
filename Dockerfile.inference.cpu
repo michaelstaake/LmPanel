@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && groupadd -f -g 44 video \
-    && groupadd -f -g 104 render
+    && groupadd -f -g 104 render \
+    && mkdir -p /etc/vulkan/icd.d /usr/share/vulkan/icd.d
 
 COPY requirements.txt ./
 RUN python3 -m venv /opt/venv \

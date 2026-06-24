@@ -22,8 +22,8 @@ if [[ -e /dev/nvidia0 ]]; then
 
   if [[ -z "${VK_ICD_FILENAMES:-}" ]]; then
     echo "WARNING: NVIDIA GPU detected but nvidia_icd.json was not mounted into the container." >&2
-    echo "  Ensure docker-compose.override.yml sets NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility" >&2
-    echo "  and recreate the inference container." >&2
+    echo "  Re-run: bash scripts/configure-gpu-compose.sh" >&2
+    echo "  Then: docker compose up -d --build --force-recreate inference" >&2
   fi
 fi
 
