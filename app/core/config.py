@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8444
+    app_external_port: int = 0
     app_log_level: str = "INFO"
 
     database_url: str = "sqlite:///./data/lmpanel.db"

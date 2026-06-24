@@ -7,6 +7,7 @@ services:
     environment:
       # Listen on 8000 inside the container; host port 8444 is mapped in `ports` below.
       APP_PORT: "8000"
+      APP_EXTERNAL_PORT: "8444"
       FRONTEND_ORIGIN: "https://localhost:8443"
       INFERENCE_SERVICE_URL: http://inference:8100
       INFERENCE_RUNTIME_URLS: cpu=http://inference:8100,vulkan=http://inference:8100

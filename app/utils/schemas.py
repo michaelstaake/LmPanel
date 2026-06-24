@@ -48,7 +48,7 @@ def normalize_public_url(value: str | None) -> str:
     return f"https://{parsed.hostname}"
 
 
-def build_api_base_url(public_url: str, app_port: int) -> str:
+def build_api_base_url(public_url: str, app_port: int, app_external_port: int = 0) -> str:
     if not public_url:
         return ""
 
@@ -56,14 +56,16 @@ def build_api_base_url(public_url: str, app_port: int) -> str:
     if parsed.port is not None:
         return public_url.rstrip("/")
 
-    if not app_port or app_port == 443:
+    effective_port = app_external_port if app_external_port else app_port
+
+    if not effective_port or effective_port == 443:
         return public_url
 
     hostname = parsed.hostname
     if not hostname:
         return public_url
 
-    return f"https://{hostname}:{app_port}"
+    return f"https://{hostname}:{effective_port}"
 
 
 def normalize_message_content(content: Any) -> str:
