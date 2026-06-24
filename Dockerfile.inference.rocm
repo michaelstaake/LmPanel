@@ -27,12 +27,16 @@ RUN python3 -m venv /opt/venv \
 ENV PATH=/opt/venv/bin:/opt/rocm/bin:/opt/rocm/llvm/bin:$PATH
 ENV ROCM_PATH=/opt/rocm
 
-ARG LLAMA_CPP_TAG="b9297"
+ARG LLAMA_CPP_TAG=""
 # Docker builds cannot auto-detect GPU arch; override AMDGPU_TARGETS in .env for other AMD GPUs.
 ARG AMDGPU_TARGETS="gfx1200;gfx1201"
 ARG GGML_HIP_RCCL="OFF"
 
-RUN git clone --depth 1 --branch "${LLAMA_CPP_TAG}" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp \
+RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
+        git clone --depth 1 --branch "$LLAMA_CPP_TAG" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    else \
+        git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    fi \
     && HIPCXX="$(hipconfig -l)/clang" HIP_PATH="$(hipconfig -R)" \
     cmake -S /opt/llama.cpp -B /opt/llama.cpp/build \
         -DLLAMA_BUILD_SERVER=ON \

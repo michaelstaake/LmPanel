@@ -21,9 +21,13 @@ RUN python3 -m venv /opt/venv \
 
 ENV PATH=/opt/venv/bin:$PATH
 
-ARG LLAMA_CPP_TAG="b9297"
+ARG LLAMA_CPP_TAG=""
 RUN ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 \
-    && git clone --depth 1 --branch "${LLAMA_CPP_TAG}" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp \
+    && if [ -n "$LLAMA_CPP_TAG" ]; then \
+        git clone --depth 1 --branch "$LLAMA_CPP_TAG" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    else \
+        git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    fi \
     && LIBRARY_PATH=/usr/local/cuda/lib64/stubs LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs cmake -S /opt/llama.cpp -B /opt/llama.cpp/build \
         -DLLAMA_BUILD_SERVER=ON \
         -DGGML_CUDA=ON \

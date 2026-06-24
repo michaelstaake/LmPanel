@@ -14,8 +14,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-ARG LLAMA_CPP_TAG="b9297"
-RUN git clone --depth 1 --branch "${LLAMA_CPP_TAG}" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp \
+ARG LLAMA_CPP_TAG=""
+RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
+        git clone --depth 1 --branch "$LLAMA_CPP_TAG" https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    else \
+        git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /opt/llama.cpp; \
+    fi \
     && cmake -S /opt/llama.cpp -B /opt/llama.cpp/build -DLLAMA_BUILD_SERVER=ON \
     && cmake --build /opt/llama.cpp/build --config Release --target llama-server -j2
 

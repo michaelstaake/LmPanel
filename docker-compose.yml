@@ -70,7 +70,7 @@ services:
       context: .
       dockerfile: Dockerfile.inference.cpu
       args:
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9553}
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
     container_name: lmpanel-inference-cpu
     environment:
       SUPPORTED_DEVICES: cpu
@@ -96,7 +96,7 @@ services:
       context: .
       dockerfile: Dockerfile.inference.nvidia
       args:
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9553}
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
     container_name: lmpanel-inference-nvidia
     environment:
       SUPPORTED_DEVICES: nvidia
@@ -127,7 +127,7 @@ services:
       context: .
       dockerfile: Dockerfile.inference.vulkan
       args:
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9553}
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
     container_name: lmpanel-inference-vulkan
     environment:
       SUPPORTED_DEVICES: vulkan
@@ -163,7 +163,7 @@ services:
       dockerfile: Dockerfile.inference.rocm
       args:
         ROCM_DEV_IMAGE: ${ROCM_DEV_IMAGE:-rocm/dev-ubuntu-24.04:7.2.3-complete}
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-b9553}
+        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
         AMDGPU_TARGETS: ${AMDGPU_TARGETS:-gfx1200;gfx1201}
         GGML_HIP_RCCL: ${GGML_HIP_RCCL:-OFF}
     container_name: lmpanel-inference-rocm
