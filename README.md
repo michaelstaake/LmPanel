@@ -25,7 +25,7 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 ### Docker
 
-Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). A setup script auto-configures GPU passthrough when NVIDIA hardware is present — you always use the same `docker compose up` command.
+Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Use the included [`compose`](compose) script instead of `docker compose` directly — it auto-configures GPU passthrough before every command.
 
 ### Quick Start
 
@@ -49,19 +49,13 @@ The default settings should work for most users, but feel free to explore it to 
 cp .env.example .env
 ```
 
-**3. Configure GPU passthrough (auto-detects NVIDIA).**
+**3. Run it.**
 
 ```bash
-bash scripts/configure-gpu-compose.sh
+./compose up -d --build
 ```
 
-On NVIDIA hosts this writes `docker-compose.override.yml` so Docker passes GPUs into the inference container. On AMD, Intel, and CPU-only hosts it does nothing. Re-run this script after adding or removing an NVIDIA GPU, then recreate containers with `docker compose up -d`.
-
-**4. Run it.**
-
-```bash
-docker compose up -d --build
-```
+The `compose` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./compose up -d` again to refresh the configuration.
 
 #### Notes
 
@@ -69,30 +63,30 @@ At every startup, LmPanel will auto-detect all applicable devices. If you remove
 
 The initial build may take a while depending on your environment and host performance, as llama.cpp is compiled with Vulkan support. This is normal. Subsequent builds should be much quicker, although occasionally updates may require a fresh build of llama.cpp.
 
-**5. Proceed to web interface**
+**4. Proceed to web interface**
 
 Once Docker reports the containers are healthy and started, open the LmPanel web interface: https://localhost:8443 or replace localhost with your server's local IP. You will receive an SSL error since LmPanel generates a self-signed SSL certificate. It is safe to bypass this error.
 
 On a new install you will be redirected to the setup page where you can create your first admin account.
 
-**6. Configure devices and pools**
+**5. Configure devices and pools**
 
 Once your admin account is created, go to the Devices page and configure your inference devices.
 
 If you have multiple GPUs of the same vendor, you can create a pool, which allows you to run larger models than would fit on a single GPU. Please note that once a GPU is in a pool, it can not be used on an individual basis until you remove it from the pool.
 
-**7. Configure models**
+**6. Configure models**
 
 Go to the Models page to configure your AI models. Models must be in GGUF format.
 
 By default, models are in Auto mode for device selection. In this case, LmPanel will attempt to run the model on the most logical device or pool. However, if you want to pin a model to a specific device or pool, you may do so. Please ensure the device or pool has sufficient memory for the size of model you are running. Remember that the actual memory usage of a model may be higher than its file size, due to overhead, context, KV cache, etc.
 
-**8. ENJOY!**
+**7. ENJOY!**
 
 To stop LmPanel:
 
 ```bash
-docker compose down
+./compose down
 ```
 
 ## Interacting with the AI Models
@@ -201,8 +195,8 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `bash scripts/configure-gpu-compose.sh`, then `docker compose up -d --build --force-recreate inference` and `docker compose restart backend`. The configure script bind-mounts the host `nvidia_icd.json` and NVIDIA GL libraries when the container toolkit does not inject them automatically.
-  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, re-run `bash scripts/configure-gpu-compose.sh` and rebuild/recreate the inference container. The override must set `NVIDIA_DRIVER_CAPABILITIES` to include `graphics` (or `all`) so the NVIDIA Vulkan driver is mounted. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report.
+  - On NVIDIA hosts, run `./compose up -d --build --force-recreate inference` and `./compose restart backend`. The `compose` script bind-mounts the host `nvidia_icd.json` and NVIDIA GL libraries when the container toolkit does not inject them automatically.
+  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./compose up -d --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
   - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues

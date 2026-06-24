@@ -85,8 +85,7 @@ def _log_gpu_passthrough_warning() -> None:
         )
         logger.warning(
             "No physical Vulkan GPU detected in inference container. "
-            "On NVIDIA hosts, run bash scripts/configure-gpu-compose.sh, then "
-            "docker compose up -d --build --force-recreate inference. "
+            "On NVIDIA hosts, run ./compose up -d --build --force-recreate inference. "
             "NVIDIA_DRIVER_CAPABILITIES must include graphics (current: %r). "
             "nvidia_icd.json present: %s. "
             "Run bash scripts/verify-gpu-passthrough.sh for diagnostics.",

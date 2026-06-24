@@ -16,14 +16,12 @@ if [[ -e /dev/nvidia0 ]]; then
   caps="${NVIDIA_DRIVER_CAPABILITIES:-}"
   if [[ "$caps" != *graphics* && "$caps" != "all" ]]; then
     echo "WARNING: NVIDIA GPU detected but NVIDIA_DRIVER_CAPABILITIES=${caps:-unset}." >&2
-    echo "  Vulkan requires the graphics capability. Re-run: bash scripts/configure-gpu-compose.sh" >&2
-    echo "  Then: docker compose up -d --build --force-recreate inference" >&2
+    echo "  Vulkan requires the graphics capability. Run: ./compose up -d --build --force-recreate inference" >&2
   fi
 
   if [[ -z "${VK_ICD_FILENAMES:-}" ]]; then
     echo "WARNING: NVIDIA GPU detected but nvidia_icd.json was not mounted into the container." >&2
-    echo "  Re-run: bash scripts/configure-gpu-compose.sh" >&2
-    echo "  Then: docker compose up -d --build --force-recreate inference" >&2
+    echo "  Run: ./compose up -d --build --force-recreate inference" >&2
   fi
 fi
 

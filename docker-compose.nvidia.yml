@@ -1,5 +1,5 @@
-# Deprecated: use scripts/configure-gpu-compose.sh instead.
-# That script writes docker-compose.override.yml, which Compose merges automatically.
+# Deprecated: use ./compose instead.
+# That script runs configure-gpu-compose.sh automatically before docker compose.
 # This file is kept for backward compatibility only:
 #   docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
 services:
