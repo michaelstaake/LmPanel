@@ -9,7 +9,9 @@ TEMPLATE_FILE="docker-compose.override.nvidia.yml"
 QUIET=0
 
 log_info() {
-  [[ "$QUIET" -eq 0 ]] && echo "$@"
+  if [[ "$QUIET" -eq 0 ]]; then
+    echo "$@"
+  fi
 }
 
 log_warn() {
