@@ -8,6 +8,7 @@ import shlex
 import subprocess
 import threading
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Optional
@@ -38,6 +39,44 @@ from app.core.amdgpu_memory import (
 from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metrics
 
 logger = logging.getLogger(__name__)
+
+
+def _log_gpu_passthrough_warning() -> None:
+    try:
+        result = subprocess.run(
+            ["vulkaninfo", "--summary"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=15,
+        )
+        output = result.stdout.strip()
+    except Exception:
+        return
+    if not output:
+        return
+
+    physical_gpus = 0
+    has_software_renderer = False
+    blocks = re.split(r"GPU(\d+):", output)
+    i = 1
+    while i + 1 < len(blocks):
+        block = blocks[i + 1]
+        i += 2
+        type_match = re.search(r"deviceType\s*=\s*(.+)", block)
+        device_type_str = type_match.group(1).strip().lower() if type_match else ""
+        if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
+            has_software_renderer = True
+            continue
+        if re.search(r"deviceName\s*=\s*(.+)", block):
+            physical_gpus += 1
+
+    if physical_gpus == 0 and has_software_renderer:
+        logger.warning(
+            "No physical Vulkan GPU detected in inference container. "
+            "On NVIDIA hosts, run ./scripts/configure-gpu-compose.sh and recreate containers. "
+            "Ensure nvidia-container-toolkit is installed."
+        )
 
 
 def _runtime_error_detail(response: httpx.Response) -> str:
@@ -801,7 +840,13 @@ class InferenceRuntime:
         return round(float(value), 1)
 
 
-app = FastAPI(title="LmPanel Inference Service")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    _log_gpu_passthrough_warning()
+    yield
+
+
+app = FastAPI(title="LmPanel Inference Service", lifespan=lifespan)
 runtime = InferenceRuntime()
 device_manager = DeviceManager()
 

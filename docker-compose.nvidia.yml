@@ -1,9 +1,14 @@
-# Optional merge file for NVIDIA hosts with the NVIDIA Container Toolkit installed.
-# Usage: docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
+# Deprecated: use scripts/configure-gpu-compose.sh instead.
+# That script writes docker-compose.override.yml, which Compose merges automatically.
+# This file is kept for backward compatibility only:
+#   docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
 services:
   inference:
+    gpus: all
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: ["gpu"]
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

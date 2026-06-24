@@ -1,0 +1,11 @@
+# Template for NVIDIA GPU passthrough. Copied to docker-compose.override.yml by scripts/configure-gpu-compose.sh
+services:
+  inference:
+    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

@@ -9,6 +9,7 @@ data/*.db
 logs/*.log
 /models/
 certs/
+docker-compose.override.yml
 
 # Editor/OS temporary files
 .vscode/
