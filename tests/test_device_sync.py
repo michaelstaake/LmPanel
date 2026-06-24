@@ -44,23 +44,23 @@ class DeleteUnavailableDevicesTests(unittest.TestCase):
             memory_mb=6000,
             enabled=True,
         )
-        rocm = Device(
-            hardware_id="rocm:0",
-            name="Radeon AI PRO R9700",
-            vendor="rocm",
+        nvidia = Device(
+            hardware_id="nvidia:0",
+            name="NVIDIA GPU",
+            vendor="nvidia",
             device_type="gpu",
             memory_mb=32000,
             enabled=True,
         )
-        db.add_all([vulkan, rocm])
+        db.add_all([vulkan, nvidia])
         db.commit()
 
-        removed = delete_unavailable_devices(db, {"rocm:0"})
+        removed = delete_unavailable_devices(db, {"nvidia:0"})
         db.commit()
 
         self.assertEqual(removed, [vulkan.id])
         remaining = {row.hardware_id for row in db.query(Device).all()}
-        self.assertEqual(remaining, {"rocm:0"})
+        self.assertEqual(remaining, {"nvidia:0"})
 
     def test_reverts_pinned_model_before_delete(self) -> None:
         db = _make_session()
@@ -115,11 +115,11 @@ class SyncDetectedDevicesTests(unittest.TestCase):
         manager = DeviceManager()
         detected = [
             DetectedDevice(
-                hardware_id="rocm:0",
-                stable_hardware_id="0000:03:00.0",
-                stable_hardware_id_source="pci_bdf",
-                name="Radeon AI PRO R9700",
-                vendor="rocm",
+                hardware_id="nvidia:0",
+                stable_hardware_id="GPU-abc123",
+                stable_hardware_id_source="nvidia_uuid",
+                name="NVIDIA GPU",
+                vendor="nvidia",
                 device_type="gpu",
                 memory_mb=32000,
             )
@@ -129,7 +129,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
             rows = manager.sync_detected_devices(db)
 
         hardware_ids = {row.hardware_id for row in rows}
-        self.assertEqual(hardware_ids, {"rocm:0"})
+        self.assertEqual(hardware_ids, {"nvidia:0"})
         self.assertEqual(db.query(Device).filter(Device.vendor == "vulkan").count(), 0)
 
     def test_default_name_for_device_uses_last_detected_map(self) -> None:
@@ -137,11 +137,11 @@ class SyncDetectedDevicesTests(unittest.TestCase):
         manager = DeviceManager()
         detected = [
             DetectedDevice(
-                hardware_id="rocm:0",
-                stable_hardware_id="0000:03:00.0",
-                stable_hardware_id_source="pci_bdf",
-                name="Radeon AI PRO R9700",
-                vendor="rocm",
+                hardware_id="nvidia:0",
+                stable_hardware_id="GPU-abc123",
+                stable_hardware_id_source="nvidia_uuid",
+                name="NVIDIA GPU",
+                vendor="nvidia",
                 device_type="gpu",
                 memory_mb=32000,
             )
@@ -152,7 +152,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
 
         device = rows[0]
         device.name = "Custom GPU Label"
-        self.assertEqual(manager.default_name_for_device(device), "Radeon AI PRO R9700")
+        self.assertEqual(manager.default_name_for_device(device), "NVIDIA GPU")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-RUNTIME_VENDOR_KEYS = {"cpu", "nvidia", "vulkan", "rocm", "default"}
+RUNTIME_VENDOR_KEYS = {"cpu", "nvidia", "vulkan", "default"}
 
 
 def _default_llama_server_path() -> str:
@@ -39,17 +39,6 @@ class Settings(BaseSettings):
     llama_request_timeout_seconds: int = 300
     # When true, llama-server may reduce GPU layers / context to fit VRAM (--fit on).
     llama_fit_to_vram: bool = False
-    # RDNA4 (gfx1200/gfx1201): helps HIP find the GPU when ROCm mis-detects the arch.
-    rocm_hsa_override_gfx_version: str = "12.0.1"
-    # ROCm multi-GPU pools can produce unstable output when slot cache state is reused.
-    # Keep this at 1 unless you have validated multi-slot stability on your stack.
-    rocm_pool_parallel: int = 1
-    # Disable prompt cache in ROCm pools by default to avoid kv-cache restore corruption.
-    rocm_pool_cache_ram_mb: int = 0
-    # Some ROCm multi-GPU combinations produce unstable output with flash attention.
-    rocm_pool_flash_attn_enabled: bool = False
-    # Tensor split on ROCm pools is experimental; keep disabled unless validated.
-    rocm_pool_allow_tensor_split: bool = False
 
     default_context_length: int = 32768
     default_threads: int = 8

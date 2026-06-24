@@ -14,7 +14,7 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 
 - **CPU**: x86_64
 - **NVIDIA GPU**: CUDA (`--profile nvidia`)
-- **AMD GPU**: Vulkan (`--profile vulkan`, recommended) or ROCm (`--profile rocm`, experimental - only if you are willing to troubleshoot issues)
+- **AMD GPU**: Vulkan (`--profile vulkan`)
 - **Intel Arc GPU**: Vulkan (`--profile vulkan`)
 
 ### Ubuntu 26.04
@@ -73,14 +73,6 @@ docker compose --profile nvidia up -d --build
 docker compose --profile vulkan up -d --build
 ```
 
-#### CPU + ROCm (AMD - Experimental):
-
-ROCm support is available but currently buggy. Use Vulkan for AMD GPUs unless you specifically need ROCm and are willing to troubleshoot driver, offload, and pool issues.
-
-```bash
-docker compose --profile rocm up -d --build
-```
-
 #### Mixed Vendors:
 
 If you would like to use devices from more than one vendor, no problem. Just add additional profiles. Here's an example with NVIDIA and Vulkan support:
@@ -88,8 +80,6 @@ If you would like to use devices from more than one vendor, no problem. Just add
 ```bash
 docker compose --profile nvidia --profile vulkan up -d --build
 ```
-
-If both Vulkan and ROCm profiles are enabled, AMD GPUs are listed only as `rocm` devices and the Vulkan instances of those AMD GPUs will be ignored and unavailable.
 
 #### Notes
 
@@ -123,7 +113,6 @@ To stop LmPanel, use the command that matches the profiles you started with to e
 docker compose down
 docker compose --profile nvidia down
 docker compose --profile vulkan down
-docker compose --profile rocm down
 ```
 
 ## Interacting with the AI Models
@@ -232,7 +221,7 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check vendor tooling is installed on the host system:
-    - Ubuntu 26.04: `nvidia-smi` (NVIDIA), `vulkaninfo` (Intel Arc / AMD - recommended), or `rocm-smi` (AMD - experimental)
+    - Ubuntu 26.04: `nvidia-smi` (NVIDIA) or `vulkaninfo` (Intel Arc / AMD)
   - Ensure the appropriate GPU Docker runtime is configured and accessible to the environment.
   - Restart the application after installing drivers on the host.
 
@@ -270,10 +259,6 @@ The two things that matter for PCI-E speed is the version and the number of acti
 - Most GPUs should be on an x16 bus, although some GPUs run on x8.
 - Older platforms use older PCI-E versions.
 - Consumer platforms and/or cheaper motherboards may have plenty of physical x16 slots, but typically only the "primary" PCI-E slot will be actually wired at x16, and subsequent slots will be electrically limited to x8, x4, or x1. Sometimes you can see this if you look in the slot - the additional contacts may not be present, but this is not a reliable indicator as just because the contacts are there doesn't mean your platform and CPU can actually use all those lanes.
-
-#### Using AMD? Try ROCm
-
-Vulkan is the most reliable way to run AMD GPUs in LmPanel, and actually offers better performance than ROCm in some cases. However, in some cases, ROCm can offer better performance. Contribution related to ROCm implementation improvement and testing would be highly appreciated.
 
 #### Tweak Model Settings
 

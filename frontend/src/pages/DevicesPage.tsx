@@ -8,7 +8,7 @@ import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/record
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
-const POOL_VENDORS = ["nvidia", "vulkan", "rocm"] as const;
+const POOL_VENDORS = ["nvidia", "vulkan"] as const;
 const SPLIT_MODES = ["layer", "tensor"] as const;
 
 function normalizePoolSplitMode(mode: string): (typeof SPLIT_MODES)[number] {
@@ -53,7 +53,6 @@ function sortPools(pools: GpuPoolRecord[]) {
 function vendorLabel(vendor: string) {
   if (vendor === "nvidia") return "NVIDIA";
   if (vendor === "vulkan") return "Vulkan";
-  if (vendor === "rocm") return "ROCm";
   return vendor;
 }
 

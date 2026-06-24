@@ -1,4 +1,3 @@
-import json
 import logging
 import re
 import shlex
@@ -35,7 +34,7 @@ def get_supported_vendors() -> set[str]:
     if configured:
         return set(configured)
 
-    return {"cpu", "nvidia", "vulkan", "rocm"}
+    return {"cpu", "nvidia", "vulkan"}
 
 
 def is_supported_vendor(vendor: str) -> bool:
@@ -70,32 +69,10 @@ class DeviceManager:
 
     def detect_local(self) -> list[DetectedDevice]:
         devices: list[DetectedDevice] = []
-        hide_vulkan_amd = self._should_hide_vulkan_amd()
         devices.extend(self._detect_nvidia())
-        devices.extend(self._detect_rocm())
-        devices.extend(self._detect_vulkan(exclude_amd=hide_vulkan_amd))
+        devices.extend(self._detect_vulkan())
         devices.extend(self._detect_cpu())
         return devices
-
-    def _should_hide_vulkan_amd(self) -> bool:
-        if not is_supported_vendor("rocm"):
-            return False
-
-        settings = get_settings()
-        runtime_map = settings.inference_runtime_url_map()
-        rocm_url = runtime_map.get("rocm")
-        if not rocm_url:
-            return len(self._detect_rocm()) > 0
-
-        timeout = settings.inference_service_timeout_seconds
-        try:
-            with httpx.Client(timeout=timeout) as client:
-                response = client.get(f"{rocm_url}/health")
-                response.raise_for_status()
-        except Exception:
-            return False
-
-        return True
 
     def default_name_for_device(self, device: Device) -> str:
         cached = getattr(self, "_default_names_by_hardware_id", {}).get(device.hardware_id)
@@ -177,7 +154,6 @@ class DeviceManager:
         devices_by_id: dict[str, DetectedDevice] = {}
         runtime_map = settings.inference_runtime_url_map()
         timeout = settings.inference_service_timeout_seconds
-        rocm_runtime_ok = False
 
         for runtime_vendor, base_url in runtime_map.items():
             try:
@@ -188,9 +164,6 @@ class DeviceManager:
                 logger.warning("Failed to fetch devices from runtime %s at %s: %s", runtime_vendor, base_url, exc)
                 continue
 
-            if runtime_vendor == "rocm":
-                rocm_runtime_ok = True
-
             payload = response.json()
             rows = payload.get("devices", []) if isinstance(payload, dict) else []
             for row in rows:
@@ -198,8 +171,6 @@ class DeviceManager:
                 if not device:
                     continue
                 if runtime_vendor != "default" and device.vendor != runtime_vendor:
-                    continue
-                if rocm_runtime_ok and device.vendor == "vulkan" and device.pci_vendor_id == AMD_VENDOR_ID:
                     continue
                 devices_by_id[device.hardware_id] = device
 
@@ -238,112 +209,6 @@ class DeviceManager:
             pci_vendor_id=pci_vendor_id,
         )
 
-    def _detect_rocm(self) -> list[DetectedDevice]:
-        if not is_supported_vendor("rocm"):
-            return []
-
-        json_output = self._run("rocm-smi --showproductname --showmeminfo vram --json")
-        devices = self._parse_rocm_json(json_output)
-        if devices:
-            self._attach_rocm_pci_bdfs(devices)
-            self._apply_amdgpu_sysfs_memory_totals(devices)
-            return devices
-
-        text_devices = self._parse_rocm_text(self._run("rocm-smi --showproductname --showmeminfo vram"))
-        self._attach_rocm_pci_bdfs(text_devices)
-        self._apply_amdgpu_sysfs_memory_totals(text_devices)
-        return text_devices
-
-    @staticmethod
-    def _parse_rocm_json(json_output: str) -> list[DetectedDevice]:
-        if not json_output:
-            return []
-        try:
-            data = json.loads(json_output)
-        except json.JSONDecodeError:
-            return []
-        if not isinstance(data, dict):
-            return []
-
-        devices: list[DetectedDevice] = []
-        for card_key in sorted(data.keys()):
-            if not card_key.lower().startswith("card"):
-                continue
-            entry = data[card_key]
-            if not isinstance(entry, dict):
-                continue
-
-            digits = re.sub(r"\D", "", card_key) or str(len(devices))
-            index = int(digits)
-
-            name = (
-                entry.get("Card series")
-                or entry.get("Card Series")
-                or entry.get("Card model")
-                or entry.get("Card Model")
-                or f"AMD GPU {index}"
-            )
-
-            memory_bytes = 0
-            for key, value in entry.items():
-                if "vram total memory" in key.lower():
-                    try:
-                        memory_bytes = int(str(value).strip())
-                    except (TypeError, ValueError):
-                        memory_bytes = 0
-                    break
-
-            devices.append(
-                DetectedDevice(
-                    hardware_id=f"rocm:{index}",
-                    stable_hardware_id=None,
-                    stable_hardware_id_source=None,
-                    name=str(name)[:120],
-                    vendor="rocm",
-                    device_type="gpu",
-                    memory_mb=int(memory_bytes / (1024 * 1024)) if memory_bytes else 0,
-                    max_slots=0,
-                )
-            )
-        return devices
-
-    @staticmethod
-    def _parse_rocm_text(text_output: str) -> list[DetectedDevice]:
-        if not text_output:
-            return []
-        devices: list[DetectedDevice] = []
-        for line in text_output.splitlines():
-            if "vram total memory" not in line.lower():
-                continue
-            card_match = re.search(r"card(\d+)", line, re.IGNORECASE)
-            size_match = re.search(r"(\d+(?:\.\d+)?)\s*(b|kb|mb|gb|tb)?", line, re.IGNORECASE)
-            if not card_match or not size_match:
-                continue
-            index = int(card_match.group(1))
-            value = float(size_match.group(1))
-            unit = (size_match.group(2) or "b").lower()
-            multipliers = {"b": 1, "kb": 1024, "mb": 1024**2, "gb": 1024**3, "tb": 1024**4}
-            memory_bytes = int(value * multipliers.get(unit, 1))
-            devices.append(
-                DetectedDevice(
-                    hardware_id=f"rocm:{index}",
-                    stable_hardware_id=None,
-                    stable_hardware_id_source=None,
-                    name=f"AMD GPU {index}",
-                    vendor="rocm",
-                    device_type="gpu",
-                    memory_mb=int(memory_bytes / (1024 * 1024)),
-                    max_slots=0,
-                )
-            )
-        return devices
-
-    def _attach_rocm_pci_bdfs(self, devices: list[DetectedDevice]) -> None:
-        pci_bdfs = _read_amdgpu_pci_bdfs()
-        for device, pci_bdf in zip(devices, pci_bdfs, strict=False):
-            device.stable_hardware_id = pci_bdf
-            device.stable_hardware_id_source = "pci_bdf"
-
     def _run(self, command: str) -> str:
         try:
             output = subprocess.check_output(shlex.split(command), stderr=subprocess.DEVNULL, text=True)
@@ -374,7 +239,7 @@ class DeviceManager:
             )
         return devices
 
-    def _detect_vulkan(self, *, exclude_amd: bool = False) -> list[DetectedDevice]:
+    def _detect_vulkan(self) -> list[DetectedDevice]:
         if not is_supported_vendor("vulkan"):
             return []
         try:
@@ -418,8 +283,6 @@ class DeviceManager:
             if vendor_id == AMD_VENDOR_ID:
                 amd_vulkan_indices.append(idx)
                 amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(device_type_str)
-                if exclude_amd:
-                    continue
 
             devices.append(
                 DetectedDevice(
@@ -477,14 +340,6 @@ class DeviceManager:
                 memory_by_idx[vulkan_idx] = total_mb
 
         return memory_by_idx
-
-    def _apply_amdgpu_sysfs_memory_totals(self, devices: list[DetectedDevice]) -> None:
-        amd_card_paths = list_amdgpu_device_paths()
-        for device, device_path in zip(devices, amd_card_paths, strict=False):
-            metrics = read_amdgpu_memory_metrics(device_path, integrated=False)
-            total_mb = metrics.get("memory_total_mb")
-            if total_mb:
-                device.memory_mb = total_mb
 
     @staticmethod
     def _read_sysfs_int(path: Path) -> int | None:
@@ -547,41 +402,7 @@ class DeviceManager:
                     max_slots=0,
                 )
             )
-        if "rocm" in vendors:
-            devices.append(
-                DetectedDevice(
-                    hardware_id="rocm:0",
-                    stable_hardware_id=None,
-                    stable_hardware_id_source=None,
-                    name="ROCm GPU",
-                    vendor="rocm",
-                    device_type="gpu",
-                    memory_mb=0,
-                    max_slots=0,
-                )
-            )
         return devices
-
-
-def _read_amdgpu_pci_bdfs() -> list[str]:
-    bdfs: list[str] = []
-    try:
-        card_paths = sorted(
-            p.parent for p in Path("/sys/class/drm").glob("card*/device/gpu_busy_percent") if p.is_file()
-        )
-    except Exception:
-        return bdfs
-
-    for device_path in card_paths:
-        uevent_path = device_path / "uevent"
-        try:
-            uevent = uevent_path.read_text()
-        except Exception:
-            continue
-        match = re.search(r"PCI_SLOT_NAME=(\S+)", uevent)
-        if match:
-            bdfs.append(match.group(1))
-    return bdfs
 
 
 def _is_vulkan_device_local_heap(heap_block: str) -> bool:

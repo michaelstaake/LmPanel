@@ -57,7 +57,7 @@ def _runtime_error_detail(response: httpx.Response) -> str:
 
     return f"Inference runtime request failed with status {response.status_code}"
 
-_GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan", "rocm"})
+_GPU_OFFLOAD_VENDORS = frozenset({"nvidia", "vulkan"})
 
 
 def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
@@ -79,78 +79,6 @@ def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool
     return args
 
 
-def _apply_rocm_runtime_env(env: dict[str, str]) -> None:
-    override = get_settings().rocm_hsa_override_gfx_version.strip()
-    if override:
-        env["HSA_OVERRIDE_GFX_VERSION"] = override
-
-
-def _rocm_pool_stability_args() -> list[str]:
-    settings = get_settings()
-    args: list[str] = []
-
-    parallel = max(1, settings.rocm_pool_parallel)
-    args.extend(["--parallel", str(parallel)])
-
-    cache_ram_mb = max(0, settings.rocm_pool_cache_ram_mb)
-    args.extend(["--cache-ram", str(cache_ram_mb)])
-
-    return args
-
-
-def _rocm_pool_flash_attn_enabled(requested: bool) -> bool:
-    settings = get_settings()
-    if settings.rocm_pool_flash_attn_enabled:
-        return requested
-    return False
-
-
-def _resolve_flash_attn_for_launch(vendor: str, requested: bool, split_mode: str) -> bool:
-    if vendor != "rocm_pool":
-        return requested
-
-    enabled = _rocm_pool_flash_attn_enabled(requested)
-    normalized_split_mode = split_mode.strip().lower()
-
-    # Tensor split requires flash-attn. If the model-level flash setting conflicts,
-    # ignore that model value and force a compatible value at launch.
-    if normalized_split_mode == "tensor" and not enabled:
-        settings = get_settings()
-        if settings.rocm_pool_allow_tensor_split and settings.rocm_pool_flash_attn_enabled:
-            logger.warning(
-                "Ignoring model flash-attn setting for ROCm tensor pool; forcing --flash-attn on"
-            )
-            return True
-
-    return enabled
-
-
-def _effective_pool_split_mode(vendor: str, split_mode: str, *, flash_attn_enabled: bool) -> str:
-    if vendor != "rocm_pool":
-        return split_mode
-
-    normalized = split_mode.strip().lower()
-    if normalized not in {"layer", "tensor"}:
-        logger.warning("ROCm pool requested unsupported split mode '%s'; using 'layer'", split_mode)
-        return "layer"
-
-    if normalized != "tensor":
-        return normalized
-
-    if not flash_attn_enabled:
-        logger.warning("ROCm pool requested split mode 'tensor' but flash-attn is off; using 'layer' instead")
-        return "layer"
-
-    settings = get_settings()
-    if settings.rocm_pool_allow_tensor_split:
-        return normalized
-
-    logger.warning(
-        "ROCm pool requested split mode 'tensor' but it is disabled by configuration; using 'layer' instead"
-    )
-    return "layer"
-
-
 def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) -> None:
     effective_vendor = vendor.removesuffix("_pool")
     if effective_vendor not in _GPU_OFFLOAD_VENDORS or gpu_layers == 0:
@@ -166,14 +94,14 @@ def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) 
     if "no usable gpu found" in lowered or "gpu-layers option will be ignored" in lowered:
         raise RuntimeError(
             "llama-server has no usable GPU backend. Rebuild with the correct inference profile "
-            "(for AMD: docker compose --profile rocm) and verify AMDGPU_TARGETS matches your GPU."
+            "(for AMD: docker compose --profile vulkan)."
         )
 
     match = re.search(r"offloaded\s+(\d+)/(\d+)\s+layers", text, re.IGNORECASE)
     if match and int(match.group(1)) == 0 and int(match.group(2)) > 0:
         raise RuntimeError(
             "Model loaded with 0 GPU layers (CPU-only). Lower context length, keep GPU layers at 99 (all layers, or -1 for legacy), "
-            "set LLAMA_FIT_TO_VRAM=false, and confirm ROCm sees the GPU inside the inference-rocm container."
+            "set LLAMA_FIT_TO_VRAM=false, and confirm the GPU is visible inside the inference container."
         )
 
 
@@ -240,13 +168,7 @@ class InferenceRuntime:
 
         port = self.settings.llama_base_port + payload.model_id
         env = self._build_env(payload.vendor, payload.hardware_id, payload.threads, payload.hardware_ids)
-        flash_attn_enabled = _resolve_flash_attn_for_launch(
-            payload.vendor,
-            payload.flash_attention_enabled,
-            payload.split_mode,
-        )
-        if payload.vendor == "rocm_pool" and payload.flash_attention_enabled and not flash_attn_enabled:
-            logger.warning("ROCm pool forcing --flash-attn off for stability")
+        flash_attn_enabled = payload.flash_attention_enabled
 
         command = [
             self._resolve_llama_server_path(),
@@ -281,7 +203,6 @@ class InferenceRuntime:
                 payload.vendor,
                 payload.vram_ratios,
                 payload.split_mode,
-                flash_attn_enabled=flash_attn_enabled,
             )
         )
         command.append("--jinja")
@@ -454,14 +375,6 @@ class InferenceRuntime:
             ids = hardware_ids if hardware_ids else [hardware_id]
             indices = [hid.split(":")[-1] for hid in ids]
             env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
-        elif vendor == "rocm_pool":
-            ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
-            env["HIP_VISIBLE_DEVICES"] = ",".join(indices)
-            _apply_rocm_runtime_env(env)
-        elif vendor == "rocm":
-            env["HIP_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
-            _apply_rocm_runtime_env(env)
         elif vendor == "nvidia":
             env["CUDA_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
         elif vendor == "vulkan":
@@ -477,23 +390,12 @@ class InferenceRuntime:
         vendor: str,
         vram_ratios: list[int] | None = None,
         split_mode: str = "layer",
-        *,
-        flash_attn_enabled: bool = False,
     ) -> list[str]:
         if vendor.endswith("_pool"):
             args: list[str] = []
-            effective_split_mode = split_mode
-            if vendor == "rocm_pool":
-                args.extend(_rocm_pool_stability_args())
-                effective_split_mode = _effective_pool_split_mode(
-                    vendor,
-                    split_mode,
-                    flash_attn_enabled=flash_attn_enabled,
-                )
-
-            if effective_split_mode == "tensor" and vram_ratios and len(vram_ratios) >= 2:
+            if split_mode == "tensor" and vram_ratios and len(vram_ratios) >= 2:
                 args.extend(["--tensor-split", ",".join(str(r) for r in vram_ratios)])
-            args.extend(["--split-mode", effective_split_mode])
+            args.extend(["--split-mode", split_mode])
             return args
 
         return []
@@ -678,100 +580,6 @@ class InferenceRuntime:
 
         metrics.update(self._collect_nvidia_metrics())
         metrics.update(self._collect_vulkan_metrics())
-        metrics.update(self._collect_rocm_metrics())
-        return metrics
-
-    def _collect_rocm_metrics(self) -> dict[str, dict]:
-        if not is_supported_vendor("rocm"):
-            return {}
-
-        json_output = self._run_command(
-            ["rocm-smi", "--showproductname", "--showmeminfo", "vram", "--showuse", "--json"]
-        )
-        devices = DeviceManager._parse_rocm_json(json_output)
-        if not devices:
-            text_output = self._run_command(["rocm-smi", "--showproductname", "--showmeminfo", "vram"])
-            devices = DeviceManager._parse_rocm_text(text_output)
-
-        metrics: dict[str, dict] = {}
-        for device in devices:
-            metrics[device.hardware_id] = {
-                "usage_percent": None,
-                "usage_source": "unavailable",
-                "memory_used_mb": 0,
-                "memory_total_mb": device.memory_mb,
-                "memory_source": "rocm-smi",
-                "process_memory_by_pid": {},
-            }
-
-        if json_output:
-            try:
-                data = json.loads(json_output)
-            except json.JSONDecodeError:
-                data = None
-            if isinstance(data, dict):
-                for card_key, entry in data.items():
-                    if not card_key.lower().startswith("card") or not isinstance(entry, dict):
-                        continue
-                    index = int(re.sub(r"\D", "", card_key) or "0")
-                    hardware_id = f"rocm:{index}"
-                    metric = metrics.setdefault(
-                        hardware_id,
-                        {
-                            "usage_percent": None,
-                            "usage_source": "unavailable",
-                            "memory_used_mb": 0,
-                            "memory_total_mb": 0,
-                            "memory_source": "rocm-smi",
-                            "process_memory_by_pid": {},
-                        },
-                    )
-                    for key, value in entry.items():
-                        key_lower = key.lower()
-                        if "gpu use" in key_lower or "gpu utilization" in key_lower:
-                            usage = self._parse_percentage(str(value))
-                            if usage is not None:
-                                metric["usage_percent"] = usage
-                                metric["usage_source"] = "rocm-smi"
-                        if "vram total memory" in key_lower:
-                            total_bytes = self._parse_int(str(value))
-                            if total_bytes is not None:
-                                metric["memory_total_mb"] = int(total_bytes / (1024 * 1024))
-                        if "vram used memory" in key_lower:
-                            used_bytes = self._parse_int(str(value))
-                            if used_bytes is not None:
-                                metric["memory_used_mb"] = int(used_bytes / (1024 * 1024))
-
-        try:
-            amd_card_paths = list_amdgpu_device_paths()
-            rocm_indices = sorted(int(device.hardware_id.split(":")[1]) for device in devices)
-            for rocm_idx, device_path in zip(rocm_indices, amd_card_paths, strict=False):
-                hardware_id = f"rocm:{rocm_idx}"
-                metric = metrics.setdefault(
-                    hardware_id,
-                    {
-                        "usage_percent": None,
-                        "usage_source": "unavailable",
-                        "memory_used_mb": 0,
-                        "memory_total_mb": 0,
-                        "memory_source": "rocm-smi",
-                        "process_memory_by_pid": {},
-                    },
-                )
-                usage = self._read_sysfs_percentage(device_path / "gpu_busy_percent")
-                if usage is not None:
-                    metric["usage_percent"] = usage
-                    metric["usage_source"] = "sysfs"
-                amdgpu_metrics = read_amdgpu_memory_metrics(device_path, integrated=False)
-                if amdgpu_metrics.get("memory_total_mb"):
-                    metric["memory_total_mb"] = amdgpu_metrics["memory_total_mb"]
-                if amdgpu_metrics.get("memory_used_mb") is not None:
-                    metric["memory_used_mb"] = amdgpu_metrics["memory_used_mb"]
-                if amdgpu_metrics.get("memory_source"):
-                    metric["memory_source"] = amdgpu_metrics["memory_source"]
-        except Exception:
-            pass
-
         return metrics
 
     def _collect_vulkan_metrics(self) -> dict[str, dict]:
@@ -797,8 +605,6 @@ class InferenceRuntime:
                 if vendor_id == AMD_VENDOR_ID:
                     amd_vulkan_indices.append(idx)
                     amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(parse_vulkan_device_type(block))
-                    if device_manager._should_hide_vulkan_amd():
-                        continue
 
                 if vendor_id == INTEL_VENDOR_ID:
                     pci_bdf = parse_vulkan_pci_bdf(block)

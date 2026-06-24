@@ -9,7 +9,7 @@ services:
       APP_PORT: "8000"
       FRONTEND_ORIGIN: "https://localhost:8443"
       INFERENCE_SERVICE_URL: http://inference-cpu:8100
-      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100,rocm=http://inference-rocm:8100
+      INFERENCE_RUNTIME_URLS: cpu=http://inference-cpu:8100,nvidia=http://inference-nvidia:8100,vulkan=http://inference-vulkan:8100
       SUPPORTED_DEVICES: ""
       LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
       LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
@@ -40,9 +40,6 @@ services:
         condition: service_healthy
         required: false
       inference-vulkan:
-        condition: service_healthy
-        required: false
-      inference-rocm:
         condition: service_healthy
         required: false
     restart: unless-stopped
@@ -146,52 +143,6 @@ services:
       - render
     cap_add:
       - PERFMON
-    expose:
-      - "8100"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
-      interval: ${STARTUP_HEALTHCHECK_INTERVAL:-15s}
-      timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
-      retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
-      start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
-    restart: unless-stopped
-
-  inference-rocm:
-    profiles: [rocm]
-    build:
-      context: .
-      dockerfile: Dockerfile.inference.rocm
-      args:
-        ROCM_DEV_IMAGE: ${ROCM_DEV_IMAGE:-rocm/dev-ubuntu-24.04:7.2.3-complete}
-        LLAMA_CPP_TAG: ${LLAMA_CPP_TAG:-}
-        AMDGPU_TARGETS: ${AMDGPU_TARGETS:-gfx1200;gfx1201}
-        GGML_HIP_RCCL: ${GGML_HIP_RCCL:-OFF}
-    container_name: lmpanel-inference-rocm
-    environment:
-      SUPPORTED_DEVICES: rocm
-      LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
-      LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
-      LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
-      LLAMA_FIT_TO_VRAM: ${LLAMA_FIT_TO_VRAM:-false}
-      ROCM_HSA_OVERRIDE_GFX_VERSION: ${ROCM_HSA_OVERRIDE_GFX_VERSION:-12.0.1}
-    # ROCm HIP needs read-write /dev/kfd (major 234) and /dev/dri (226). AMD's llama.cpp
-    # images use --privileged; cgroup-only rules are often insufficient (EPERM on kfd).
-    privileged: true
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-    group_add:
-      - video
-      - render
-    cap_add:
-      - SYS_PTRACE
-    security_opt:
-      - seccomp:unconfined
-      - apparmor:unconfined
-    ipc: host
     expose:
       - "8100"
     healthcheck:
