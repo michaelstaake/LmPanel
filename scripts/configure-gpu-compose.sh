@@ -44,8 +44,9 @@ if has_nvidia_gpu; then
     fi
     write_override
     echo "NVIDIA GPU detected. Wrote $OVERRIDE_FILE for GPU passthrough."
-    echo "Run: docker compose up -d --force-recreate inference"
-    echo "Verify: docker exec lmpanel-inference vulkaninfo --summary"
+    echo "Run: docker compose up -d --build --force-recreate inference"
+    echo "Then: docker compose restart backend"
+    echo "Verify: bash scripts/verify-gpu-passthrough.sh"
   else
     if [[ -f "$OVERRIDE_FILE" ]]; then
       rm -f "$OVERRIDE_FILE"

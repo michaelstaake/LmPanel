@@ -46,13 +46,16 @@ def _log_gpu_passthrough_warning() -> None:
         result = subprocess.run(
             ["vulkaninfo", "--summary"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=True,
             timeout=15,
         )
         output = result.stdout.strip()
+        stderr = result.stderr.strip()
     except Exception:
         return
+    if stderr:
+        logger.warning("vulkaninfo stderr: %s", stderr)
     if not output:
         return
 
@@ -72,11 +75,23 @@ def _log_gpu_passthrough_warning() -> None:
             physical_gpus += 1
 
     if physical_gpus == 0 and has_software_renderer:
+        caps = os.environ.get("NVIDIA_DRIVER_CAPABILITIES", "")
+        nvidia_icd = any(
+            Path(path).is_file()
+            for path in (
+                "/usr/share/vulkan/icd.d/nvidia_icd.json",
+                "/etc/vulkan/icd.d/nvidia_icd.json",
+            )
+        )
         logger.warning(
             "No physical Vulkan GPU detected in inference container. "
-            "On NVIDIA hosts, run bash scripts/configure-gpu-compose.sh and recreate containers "
-            "(NVIDIA_DRIVER_CAPABILITIES must include graphics for Vulkan). "
-            "Ensure nvidia-container-toolkit is installed."
+            "On NVIDIA hosts, run bash scripts/configure-gpu-compose.sh, then "
+            "docker compose up -d --build --force-recreate inference. "
+            "NVIDIA_DRIVER_CAPABILITIES must include graphics (current: %r). "
+            "nvidia_icd.json present: %s. "
+            "Run bash scripts/verify-gpu-passthrough.sh for diagnostics.",
+            caps or "unset",
+            nvidia_icd,
         )
 
 

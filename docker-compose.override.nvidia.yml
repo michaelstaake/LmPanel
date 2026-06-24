@@ -3,7 +3,8 @@ services:
   inference:
     gpus: all
     environment:
-      NVIDIA_DRIVER_CAPABILITIES: graphics,compute,utility
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
     deploy:
       resources:
         reservations:

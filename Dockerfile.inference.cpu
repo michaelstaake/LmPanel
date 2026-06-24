@@ -9,8 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     libvulkan-dev \
+    libvulkan1 \
     libegl1 \
     libxext6 \
+    libglx0 \
+    libgbm1 \
     glslc \
     spirv-headers \
     libcurl4-openssl-dev \
@@ -44,11 +47,14 @@ RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
 
 COPY app ./app
 
-RUN mkdir -p /app/models /app/logs
+COPY scripts/inference-entrypoint.sh /usr/local/bin/inference-entrypoint.sh
+RUN chmod +x /usr/local/bin/inference-entrypoint.sh \
+    && mkdir -p /app/models /app/logs
 
 ENV LLAMA_SERVER_PATH=/opt/llama.cpp/build/bin/llama-server
 ENV SUPPORTED_DEVICES=cpu,vulkan
 
 EXPOSE 8100
 
+ENTRYPOINT ["/usr/local/bin/inference-entrypoint.sh"]
 CMD ["uvicorn", "app.inference_service:app", "--host", "0.0.0.0", "--port", "8100"]

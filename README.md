@@ -201,8 +201,8 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `bash scripts/configure-gpu-compose.sh`, then `docker compose up -d --force-recreate inference` to recreate the inference container. Confirm `vulkaninfo` inside the inference container lists your GPU: `docker exec lmpanel-inference vulkaninfo --summary`
-  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, re-run `bash scripts/configure-gpu-compose.sh` and recreate containers. The override must set `NVIDIA_DRIVER_CAPABILITIES=graphics,compute,utility` so the NVIDIA Vulkan driver is mounted (the default toolkit capabilities only enable CUDA and `nvidia-smi`).
+  - On NVIDIA hosts, run `bash scripts/configure-gpu-compose.sh`, then `docker compose up -d --build --force-recreate inference` and `docker compose restart backend`. Confirm `vulkaninfo` inside the inference container lists your GPU: `docker exec lmpanel-inference vulkaninfo --summary`
+  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, re-run `bash scripts/configure-gpu-compose.sh` and rebuild/recreate the inference container. The override must set `NVIDIA_DRIVER_CAPABILITIES` to include `graphics` (or `all`) so the NVIDIA Vulkan driver is mounted. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report.
   - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues
