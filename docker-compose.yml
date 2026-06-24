@@ -88,11 +88,6 @@ services:
       timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
       retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
       start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: ["gpu"]
     restart: unless-stopped
 
 volumes:

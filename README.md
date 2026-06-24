@@ -25,7 +25,11 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 ### Docker
 
-Ensure Docker is installed and running in the system context. For NVIDIA GPUs, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) so Vulkan can access the GPU inside the container.
+Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and must start with the optional NVIDIA compose file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
+```
 
 ### Quick Start
 
@@ -193,7 +197,7 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - For NVIDIA hosts, install the NVIDIA Container Toolkit and confirm Docker can pass GPUs into containers.
+  - For NVIDIA hosts, use `docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up` and confirm `vulkaninfo` inside the inference container lists your GPU.
   - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues

@@ -1,0 +1,9 @@
+# Optional merge file for NVIDIA hosts with the NVIDIA Container Toolkit installed.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build
+services:
+  inference:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
