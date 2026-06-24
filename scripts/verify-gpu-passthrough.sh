@@ -55,17 +55,15 @@ if [[ -f docker-compose.override.yml ]]; then
     fail "docker-compose.override.yml missing graphics in NVIDIA_DRIVER_CAPABILITIES"
     echo "  Run: ./lmpanel up -d"
   fi
-  if grep -q 'nvidia_icd.json' docker-compose.override.yml; then
-    ok "docker-compose.override.yml bind-mounts host nvidia_icd.json"
-  elif [[ -n "$host_icd" ]]; then
-    fail "docker-compose.override.yml missing nvidia_icd.json bind mount"
-    echo "  Re-run: ./lmpanel up -d"
-  fi
   if grep -q 'capabilities:.*graphics' docker-compose.override.yml || grep -q '\[gpu, graphics\]' docker-compose.override.yml; then
     ok "docker-compose.override.yml requests gpu+graphics capabilities"
   else
     fail "docker-compose.override.yml missing graphics in gpus capabilities"
     echo "  Re-run: ./lmpanel up -d"
+  fi
+  if grep -qE 'libEGL_nvidia|libGLX_nvidia' docker-compose.override.yml; then
+    fail "docker-compose.override.yml bind-mounts NVIDIA GL libraries (conflicts with NVIDIA Container Toolkit)"
+    echo "  Re-run: ./lmpanel up -d to regenerate a clean override"
   fi
 else
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q 'GPU '; then

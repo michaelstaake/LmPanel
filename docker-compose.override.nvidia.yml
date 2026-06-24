@@ -1,5 +1,5 @@
 # Template for NVIDIA GPU passthrough. Copied to docker-compose.override.yml by scripts/configure-gpu-compose.sh
-# Host Vulkan ICD + NVIDIA GL libraries are appended to volumes by the configure script.
+# Driver libraries and Vulkan ICD are injected by the NVIDIA Container Toolkit (runtime: nvidia + graphics).
 services:
   inference:
     runtime: nvidia
