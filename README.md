@@ -52,8 +52,11 @@ cp .env.example .env
 **3. Run it.**
 
 ```bash
+chmod +x lmpanel
 ./lmpanel up -d --build
 ```
+
+Use `./lmpanel` instead of `docker compose` directly — it auto-configures GPUs then runs compose. Flags need hyphens: `-d`, `--build` (not `up d build`).
 
 The `lmpanel` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./lmpanel up -d` again to refresh the configuration.
 
@@ -193,6 +196,11 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 ### Device Issues
 
+- **`./lmpanel` appears to do nothing**:
+  - Use hyphens: `./lmpanel up -d --build` (not `up d build`).
+  - Run `bash scripts/configure-gpu-compose.sh` to see GPU configure output and errors.
+  - Run `LMPANEL_DEBUG=1 ./lmpanel up -d --build` to trace the wrapper.
+  - Bypass the wrapper to test Docker alone: `docker compose up -d --build`.
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
   - On NVIDIA hosts, run `./lmpanel up -d --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan and graphics libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics.

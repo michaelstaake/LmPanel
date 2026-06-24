@@ -8,6 +8,18 @@ OVERRIDE_FILE="docker-compose.override.yml"
 TEMPLATE_FILE="docker-compose.override.nvidia.yml"
 QUIET=0
 
+log_info() {
+  [[ "$QUIET" -eq 0 ]] && echo "$@"
+}
+
+log_warn() {
+  echo "WARNING: $*" >&2
+}
+
+log_error() {
+  echo "ERROR: $*" >&2
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --quiet)
@@ -21,18 +33,20 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      echo "Unknown option: $1" >&2
+      log_error "Unknown option: $1"
       exit 1
       ;;
   esac
 done
 
-log_info() {
-  [[ "$QUIET" -eq 0 ]] && echo "$@"
-}
-
-log_warn() {
-  echo "WARNING: $*" >&2
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
 }
 
 has_nvidia_gpu() {
@@ -40,7 +54,7 @@ has_nvidia_gpu() {
     return 0
   fi
   if command -v nvidia-smi >/dev/null 2>&1; then
-    if timeout 5 nvidia-smi -L 2>/dev/null | grep -q 'GPU '; then
+    if run_with_timeout 5 nvidia-smi -L 2>/dev/null | grep -q 'GPU '; then
       return 0
     fi
   fi
@@ -48,7 +62,7 @@ has_nvidia_gpu() {
 }
 
 has_nvidia_toolkit() {
-  if timeout 10 docker info 2>/dev/null | grep -qi 'nvidia'; then
+  if run_with_timeout 10 docker info 2>/dev/null | grep -qi 'nvidia'; then
     return 0
   fi
   if command -v nvidia-ctk >/dev/null 2>&1; then
@@ -111,7 +125,7 @@ write_override() {
 if has_nvidia_gpu; then
   if has_nvidia_toolkit; then
     if [[ ! -f "$TEMPLATE_FILE" ]]; then
-      echo "ERROR: Missing $TEMPLATE_FILE" >&2
+      log_error "Missing $TEMPLATE_FILE"
       exit 1
     fi
     write_override
@@ -119,10 +133,10 @@ if has_nvidia_gpu; then
     if remove_override_if_present; then
       log_info "Removed $OVERRIDE_FILE (NVIDIA Container Toolkit not configured)."
     fi
-    echo "WARNING: NVIDIA GPU detected but NVIDIA Container Toolkit does not appear configured." >&2
-    echo "Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html" >&2
-    echo "Then run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker" >&2
-    echo "Re-run: ./lmpanel up -d" >&2
+    log_error "NVIDIA GPU detected but NVIDIA Container Toolkit does not appear configured."
+    log_error "Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html"
+    log_error "Then run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker"
+    log_error "Re-run: ./lmpanel up -d"
     exit 1
   fi
 else

@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet
+
+if [[ "${LMPANEL_DEBUG:-}" == "1" ]]; then
+  set -x
+fi
+
+if ! bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet; then
+  rc=$?
+  echo "lmpanel: GPU configure failed (exit $rc). See warnings above." >&2
+  exit "$rc"
+fi
+
 exec docker compose "$@"
