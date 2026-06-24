@@ -52,7 +52,7 @@ cp .env.example .env
 **3. Configure GPU passthrough (auto-detects NVIDIA).**
 
 ```bash
-./scripts/configure-gpu-compose.sh
+bash scripts/configure-gpu-compose.sh
 ```
 
 On NVIDIA hosts this writes `docker-compose.override.yml` so Docker passes GPUs into the inference container. On AMD, Intel, and CPU-only hosts it does nothing. Re-run this script after adding or removing an NVIDIA GPU, then recreate containers with `docker compose up -d`.
@@ -201,7 +201,7 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `./scripts/configure-gpu-compose.sh`, then `docker compose up -d` to recreate containers. Confirm `vulkaninfo` inside the inference container lists your GPU: `docker exec lmpanel-inference vulkaninfo --summary`
+  - On NVIDIA hosts, run `bash scripts/configure-gpu-compose.sh`, then `docker compose up -d` to recreate containers. Confirm `vulkaninfo` inside the inference container lists your GPU: `docker exec lmpanel-inference vulkaninfo --summary`
   - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues

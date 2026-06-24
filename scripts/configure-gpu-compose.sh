@@ -53,7 +53,7 @@ if has_nvidia_gpu; then
     echo "WARNING: NVIDIA GPU detected but NVIDIA Container Toolkit does not appear configured." >&2
     echo "Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html" >&2
     echo "Then run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker" >&2
-    echo "Re-run: ./scripts/configure-gpu-compose.sh" >&2
+    echo "Re-run: bash scripts/configure-gpu-compose.sh" >&2
     exit 1
   fi
 else
