@@ -7,8 +7,9 @@ if [[ "${LMPANEL_DEBUG:-}" == "1" ]]; then
   set -x
 fi
 
-if ! bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet; then
-  rc=$?
+bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet
+rc=$?
+if [[ "$rc" -ne 0 ]]; then
   echo "lmpanel: GPU configure failed (exit $rc). See warnings above." >&2
   exit "$rc"
 fi
