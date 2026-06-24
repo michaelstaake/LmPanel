@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-"$ROOT/scripts/configure-gpu-compose.sh" --quiet
+bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet
 exec docker compose "$@"

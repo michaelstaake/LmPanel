@@ -1,4 +1,4 @@
-# Deprecated: use ./compose instead.
+# Deprecated: use ./lmpanel instead.
 # That script runs configure-gpu-compose.sh automatically before docker compose.
 # This file is kept for backward compatibility only:
 #   docker compose -f docker-compose.yml -f docker-compose.nvidia.yml up -d --build

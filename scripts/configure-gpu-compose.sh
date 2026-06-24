@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h | --help)
       echo "Usage: $0 [--quiet]"
       echo "Auto-configure docker-compose.override.yml for NVIDIA GPU passthrough."
-      echo "Normally invoked by ./compose; run manually for diagnostics."
+      echo "Normally invoked by ./lmpanel; run manually for diagnostics."
       exit 0
       ;;
     *)
@@ -132,7 +132,7 @@ write_override() {
 
   if [[ ${#MOUNT_LINES[@]} -eq 0 ]]; then
     log_warn "Could not find nvidia_icd.json or NVIDIA GL libraries on the host."
-    log_warn "Install the NVIDIA driver with Vulkan support, then run ./compose up again."
+    log_warn "Install the NVIDIA driver with Vulkan support, then run ./lmpanel up again."
     log_warn "LmPanel will start without NVIDIA GPU passthrough until the driver is fixed."
     if remove_override_if_present; then
       log_info "Removed stale $OVERRIDE_FILE."
@@ -152,8 +152,8 @@ write_override() {
   if write_override_if_changed; then
     log_info "NVIDIA GPU detected. Wrote $OVERRIDE_FILE for GPU passthrough."
     log_info "  (${#MOUNT_LINES[@]} host Vulkan/GL bind mount(s) added)"
-    log_info "Run: ./compose up -d --build --force-recreate inference"
-    log_info "Then: ./compose restart backend"
+    log_info "Run: ./lmpanel up -d --build --force-recreate inference"
+    log_info "Then: ./lmpanel restart backend"
     log_info "Verify: bash scripts/verify-gpu-passthrough.sh"
   else
     log_info "NVIDIA GPU detected. $OVERRIDE_FILE is already up to date."
@@ -174,7 +174,7 @@ if has_nvidia_gpu; then
     echo "WARNING: NVIDIA GPU detected but NVIDIA Container Toolkit does not appear configured." >&2
     echo "Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html" >&2
     echo "Then run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker" >&2
-    echo "Re-run: ./compose up -d" >&2
+    echo "Re-run: ./lmpanel up -d" >&2
     exit 1
   fi
 else

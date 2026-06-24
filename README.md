@@ -25,7 +25,7 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 ### Docker
 
-Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Use the included [`compose`](compose) script instead of `docker compose` directly — it auto-configures GPU passthrough before every command.
+Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). Use the included [`lmpanel`](lmpanel) script instead of `docker compose` directly — it auto-configures GPU passthrough before every command.
 
 ### Quick Start
 
@@ -52,10 +52,10 @@ cp .env.example .env
 **3. Run it.**
 
 ```bash
-./compose up -d --build
+./lmpanel up -d --build
 ```
 
-The `compose` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./compose up -d` again to refresh the configuration.
+The `lmpanel` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./lmpanel up -d` again to refresh the configuration.
 
 #### Notes
 
@@ -86,7 +86,7 @@ By default, models are in Auto mode for device selection. In this case, LmPanel 
 To stop LmPanel:
 
 ```bash
-./compose down
+./lmpanel down
 ```
 
 ## Interacting with the AI Models
@@ -195,8 +195,8 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **Device not detected**:
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `./compose up -d --build --force-recreate inference` and `./compose restart backend`. The `compose` script bind-mounts the host `nvidia_icd.json` and NVIDIA GL libraries when the container toolkit does not inject them automatically.
-  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./compose up -d --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
+  - On NVIDIA hosts, run `./lmpanel up -d --build --force-recreate inference` and `./lmpanel restart backend`. The `lmpanel` script bind-mounts the host `nvidia_icd.json` and NVIDIA GL libraries when the container toolkit does not inject them automatically.
+  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./lmpanel up -d --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
   - Ensure host GPU drivers are installed and restart LmPanel after driver changes.
 
 ### Performance Issues
