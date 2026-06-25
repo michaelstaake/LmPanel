@@ -4,10 +4,9 @@ from pathlib import Path
 from app.core.intel_drm_memory import (
     _parse_fdinfo_drm_size_bytes,
     fdinfo_vram_mb_by_pid,
-    normalize_pci_bdf,
-    parse_vulkan_pci_bdf,
     sum_fdinfo_vram_bytes,
 )
+from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 
 
 class IntelDrmMemoryTests(unittest.TestCase):

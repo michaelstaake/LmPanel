@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from app.core.pci_bdf import normalize_pci_bdf
+
 APU_VRAM_THRESHOLD_MB = 4096
 
 
@@ -72,3 +74,34 @@ def list_amdgpu_device_paths() -> list[Path]:
         )
     except Exception:
         return []
+
+
+def list_amdgpu_cards_by_bdf() -> dict[str, Path]:
+    """Map PCI BDF to ``/sys/class/drm/card*/device`` for amdgpu GPUs."""
+    cards: dict[str, Path] = {}
+    try:
+        card_dirs = sorted(Path("/sys/class/drm").glob("card[0-9]*"))
+    except Exception:
+        return cards
+
+    for card_sysfs in card_dirs:
+        if not card_sysfs.is_dir() or "-" in card_sysfs.name:
+            continue
+        device = card_sysfs / "device"
+        try:
+            driver = (device / "driver").resolve().name
+        except Exception:
+            continue
+        if driver != "amdgpu":
+            continue
+        try:
+            uevent = (device / "uevent").read_text()
+        except Exception:
+            continue
+        match = re.search(r"PCI_SLOT_NAME=(\S+)", uevent)
+        if not match:
+            continue
+        bdf = normalize_pci_bdf(match.group(1))
+        if bdf:
+            cards[bdf] = device
+    return cards

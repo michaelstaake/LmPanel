@@ -9,6 +9,7 @@ from app.core.device_manager import DeviceManager, build_device_display_suffix, 
 from app.core.gpu_pool_manager import (
     deactivate_pool_models,
     delete_pool_and_revert_models,
+    ordered_pool_devices,
     revert_models_pinned_to_devices,
 )
 from app.models.device import Device
@@ -280,10 +281,8 @@ def _validate_pool_membership(devices: list[Device], db: Session, current_pool_i
 
 
 def _serialize_pool(pool: GpuPool, db: Session) -> dict:
-    pool_device_rows = db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool.id).all()
-    device_ids = [row.device_id for row in pool_device_rows]
-    devices = db.query(Device).filter(Device.id.in_(device_ids)).all()
-    pool_enabled = len(devices) > 0 and all(d.enabled for d in devices)
+    devices = ordered_pool_devices(db, pool.id)
+    pool_enabled = len(devices) > 0 and all(device.enabled for device in devices)
     return {
         "id": pool.id,
         "name": pool.name,
@@ -292,7 +291,7 @@ def _serialize_pool(pool: GpuPool, db: Session) -> dict:
         "max_slots": pool.max_slots,
         "pool_order": pool.pool_order,
         "enabled": pool_enabled,
-        "devices": [_serialize_device(d) for d in devices],
+        "devices": [_serialize_device(device) for device in devices],
     }
 
 

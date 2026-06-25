@@ -33,6 +33,20 @@ def get_pooled_device_ids(db: Session, *, excluding_pool_id: int | None = None) 
     return {row.device_id for row in query.all()}
 
 
+def ordered_pool_devices(db: Session, pool_id: int, *, require_enabled: bool = False) -> list[Device]:
+    """Return pool member devices in the order they were added to the pool."""
+    pool_device_rows = db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool_id).all()
+    device_ids = [row.device_id for row in pool_device_rows]
+    if not device_ids:
+        return []
+
+    query = db.query(Device).filter(Device.id.in_(device_ids))
+    if require_enabled:
+        query = query.filter(Device.enabled.is_(True))
+    devices_by_id = {device.id: device for device in query.all()}
+    return [devices_by_id[device_id] for device_id in device_ids if device_id in devices_by_id]
+
+
 def is_pooled_device(db: Session, device_id: int, *, excluding_pool_id: int | None = None) -> bool:
     return device_id in get_pooled_device_ids(db, excluding_pool_id=excluding_pool_id)
 
@@ -116,11 +130,22 @@ def delete_unavailable_devices(
     db: Session,
     detected_hardware_ids: set[str],
     inference: "'InferenceManager | None'" = None,
+    *,
+    detected_stable_hardware_ids: set[str] | None = None,
+    keep_device_ids: set[int] | None = None,
 ) -> list[int]:
     """Remove DB devices that are no longer reported by any active inference runtime."""
     from app.models.inference_job import InferenceJob
 
-    to_delete = [row for row in db.query(Device).all() if row.hardware_id not in detected_hardware_ids]
+    stable_ids = detected_stable_hardware_ids or set()
+    keep_ids = keep_device_ids or set()
+    to_delete = [
+        row
+        for row in db.query(Device).all()
+        if row.id not in keep_ids
+        and row.hardware_id not in detected_hardware_ids
+        and (not row.stable_hardware_id or row.stable_hardware_id not in stable_ids)
+    ]
     if not to_delete:
         return []
 

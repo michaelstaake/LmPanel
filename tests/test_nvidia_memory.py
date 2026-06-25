@@ -5,11 +5,11 @@ from unittest.mock import patch, MagicMock
 
 from app.core.nvidia_memory import (
     map_vulkan_index_to_nvidia_index,
-    normalize_pci_bdf,
     nvidia_smi_bdf_by_index,
     read_nvidia_gpu_usage,
     read_nvidia_memory_metrics,
 )
+from app.core.pci_bdf import normalize_pci_bdf
 
 MOCK_SUBPROCESS = "app.core.nvidia_memory.subprocess"
 

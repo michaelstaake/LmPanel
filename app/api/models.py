@@ -28,7 +28,7 @@ from app.core.gguf_shards import (
     validate_shard_set,
     validate_upload_shard_set,
 )
-from app.core.gpu_pool_manager import get_pooled_device_ids, is_pooled_device
+from app.core.gpu_pool_manager import get_pooled_device_ids, is_pooled_device, ordered_pool_devices
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
@@ -987,12 +987,7 @@ def _pool_combined_memory_mb(target: PoolActivationTarget, memory_metrics: dict)
 
 
 def _build_pool_target(db: Session, pool: GpuPool, require_enabled: bool) -> PoolActivationTarget:
-    pool_device_rows = db.query(GpuPoolDevice).filter(GpuPoolDevice.pool_id == pool.id).all()
-    device_ids = [row.device_id for row in pool_device_rows]
-    query = db.query(Device).filter(Device.id.in_(device_ids))
-    if require_enabled:
-        query = query.filter(Device.enabled.is_(True))
-    pool_devices = query.all()
+    pool_devices = ordered_pool_devices(db, pool.id, require_enabled=require_enabled)
     return PoolActivationTarget(pool_id=pool.id, pool_name=pool.name, vendor=pool.vendor, devices=pool_devices, split_mode=pool.split_mode)
 
 

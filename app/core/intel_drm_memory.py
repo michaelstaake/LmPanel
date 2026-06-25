@@ -9,6 +9,8 @@ import re
 import struct
 from pathlib import Path
 
+from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
+
 logger = logging.getLogger(__name__)
 
 DRM_COMMAND_BASE = 0x40
@@ -38,30 +40,6 @@ _DRM_IOCTL_XE_DEVICE_QUERY = _drm_ioctl_iowr(
     DRM_COMMAND_BASE + DRM_XE_DEVICE_QUERY,
     ctypes.sizeof(_DrmXeDeviceQuery),
 )
-
-
-def normalize_pci_bdf(value: str) -> str | None:
-    """Normalize PCI BDF strings to ``domain:bus:device.function``."""
-    text = value.strip().lower()
-    match = re.match(
-        r"(?:([0-9a-f]{1,4}):)?([0-9a-f]{2}):([0-9a-f]{2})(?:\.([0-9a-f]))?",
-        text,
-    )
-    if not match:
-        return None
-    domain = (match.group(1) or "0000").zfill(4)
-    function = match.group(4) or "0"
-    return f"{domain}:{match.group(2)}:{match.group(3)}.{function}"
-
-
-def parse_vulkan_pci_bdf(block: str) -> str | None:
-    for pattern in (r"pciBusInfo\s*=\s*(\S+)", r"pciBusID\s*=\s*(\S+)"):
-        match = re.search(pattern, block)
-        if match:
-            normalized = normalize_pci_bdf(match.group(1))
-            if normalized:
-                return normalized
-    return None
 
 
 def list_intel_drm_cards_by_bdf() -> dict[str, Path]:

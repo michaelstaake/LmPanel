@@ -11,11 +11,12 @@ from sqlalchemy.orm import Session
 
 from app.core.amdgpu_memory import (
     is_vulkan_integrated_gpu,
-    list_amdgpu_device_paths,
+    list_amdgpu_cards_by_bdf,
     read_amdgpu_memory_metrics,
 )
 from app.core.config import get_settings
 from app.core.gpu_pool_manager import delete_unavailable_devices
+from app.core.pci_bdf import parse_vulkan_pci_bdf
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -94,47 +95,75 @@ class DeviceManager:
     ) -> list[Device]:
         detected = self.detect_all()
         self._default_names_by_hardware_id = {item.hardware_id: item.name for item in detected}
-        existing = {d.hardware_id: d for d in db.query(Device).all()}
-        detected_ids = {device.hardware_id for device in detected}
+        existing_rows = db.query(Device).all()
+        existing_by_hardware_id = {device.hardware_id: device for device in existing_rows}
+        existing_by_stable_id = {
+            device.stable_hardware_id: device
+            for device in existing_rows
+            if device.stable_hardware_id
+        }
+        detected_hardware_ids = {device.hardware_id for device in detected}
+        detected_stable_ids = {
+            device.stable_hardware_id for device in detected if device.stable_hardware_id
+        }
         gpu_detected = any(device.device_type == "gpu" and device.vendor != "cpu" for device in detected)
+        kept_row_ids: set[int] = set()
 
-        removed_device_ids = delete_unavailable_devices(db, detected_ids, inference)
+        for detected_device in detected:
+            row = existing_by_hardware_id.get(detected_device.hardware_id)
+            if row is None and detected_device.stable_hardware_id:
+                candidate = existing_by_stable_id.get(detected_device.stable_hardware_id)
+                if candidate is not None and candidate.id not in kept_row_ids:
+                    row = candidate
+
+            enabled = self._should_auto_enable(detected_device, gpu_detected) if auto_enable_defaults else False
+            if row is None:
+                row = Device(
+                    hardware_id=detected_device.hardware_id,
+                    stable_hardware_id=detected_device.stable_hardware_id,
+                    stable_hardware_id_source=detected_device.stable_hardware_id_source,
+                    name=detected_device.name,
+                    vendor=detected_device.vendor,
+                    device_type=detected_device.device_type,
+                    memory_mb=detected_device.memory_mb,
+                    enabled=enabled,
+                    max_threads=detected_device.max_threads,
+                    max_slots=detected_device.max_slots,
+                )
+                db.add(row)
+                db.flush()
+            else:
+                if row.hardware_id != detected_device.hardware_id:
+                    existing_by_hardware_id.pop(row.hardware_id, None)
+                    row.hardware_id = detected_device.hardware_id
+                row.stable_hardware_id = detected_device.stable_hardware_id
+                row.stable_hardware_id_source = detected_device.stable_hardware_id_source
+                row.name = detected_device.name
+                row.vendor = detected_device.vendor
+                row.device_type = detected_device.device_type
+                row.memory_mb = detected_device.memory_mb
+                if row.device_type == "cpu":
+                    row.max_threads = detected_device.max_threads or row.max_threads
+                    row.max_slots = max(0, detected_device.max_slots)
+
+            kept_row_ids.add(row.id)
+            existing_by_hardware_id[row.hardware_id] = row
+            if detected_device.stable_hardware_id:
+                existing_by_stable_id[detected_device.stable_hardware_id] = row
+
+        removed_device_ids = delete_unavailable_devices(
+            db,
+            detected_hardware_ids,
+            inference,
+            detected_stable_hardware_ids=detected_stable_ids,
+            keep_device_ids=kept_row_ids,
+        )
         if removed_device_ids:
             logger.info(
                 "Removed %s device(s) no longer reported by active runtimes: %s",
                 len(removed_device_ids),
                 removed_device_ids,
             )
-            existing = {d.hardware_id: d for d in db.query(Device).all()}
-
-        for d in detected:
-            row = existing.get(d.hardware_id)
-            enabled = self._should_auto_enable(d, gpu_detected) if auto_enable_defaults else False
-            if row is None:
-                row = Device(
-                    hardware_id=d.hardware_id,
-                    stable_hardware_id=d.stable_hardware_id,
-                    stable_hardware_id_source=d.stable_hardware_id_source,
-                    name=d.name,
-                    vendor=d.vendor,
-                    device_type=d.device_type,
-                    memory_mb=d.memory_mb,
-                    enabled=enabled,
-                    max_threads=d.max_threads,
-                    max_slots=d.max_slots,
-                )
-                db.add(row)
-            else:
-                row.stable_hardware_id = d.stable_hardware_id
-                row.stable_hardware_id_source = d.stable_hardware_id_source
-                if row.name == d.name:
-                    row.name = d.name
-                row.vendor = d.vendor
-                row.device_type = d.device_type
-                row.memory_mb = d.memory_mb
-                if row.device_type == "cpu":
-                    row.max_threads = d.max_threads or row.max_threads
-                    row.max_slots = max(0, d.max_slots)
 
         db.commit()
         return db.query(Device).order_by(Device.priority.asc(), Device.id.asc()).all()
@@ -222,26 +251,25 @@ class DeviceManager:
             return []
         try:
             result = subprocess.run(
-                ["vulkaninfo", "--summary"],
+                ["vulkaninfo"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
+                timeout=15,
             )
-            output = result.stdout.strip()
+            output = result.stdout
         except Exception as exc:
-            logger.debug("Device probe command failed (vulkaninfo --summary): %s", exc)
+            logger.debug("Device probe command failed (vulkaninfo): %s", exc)
             return []
         if not output:
             return []
+
         devices: list[DetectedDevice] = []
-        amd_vulkan_indices: list[int] = []
+        amd_vulkan_by_idx: dict[int, str] = {}
         amd_integrated_by_idx: dict[int, bool] = {}
-        # vulkaninfo --summary groups each physical device under a "GPU<N>:" header
         blocks = re.split(r"GPU(\d+):", output)
-        # blocks layout: [preamble, idx0, block0, idx1, block1, ...]
         i = 1
         while i + 1 < len(blocks):
-
             idx = int(blocks[i])
             block = blocks[i + 1]
             i += 2
@@ -254,19 +282,20 @@ class DeviceManager:
             name = name_match.group(1).strip()
             device_type_str = type_match.group(1).strip().lower() if type_match else ""
             vendor_id = _parse_vulkan_vendor_id(block)
-            # Skip software/CPU renderers (e.g. lavapipe, llvmpipe)
+            pci_bdf = parse_vulkan_pci_bdf(block)
             if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
                 continue
 
             if vendor_id == AMD_VENDOR_ID:
-                amd_vulkan_indices.append(idx)
+                if pci_bdf:
+                    amd_vulkan_by_idx[idx] = pci_bdf
                 amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(device_type_str)
 
             devices.append(
                 DetectedDevice(
                     hardware_id=f"vulkan:{idx}",
-                    stable_hardware_id=None,
-                    stable_hardware_id_source=None,
+                    stable_hardware_id=pci_bdf,
+                    stable_hardware_id_source="pci_bdf" if pci_bdf else None,
                     name=name,
                     vendor="vulkan",
                     device_type="gpu",
@@ -276,41 +305,28 @@ class DeviceManager:
             )
 
         if devices:
-            memory_by_idx = self._parse_vulkan_device_memory()
-            memory_by_idx.update(self._read_amdgpu_memory_totals(amd_vulkan_indices, amd_integrated_by_idx))
+            memory_by_idx = _parse_vulkaninfo_device_local_heap_mb(output)
+            memory_by_idx.update(self._read_amdgpu_memory_totals(amd_vulkan_by_idx, amd_integrated_by_idx))
             for device in devices:
                 idx = int(device.hardware_id.split(":")[1])
                 device.memory_mb = memory_by_idx.get(idx, 0)
 
         return devices
 
-    def _parse_vulkan_device_memory(self) -> dict[int, int]:
-        """Return vulkan device index -> device-local memory total (MiB) from full vulkaninfo output."""
-        try:
-            result = subprocess.run(
-                ["vulkaninfo"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                timeout=15,
-            )
-            output = result.stdout
-        except Exception as exc:
-            logger.debug("vulkaninfo full output failed: %s", exc)
-            return {}
-        return _parse_vulkaninfo_device_local_heap_mb(output)
-
     def _read_amdgpu_memory_totals(
         self,
-        amd_vulkan_indices: list[int],
+        amd_vulkan_by_idx: dict[int, str],
         integrated_by_idx: dict[int, bool] | None = None,
     ) -> dict[int, int]:
         memory_by_idx: dict[int, int] = {}
-        if not amd_vulkan_indices:
+        if not amd_vulkan_by_idx:
             return memory_by_idx
 
-        amd_card_paths = list_amdgpu_device_paths()
-        for vulkan_idx, device_path in zip(amd_vulkan_indices, amd_card_paths, strict=False):
+        amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
+        for vulkan_idx, pci_bdf in amd_vulkan_by_idx.items():
+            device_path = amd_cards_by_bdf.get(pci_bdf)
+            if device_path is None:
+                continue
             integrated = (integrated_by_idx or {}).get(vulkan_idx, False)
             metrics = read_amdgpu_memory_metrics(device_path, integrated=integrated)
             total_mb = metrics.get("memory_total_mb", 0)

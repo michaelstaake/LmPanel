@@ -33,11 +33,12 @@ from app.core.device_manager import (
 )
 from app.core.amdgpu_memory import (
     is_vulkan_integrated_gpu,
-    list_amdgpu_device_paths,
+    list_amdgpu_cards_by_bdf,
     parse_vulkan_device_type,
     read_amdgpu_memory_metrics,
 )
-from app.core.intel_drm_memory import parse_vulkan_pci_bdf, read_intel_vram_metrics
+from app.core.pci_bdf import parse_vulkan_pci_bdf
+from app.core.intel_drm_memory import read_intel_vram_metrics
 from app.core.nvidia_memory import (
     map_vulkan_index_to_nvidia_index,
     nvidia_smi_bdf_by_index,
@@ -639,7 +640,7 @@ class InferenceRuntime:
     def _collect_vulkan_metrics(self) -> dict[str, dict]:
         output = self._run_command(["vulkaninfo"])
         metrics: dict[str, dict] = {}
-        amd_vulkan_indices: list[int] = []
+        amd_vulkan_by_idx: dict[int, str] = {}
         amd_integrated_by_idx: dict[int, bool] = {}
         intel_vulkan_by_idx: dict[int, str] = {}
         nvidia_vulkan_by_idx: dict[int, str] = {}
@@ -657,17 +658,17 @@ class InferenceRuntime:
                 i += 2
 
                 vendor_id = _parse_vulkan_vendor_id(block)
+                pci_bdf = parse_vulkan_pci_bdf(block)
                 if vendor_id == AMD_VENDOR_ID:
-                    amd_vulkan_indices.append(idx)
+                    if pci_bdf:
+                        amd_vulkan_by_idx[idx] = pci_bdf
                     amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(parse_vulkan_device_type(block))
 
                 if vendor_id == INTEL_VENDOR_ID:
-                    pci_bdf = parse_vulkan_pci_bdf(block)
                     if pci_bdf:
                         intel_vulkan_by_idx[idx] = pci_bdf
 
                 if vendor_id == NVIDIA_VENDOR_ID:
-                    pci_bdf = parse_vulkan_pci_bdf(block)
                     if pci_bdf:
                         nvidia_vulkan_by_idx[idx] = pci_bdf
 
@@ -687,8 +688,11 @@ class InferenceRuntime:
 
         # Prefer amdgpu sysfs counters when available. For integrated/APU GPUs include GTT.
         try:
-            amd_card_paths = list_amdgpu_device_paths()
-            for vulkan_idx, device_path in zip(amd_vulkan_indices, amd_card_paths, strict=False):
+            amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
+            for vulkan_idx, pci_bdf in amd_vulkan_by_idx.items():
+                device_path = amd_cards_by_bdf.get(pci_bdf)
+                if device_path is None:
+                    continue
                 hardware_id = f"vulkan:{vulkan_idx}"
                 metric = metrics.setdefault(
                     hardware_id,

@@ -155,6 +155,59 @@ class SyncDetectedDevicesTests(unittest.TestCase):
         device.name = "Custom GPU Label"
         self.assertEqual(manager.default_name_for_device(device), "NVIDIA GeForce RTX 4090")
 
+    def test_sync_preserves_device_when_vulkan_index_changes_but_stable_id_matches(self) -> None:
+        db = _make_session()
+        device = Device(
+            hardware_id="vulkan:0",
+            stable_hardware_id="0000:03:00.0",
+            stable_hardware_id_source="pci_bdf",
+            name="AMD Radeon RX 7900 XTX",
+            vendor="vulkan",
+            device_type="gpu",
+            memory_mb=24576,
+            enabled=True,
+        )
+        db.add(device)
+        db.commit()
+
+        model = ModelConfig(
+            file_name="test.gguf",
+            model_dir_name="test",
+            file_path="/models/test.gguf",
+            alias="test-model",
+            assignment_mode="pinned",
+            pinned_device_id=device.id,
+            activated=True,
+        )
+        db.add(model)
+        db.commit()
+        device_id = device.id
+
+        manager = DeviceManager()
+        detected = [
+            DetectedDevice(
+                hardware_id="vulkan:1",
+                stable_hardware_id="0000:03:00.0",
+                stable_hardware_id_source="pci_bdf",
+                name="AMD Radeon RX 7900 XTX",
+                vendor="vulkan",
+                device_type="gpu",
+                memory_mb=24576,
+            )
+        ]
+
+        with mock.patch.object(DeviceManager, "detect_all", return_value=detected):
+            rows = manager.sync_detected_devices(db)
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].id, device_id)
+        self.assertEqual(rows[0].hardware_id, "vulkan:1")
+        self.assertEqual(rows[0].stable_hardware_id, "0000:03:00.0")
+        db.refresh(model)
+        self.assertEqual(model.pinned_device_id, device_id)
+        self.assertEqual(model.assignment_mode, "pinned")
+        self.assertTrue(model.activated)
+
 
 if __name__ == "__main__":
     unittest.main()
