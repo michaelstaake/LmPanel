@@ -4,10 +4,11 @@ from pathlib import Path
 from unittest import mock
 
 from app.core.amdgpu_memory import (
+    apply_amdgpu_live_metrics,
     is_vulkan_integrated_gpu,
-    read_amdgpu_device_metrics,
     read_amdgpu_gpu_usage,
     read_amdgpu_memory_metrics,
+    resolve_amdgpu_device_path,
     should_include_gtt,
 )
 
@@ -68,23 +69,45 @@ class AmdgpuMemoryTests(unittest.TestCase):
 
             self.assertEqual(read_amdgpu_gpu_usage(device_path), 42)
 
-    def test_read_device_metrics_uses_fdinfo_when_sysfs_under_reports(self) -> None:
+    def test_apply_live_metrics_uses_fdinfo_when_present(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             device_path = Path(tmpdir)
             (device_path / "mem_info_vram_total").write_text(str(24 * 1024**3))
             (device_path / "mem_info_vram_used").write_text(str(512 * 1024**2))
+            (device_path / "gpu_busy_percent").write_text("55")
 
-        with mock.patch(
-            "app.core.amdgpu_memory.fdinfo_vram_mb_by_pid",
-            return_value={1234: 12000},
+        metric = {"memory_used_mb": 100, "memory_source": "vulkaninfo"}
+        with (
+            mock.patch("app.core.amdgpu_memory.fdinfo_vram_mb_by_pid", return_value={1234: 12000}),
+            mock.patch("app.core.amdgpu_memory.read_amdgpu_gpu_usage", return_value=55),
         ):
-            metrics = read_amdgpu_device_metrics(
-                "0000:03:00.0",
-                device_path,
-                integrated=False,
-                vulkan_used_mb=8000,
-            )
+            apply_amdgpu_live_metrics(metric, device_path, pci_bdf="0000:03:00.0", integrated=False)
 
-        self.assertEqual(metrics["memory_used_mb"], 12000)
-        self.assertEqual(metrics["memory_source"], "fdinfo")
-        self.assertEqual(metrics["process_memory_by_pid"], {1234: 12000})
+        self.assertEqual(metric["memory_used_mb"], 12000)
+        self.assertEqual(metric["usage_percent"], 55)
+        self.assertEqual(metric["process_memory_by_pid"], {1234: 12000})
+
+    def test_resolve_prefers_bdf_path_with_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            good = root / "good"
+            bad = root / "bad"
+            good.mkdir()
+            bad.mkdir()
+            (good / "gpu_busy_percent").write_text("12")
+            (good / "mem_info_vram_total").write_text(str(8 * 1024**3))
+
+            cards = {"0000:03:00.0": bad, "0000:0c:00.0": good}
+            ordered = [good]
+
+            path = resolve_amdgpu_device_path(
+                "0000:03:00.0",
+                position=0,
+                cards_by_bdf=cards,
+                ordered_paths=ordered,
+            )
+            self.assertEqual(path, good)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -20,6 +20,15 @@ class IntelDrmMemoryTests(unittest.TestCase):
         block = "pciBusInfo = 0000:86:00.0\n"
         self.assertEqual(parse_vulkan_pci_bdf(block), "0000:86:00.0")
 
+    def test_parse_vulkan_pci_bdf_component_fields(self) -> None:
+        block = """
+        domainNumber = 0
+        busNumber = 0x03
+        deviceNumber = 0x00
+        functionNumber = 0x0
+        """
+        self.assertEqual(parse_vulkan_pci_bdf(block), "0000:03:00.0")
+
     def test_parse_fdinfo_drm_size_kib(self) -> None:
         self.assertEqual(parse_fdinfo_drm_size_bytes("23992 KiB"), 23992 * 1024)
 

@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from app.core.pci_bdf import normalize_pci_bdf
-from app.core.drm_fdinfo import fdinfo_vram_mb_by_pid, sum_fdinfo_vram_bytes
+from app.core.drm_fdinfo import fdinfo_vram_mb_by_pid
 
 APU_VRAM_THRESHOLD_MB = 4096
 
@@ -77,45 +77,15 @@ def read_amdgpu_gpu_usage(device_path: Path) -> int | None:
     return None
 
 
-def read_amdgpu_device_metrics(
-    pci_bdf: str,
-    device_path: Path,
-    *,
-    integrated: bool = False,
-    vulkan_used_mb: int = 0,
-) -> dict:
-    """VRAM/usage metrics for an AMD GPU: sysfs + fdinfo + optional vulkaninfo baseline."""
-    sysfs = read_amdgpu_memory_metrics(device_path, integrated=integrated)
-    fdinfo_by_pid = fdinfo_vram_mb_by_pid(pci_bdf)
-    fdinfo_total_mb = sum(fdinfo_by_pid.values())
-    fdinfo_total_bytes = sum_fdinfo_vram_bytes(pci_bdf)
-
-    sysfs_used = int(sysfs.get("memory_used_mb") or 0)
-    used_mb = max(sysfs_used, fdinfo_total_mb, vulkan_used_mb)
-
-    memory_source = sysfs.get("memory_source", "sysfs")
-    if fdinfo_total_mb >= used_mb and fdinfo_total_mb > 0:
-        memory_source = "fdinfo"
-    elif vulkan_used_mb >= used_mb and vulkan_used_mb > 0:
-        memory_source = "vulkaninfo"
-    elif sysfs.get("memory_source"):
-        memory_source = sysfs["memory_source"]
-
-    result: dict = {}
-    if sysfs.get("memory_total_mb"):
-        result["memory_total_mb"] = sysfs["memory_total_mb"]
-    if used_mb > 0 or sysfs_used > 0 or fdinfo_total_bytes > 0 or vulkan_used_mb > 0:
-        result["memory_used_mb"] = used_mb
-        result["memory_source"] = memory_source
-    if fdinfo_by_pid:
-        result["process_memory_by_pid"] = fdinfo_by_pid
-
-    usage = read_amdgpu_gpu_usage(device_path)
-    if usage is not None:
-        result["usage_percent"] = usage
-        result["usage_source"] = "sysfs"
-
-    return result
+def _sysfs_metrics_score(device_path: Path) -> int:
+    score = 0
+    if (device_path / "gpu_busy_percent").is_file():
+        score += 4
+    if (device_path / "mem_info_vram_total").is_file():
+        score += 2
+    if (device_path / "mem_info_vram_used").is_file():
+        score += 1
+    return score
 
 
 def list_amdgpu_device_paths() -> list[Path]:
@@ -153,6 +123,65 @@ def list_amdgpu_cards_by_bdf() -> dict[str, Path]:
         if not match:
             continue
         bdf = normalize_pci_bdf(match.group(1))
-        if bdf:
+        if not bdf:
+            continue
+        existing = cards.get(bdf)
+        if existing is None or _sysfs_metrics_score(device) > _sysfs_metrics_score(existing):
             cards[bdf] = device
     return cards
+
+
+def resolve_amdgpu_device_path(
+    pci_bdf: str | None,
+    *,
+    position: int | None = None,
+    cards_by_bdf: dict[str, Path] | None = None,
+    ordered_paths: list[Path] | None = None,
+) -> Path | None:
+    """Resolve an amdgpu sysfs device path by PCI BDF, with positional fallback."""
+    if cards_by_bdf is None:
+        cards_by_bdf = list_amdgpu_cards_by_bdf()
+    if ordered_paths is None:
+        ordered_paths = list_amdgpu_device_paths()
+
+    if pci_bdf:
+        normalized = normalize_pci_bdf(pci_bdf)
+        if normalized:
+            device_path = cards_by_bdf.get(normalized)
+            if device_path is not None and _sysfs_metrics_score(device_path) > 0:
+                return device_path
+
+    if position is not None and 0 <= position < len(ordered_paths):
+        return ordered_paths[position]
+    return None
+
+
+def apply_amdgpu_live_metrics(
+    metric: dict,
+    device_path: Path,
+    *,
+    pci_bdf: str | None = None,
+    integrated: bool = False,
+) -> None:
+    """Merge amdgpu sysfs (and optional fdinfo) counters into a runtime metric dict."""
+    usage = read_amdgpu_gpu_usage(device_path)
+    if usage is not None:
+        metric["usage_percent"] = usage
+        metric["usage_source"] = "sysfs"
+
+    sysfs = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+    if sysfs.get("memory_total_mb"):
+        metric["memory_total_mb"] = sysfs["memory_total_mb"]
+    sysfs_used = int(sysfs.get("memory_used_mb") or 0)
+    used_mb = max(int(metric.get("memory_used_mb") or 0), sysfs_used)
+    if sysfs.get("memory_source") and sysfs_used > 0:
+        metric["memory_source"] = sysfs["memory_source"]
+
+    if pci_bdf:
+        fdinfo_by_pid = fdinfo_vram_mb_by_pid(pci_bdf)
+        if fdinfo_by_pid:
+            metric["process_memory_by_pid"] = fdinfo_by_pid
+            used_mb = max(used_mb, sum(fdinfo_by_pid.values()))
+
+    if used_mb > 0 or sysfs_used > 0:
+        metric["memory_used_mb"] = used_mb

@@ -32,10 +32,12 @@ from app.core.device_manager import (
     _parse_vulkaninfo_gpu_memory_metrics,
 )
 from app.core.amdgpu_memory import (
+    apply_amdgpu_live_metrics,
     is_vulkan_integrated_gpu,
     list_amdgpu_cards_by_bdf,
+    list_amdgpu_device_paths,
     parse_vulkan_device_type,
-    read_amdgpu_device_metrics,
+    resolve_amdgpu_device_path,
 )
 from app.core.pci_bdf import parse_vulkan_pci_bdf
 from app.core.intel_drm_memory import read_intel_vram_metrics
@@ -507,21 +509,14 @@ class InferenceRuntime:
         for device in detected_devices:
             device_models = sorted(models_by_hardware_id.get(device.hardware_id, []), key=lambda row: row["model_id"])
             hardware_metrics = dynamic_metrics.get(device.hardware_id, {})
-            process_memory_by_pid = hardware_metrics.get("process_memory_by_pid", {})
-            if process_memory_by_pid and device_models:
-                process_memory_total = sum(
-                    process_memory_by_pid.get(model.get("pid"), 0) or 0
-                    for model in device_models
-                )
-            else:
-                process_memory_total = sum(model["memory_used_mb"] for model in device_models)
+            process_memory_total = sum(model["memory_used_mb"] for model in device_models)
             memory_used_mb = int(hardware_metrics.get("memory_used_mb") or 0)
-            if device_models:
-                memory_used_mb = max(memory_used_mb, process_memory_total)
+            process_memory_by_pid = hardware_metrics.get("process_memory_by_pid", {})
             if device_models and memory_used_mb > 0 and not process_memory_by_pid and process_memory_total < memory_used_mb:
                 self._distribute_shared_memory(device_models, memory_used_mb)
                 process_memory_total = sum(model["memory_used_mb"] for model in device_models)
-                memory_used_mb = max(memory_used_mb, process_memory_total)
+            if memory_used_mb <= 0 and process_memory_total > 0:
+                memory_used_mb = process_memory_total
 
             usage_percent = hardware_metrics.get("usage_percent")
             usage_source = hardware_metrics.get("usage_source") if usage_percent is not None else "unavailable"
@@ -647,6 +642,7 @@ class InferenceRuntime:
     def _collect_vulkan_metrics(self) -> dict[str, dict]:
         output = self._run_command(["vulkaninfo"])
         metrics: dict[str, dict] = {}
+        amd_vulkan_indices: list[int] = []
         amd_vulkan_by_idx: dict[int, str] = {}
         amd_integrated_by_idx: dict[int, bool] = {}
         intel_vulkan_by_idx: dict[int, str] = {}
@@ -667,6 +663,7 @@ class InferenceRuntime:
                 vendor_id = _parse_vulkan_vendor_id(block)
                 pci_bdf = parse_vulkan_pci_bdf(block)
                 if vendor_id == AMD_VENDOR_ID:
+                    amd_vulkan_indices.append(idx)
                     if pci_bdf:
                         amd_vulkan_by_idx[idx] = pci_bdf
                     amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(parse_vulkan_device_type(block))
@@ -696,12 +693,18 @@ class InferenceRuntime:
         # Prefer amdgpu sysfs counters when available. For integrated/APU GPUs include GTT.
         try:
             amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
-            for vulkan_idx, pci_bdf in amd_vulkan_by_idx.items():
-                device_path = amd_cards_by_bdf.get(pci_bdf)
+            amd_ordered_paths = list_amdgpu_device_paths()
+            for position, vulkan_idx in enumerate(amd_vulkan_indices):
+                pci_bdf = amd_vulkan_by_idx.get(vulkan_idx)
+                device_path = resolve_amdgpu_device_path(
+                    pci_bdf,
+                    position=position,
+                    cards_by_bdf=amd_cards_by_bdf,
+                    ordered_paths=amd_ordered_paths,
+                )
                 if device_path is None:
                     continue
                 hardware_id = f"vulkan:{vulkan_idx}"
-                prior_used_mb = int(metrics.get(hardware_id, {}).get("memory_used_mb") or 0)
                 metric = metrics.setdefault(
                     hardware_id,
                     {
@@ -715,24 +718,12 @@ class InferenceRuntime:
                 )
 
                 integrated = amd_integrated_by_idx.get(vulkan_idx, False)
-                amdgpu_metrics = read_amdgpu_device_metrics(
-                    pci_bdf,
+                apply_amdgpu_live_metrics(
+                    metric,
                     device_path,
+                    pci_bdf=pci_bdf,
                     integrated=integrated,
-                    vulkan_used_mb=prior_used_mb,
                 )
-                if amdgpu_metrics.get("usage_percent") is not None:
-                    metric["usage_percent"] = amdgpu_metrics["usage_percent"]
-                    metric["usage_source"] = amdgpu_metrics.get("usage_source", "sysfs")
-                if amdgpu_metrics.get("memory_total_mb"):
-                    metric["memory_total_mb"] = amdgpu_metrics["memory_total_mb"]
-                if amdgpu_metrics.get("memory_used_mb") is not None:
-                    metric["memory_used_mb"] = amdgpu_metrics["memory_used_mb"]
-                if amdgpu_metrics.get("memory_source"):
-                    metric["memory_source"] = amdgpu_metrics["memory_source"]
-                process_memory = amdgpu_metrics.get("process_memory_by_pid")
-                if isinstance(process_memory, dict) and process_memory:
-                    metric["process_memory_by_pid"] = process_memory
         except Exception:
             pass
 

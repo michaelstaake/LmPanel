@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from app.core.amdgpu_memory import apply_amdgpu_live_metrics, resolve_amdgpu_device_path
 from app.core.device_manager import DeviceManager
 from app.inference_service import InferenceRuntime
 
@@ -13,6 +14,22 @@ class AmdBdfMappingTests(unittest.TestCase):
             "0000:03:00.0": Path("/sys/card-high"),
             "0000:0c:00.0": Path("/sys/card-low"),
         }
+        ordered_paths = [Path("/sys/card-low"), Path("/sys/card-high")]
+
+        def fake_resolve(
+            pci_bdf: str | None,
+            *,
+            position: int | None = None,
+            cards_by_bdf=None,
+            ordered_paths=None,
+        ) -> Path | None:
+            if pci_bdf:
+                normalized = pci_bdf.lower()
+                if normalized in cards:
+                    return cards[normalized]
+            if position is not None and ordered_paths and position < len(ordered_paths):
+                return ordered_paths[position]
+            return None
 
         def fake_read(device_path: Path, *, integrated: bool = False) -> dict:
             if device_path == Path("/sys/card-high"):
@@ -22,10 +39,13 @@ class AmdBdfMappingTests(unittest.TestCase):
             return {}
 
         with (
+            mock.patch("app.core.device_manager.resolve_amdgpu_device_path", side_effect=fake_resolve),
             mock.patch("app.core.device_manager.list_amdgpu_cards_by_bdf", return_value=cards),
+            mock.patch("app.core.device_manager.list_amdgpu_device_paths", return_value=ordered_paths),
             mock.patch("app.core.device_manager.read_amdgpu_memory_metrics", side_effect=fake_read),
         ):
             totals = manager._read_amdgpu_memory_totals(
+                [0, 1],
                 {0: "0000:0c:00.0", 1: "0000:03:00.0"},
                 {0: False, 1: False},
             )
@@ -33,31 +53,45 @@ class AmdBdfMappingTests(unittest.TestCase):
         self.assertEqual(totals[0], 8192)
         self.assertEqual(totals[1], 24576)
 
+    def test_resolve_falls_back_to_ordered_paths_when_bdf_missing(self) -> None:
+        ordered_paths = [Path("/sys/card-low"), Path("/sys/card-high")]
+        path = resolve_amdgpu_device_path(
+            None,
+            position=1,
+            cards_by_bdf={},
+            ordered_paths=ordered_paths,
+        )
+        self.assertEqual(path, Path("/sys/card-high"))
+
     def test_inference_runtime_maps_amdgpu_metrics_by_pci_bdf(self) -> None:
         runtime = InferenceRuntime()
         cards = {
             "0000:03:00.0": Path("/sys/card-high"),
             "0000:0c:00.0": Path("/sys/card-low"),
         }
+        ordered_paths = [Path("/sys/card-low"), Path("/sys/card-high")]
 
-        def fake_metrics(pci_bdf: str, device_path: Path, *, integrated: bool = False, vulkan_used_mb: int = 0) -> dict:
+        def fake_apply(metric: dict, device_path: Path, *, pci_bdf=None, integrated: bool = False) -> None:
             if device_path == Path("/sys/card-high"):
-                return {
-                    "memory_total_mb": 24576,
-                    "memory_used_mb": max(1024, vulkan_used_mb),
-                    "memory_source": "sysfs",
-                    "usage_percent": 10,
-                    "usage_source": "sysfs",
-                }
-            if device_path == Path("/sys/card-low"):
-                return {
-                    "memory_total_mb": 8192,
-                    "memory_used_mb": max(512, vulkan_used_mb),
-                    "memory_source": "sysfs",
-                    "usage_percent": 10,
-                    "usage_source": "sysfs",
-                }
-            return {}
+                metric.update(
+                    {
+                        "memory_total_mb": 24576,
+                        "memory_used_mb": 1024,
+                        "memory_source": "sysfs",
+                        "usage_percent": 10,
+                        "usage_source": "sysfs",
+                    }
+                )
+            elif device_path == Path("/sys/card-low"):
+                metric.update(
+                    {
+                        "memory_total_mb": 8192,
+                        "memory_used_mb": 512,
+                        "memory_source": "sysfs",
+                        "usage_percent": 10,
+                        "usage_source": "sysfs",
+                    }
+                )
 
         vulkan_output = """
 GPU0:
@@ -85,7 +119,9 @@ GPU1:
         with (
             mock.patch.object(InferenceRuntime, "_run_command", return_value=vulkan_output),
             mock.patch("app.inference_service.list_amdgpu_cards_by_bdf", return_value=cards),
-            mock.patch("app.inference_service.read_amdgpu_device_metrics", side_effect=fake_metrics),
+            mock.patch("app.inference_service.list_amdgpu_device_paths", return_value=ordered_paths),
+            mock.patch("app.inference_service.resolve_amdgpu_device_path", side_effect=lambda pci_bdf, **kwargs: cards.get((pci_bdf or "").lower()) or ordered_paths[kwargs.get("position", 0)]),
+            mock.patch("app.inference_service.apply_amdgpu_live_metrics", side_effect=fake_apply),
         ):
             metrics = runtime._collect_vulkan_metrics()
 

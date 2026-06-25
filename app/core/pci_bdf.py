@@ -19,11 +19,34 @@ def normalize_pci_bdf(value: str) -> str | None:
     return f"{domain}:{match.group(2)}:{match.group(3)}.{function}"
 
 
+def _parse_vulkan_number(value: str) -> int:
+    text = value.strip().lower()
+    if text.startswith("0x"):
+        return int(text, 16)
+    return int(text, 10)
+
+
 def parse_vulkan_pci_bdf(block: str) -> str | None:
     for pattern in (r"pciBusInfo\s*=\s*(\S+)", r"pciBusID\s*=\s*(\S+)"):
         match = re.search(pattern, block)
-        if match:
-            normalized = normalize_pci_bdf(match.group(1))
-            if normalized:
-                return normalized
+        if not match:
+            continue
+        token = match.group(1).strip()
+        if token.endswith(":"):
+            continue
+        normalized = normalize_pci_bdf(token)
+        if normalized:
+            return normalized
+
+    domain_match = re.search(r"domainNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
+    bus_match = re.search(r"busNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
+    device_match = re.search(r"deviceNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
+    function_match = re.search(r"functionNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
+    if bus_match and device_match:
+        domain = _parse_vulkan_number(domain_match.group(1)) if domain_match else 0
+        bus = _parse_vulkan_number(bus_match.group(1))
+        device = _parse_vulkan_number(device_match.group(1))
+        function = _parse_vulkan_number(function_match.group(1)) if function_match else 0
+        return f"{domain:04x}:{bus:02x}:{device:02x}.{function}"
+
     return None

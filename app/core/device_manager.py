@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from app.core.amdgpu_memory import (
     is_vulkan_integrated_gpu,
     list_amdgpu_cards_by_bdf,
+    list_amdgpu_device_paths,
     read_amdgpu_memory_metrics,
+    resolve_amdgpu_device_path,
 )
 from app.core.config import get_settings
 from app.core.gpu_pool_manager import delete_unavailable_devices
@@ -265,6 +267,7 @@ class DeviceManager:
             return []
 
         devices: list[DetectedDevice] = []
+        amd_vulkan_indices: list[int] = []
         amd_vulkan_by_idx: dict[int, str] = {}
         amd_integrated_by_idx: dict[int, bool] = {}
         blocks = re.split(r"GPU(\d+):", output)
@@ -287,6 +290,7 @@ class DeviceManager:
                 continue
 
             if vendor_id == AMD_VENDOR_ID:
+                amd_vulkan_indices.append(idx)
                 if pci_bdf:
                     amd_vulkan_by_idx[idx] = pci_bdf
                 amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(device_type_str)
@@ -306,7 +310,9 @@ class DeviceManager:
 
         if devices:
             memory_by_idx = _parse_vulkaninfo_device_local_heap_mb(output)
-            memory_by_idx.update(self._read_amdgpu_memory_totals(amd_vulkan_by_idx, amd_integrated_by_idx))
+            memory_by_idx.update(
+                self._read_amdgpu_memory_totals(amd_vulkan_indices, amd_vulkan_by_idx, amd_integrated_by_idx)
+            )
             for device in devices:
                 idx = int(device.hardware_id.split(":")[1])
                 device.memory_mb = memory_by_idx.get(idx, 0)
@@ -315,16 +321,24 @@ class DeviceManager:
 
     def _read_amdgpu_memory_totals(
         self,
+        amd_vulkan_indices: list[int],
         amd_vulkan_by_idx: dict[int, str],
         integrated_by_idx: dict[int, bool] | None = None,
     ) -> dict[int, int]:
         memory_by_idx: dict[int, int] = {}
-        if not amd_vulkan_by_idx:
+        if not amd_vulkan_indices:
             return memory_by_idx
 
         amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
-        for vulkan_idx, pci_bdf in amd_vulkan_by_idx.items():
-            device_path = amd_cards_by_bdf.get(pci_bdf)
+        amd_ordered_paths = list_amdgpu_device_paths()
+        for position, vulkan_idx in enumerate(amd_vulkan_indices):
+            pci_bdf = amd_vulkan_by_idx.get(vulkan_idx)
+            device_path = resolve_amdgpu_device_path(
+                pci_bdf,
+                position=position,
+                cards_by_bdf=amd_cards_by_bdf,
+                ordered_paths=amd_ordered_paths,
+            )
             if device_path is None:
                 continue
             integrated = (integrated_by_idx or {}).get(vulkan_idx, False)
