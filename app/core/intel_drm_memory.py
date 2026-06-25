@@ -9,6 +9,11 @@ import re
 import struct
 from pathlib import Path
 
+from app.core.drm_fdinfo import (
+    fdinfo_vram_mb_by_pid,
+    parse_fdinfo_drm_size_bytes,
+    sum_fdinfo_vram_bytes,
+)
 from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 
 logger = logging.getLogger(__name__)
@@ -133,69 +138,6 @@ def _query_xe_vram_bytes(card_path: Path) -> tuple[int | None, int | None]:
         return None, None
     finally:
         os.close(fd)
-
-
-def _parse_fdinfo_drm_size_bytes(value: str) -> int:
-    match = re.search(r"(\d+)\s*(kB|KiB|MB|MiB|GB|GiB)?", value.strip(), re.IGNORECASE)
-    if not match:
-        return 0
-    amount = int(match.group(1))
-    unit = (match.group(2) or "kib").lower()
-    if unit in ("kb", "kib"):
-        return amount * 1024
-    if unit in ("mb", "mib"):
-        return amount * 1024 * 1024
-    if unit in ("gb", "gib"):
-        return amount * 1024 * 1024 * 1024
-    return amount
-
-
-def _collect_fdinfo_vram_by_client(pdev: str) -> dict[tuple[int, int], int]:
-    """Sum ``drm-total-vram0`` per (pid, drm-client-id), deduped like nvtop."""
-    clients: dict[tuple[int, int], int] = {}
-    try:
-        fdinfo_paths = list(Path("/proc").glob("[0-9]*/fdinfo/*"))
-    except Exception:
-        return clients
-
-    for fdinfo_path in fdinfo_paths:
-        try:
-            pid = int(fdinfo_path.parent.parent.name)
-            text = fdinfo_path.read_text()
-        except Exception:
-            continue
-
-        file_pdev: str | None = None
-        client_id: int | None = None
-        vram_bytes = 0
-        for line in text.splitlines():
-            if line.startswith("drm-pdev:"):
-                file_pdev = line.split(":", 1)[1].strip()
-            elif line.startswith("drm-client-id:"):
-                try:
-                    client_id = int(line.split(":", 1)[1].strip())
-                except ValueError:
-                    client_id = None
-            elif line.startswith("drm-total-vram0:"):
-                vram_bytes = _parse_fdinfo_drm_size_bytes(line.split(":", 1)[1])
-
-        if file_pdev != pdev or client_id is None or vram_bytes <= 0:
-            continue
-        key = (pid, client_id)
-        clients[key] = max(clients.get(key, 0), vram_bytes)
-
-    return clients
-
-
-def sum_fdinfo_vram_bytes(pdev: str) -> int:
-    return sum(_collect_fdinfo_vram_by_client(pdev).values())
-
-
-def fdinfo_vram_mb_by_pid(pdev: str) -> dict[int, int]:
-    per_pid: dict[int, int] = {}
-    for (pid, _client_id), vram_bytes in _collect_fdinfo_vram_by_client(pdev).items():
-        per_pid[pid] = per_pid.get(pid, 0) + vram_bytes
-    return {pid: int(bytes_val / (1024 * 1024)) for pid, bytes_val in per_pid.items()}
 
 
 def read_intel_vram_metrics(pci_bdf: str) -> dict[str, object]:

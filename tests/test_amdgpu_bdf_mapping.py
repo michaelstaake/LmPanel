@@ -40,18 +40,22 @@ class AmdBdfMappingTests(unittest.TestCase):
             "0000:0c:00.0": Path("/sys/card-low"),
         }
 
-        def fake_read(device_path: Path, *, integrated: bool = False) -> dict:
+        def fake_metrics(pci_bdf: str, device_path: Path, *, integrated: bool = False, vulkan_used_mb: int = 0) -> dict:
             if device_path == Path("/sys/card-high"):
                 return {
                     "memory_total_mb": 24576,
-                    "memory_used_mb": 1024,
+                    "memory_used_mb": max(1024, vulkan_used_mb),
                     "memory_source": "sysfs",
+                    "usage_percent": 10,
+                    "usage_source": "sysfs",
                 }
             if device_path == Path("/sys/card-low"):
                 return {
                     "memory_total_mb": 8192,
-                    "memory_used_mb": 512,
+                    "memory_used_mb": max(512, vulkan_used_mb),
                     "memory_source": "sysfs",
+                    "usage_percent": 10,
+                    "usage_source": "sysfs",
                 }
             return {}
 
@@ -81,13 +85,13 @@ GPU1:
         with (
             mock.patch.object(InferenceRuntime, "_run_command", return_value=vulkan_output),
             mock.patch("app.inference_service.list_amdgpu_cards_by_bdf", return_value=cards),
-            mock.patch("app.inference_service.read_amdgpu_memory_metrics", side_effect=fake_read),
-            mock.patch.object(InferenceRuntime, "_read_sysfs_percentage", return_value=10),
+            mock.patch("app.inference_service.read_amdgpu_device_metrics", side_effect=fake_metrics),
         ):
             metrics = runtime._collect_vulkan_metrics()
 
         self.assertEqual(metrics["vulkan:0"]["memory_total_mb"], 8192)
         self.assertEqual(metrics["vulkan:0"]["memory_used_mb"], 512)
+        self.assertEqual(metrics["vulkan:0"]["usage_percent"], 10)
         self.assertEqual(metrics["vulkan:1"]["memory_total_mb"], 24576)
         self.assertEqual(metrics["vulkan:1"]["memory_used_mb"], 1024)
 

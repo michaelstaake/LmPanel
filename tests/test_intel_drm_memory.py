@@ -1,9 +1,9 @@
 import unittest
 from pathlib import Path
 
-from app.core.intel_drm_memory import (
-    _parse_fdinfo_drm_size_bytes,
+from app.core.drm_fdinfo import (
     fdinfo_vram_mb_by_pid,
+    parse_fdinfo_drm_size_bytes,
     sum_fdinfo_vram_bytes,
 )
 from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
@@ -21,7 +21,7 @@ class IntelDrmMemoryTests(unittest.TestCase):
         self.assertEqual(parse_vulkan_pci_bdf(block), "0000:86:00.0")
 
     def test_parse_fdinfo_drm_size_kib(self) -> None:
-        self.assertEqual(_parse_fdinfo_drm_size_bytes("23992 KiB"), 23992 * 1024)
+        self.assertEqual(parse_fdinfo_drm_size_bytes("23992 KiB"), 23992 * 1024)
 
     def test_sum_fdinfo_vram_dedupes_clients(self) -> None:
         from unittest.mock import patch
@@ -58,7 +58,7 @@ class IntelDrmMemoryTests(unittest.TestCase):
         fake_paths = [FakeFdinfo(fdinfo_a), FakeFdinfo(fdinfo_b), FakeFdinfo(fdinfo_other)]
         mock_proc = type("Proc", (), {"glob": lambda _self, _pat: fake_paths})()
 
-        with patch("app.core.intel_drm_memory.Path", side_effect=lambda value: mock_proc if value == "/proc" else Path(value)):
+        with patch("app.core.drm_fdinfo.Path", side_effect=lambda value: mock_proc if value == "/proc" else Path(value)):
             total = sum_fdinfo_vram_bytes(pdev)
             by_pid = fdinfo_vram_mb_by_pid(pdev)
 

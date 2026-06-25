@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from app.core.pci_bdf import normalize_pci_bdf
+from app.core.drm_fdinfo import fdinfo_vram_mb_by_pid, sum_fdinfo_vram_bytes
 
 APU_VRAM_THRESHOLD_MB = 4096
 
@@ -64,6 +65,56 @@ def read_amdgpu_memory_metrics(device_path: Path, *, integrated: bool = False) -
         result["memory_used_mb"] = int(used_bytes / (1024 * 1024))
     if total_bytes > 0 or vram_used is not None or gtt_used is not None:
         result["memory_source"] = "sysfs-gtt" if include_gtt else "sysfs"
+    return result
+
+
+def read_amdgpu_gpu_usage(device_path: Path) -> int | None:
+    """Read GPU utilization percent from amdgpu sysfs, with mem_busy_percent fallback."""
+    for name in ("gpu_busy_percent", "mem_busy_percent"):
+        value = _read_sysfs_int(device_path / name)
+        if value is not None:
+            return min(100, max(0, int(value)))
+    return None
+
+
+def read_amdgpu_device_metrics(
+    pci_bdf: str,
+    device_path: Path,
+    *,
+    integrated: bool = False,
+    vulkan_used_mb: int = 0,
+) -> dict:
+    """VRAM/usage metrics for an AMD GPU: sysfs + fdinfo + optional vulkaninfo baseline."""
+    sysfs = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+    fdinfo_by_pid = fdinfo_vram_mb_by_pid(pci_bdf)
+    fdinfo_total_mb = sum(fdinfo_by_pid.values())
+    fdinfo_total_bytes = sum_fdinfo_vram_bytes(pci_bdf)
+
+    sysfs_used = int(sysfs.get("memory_used_mb") or 0)
+    used_mb = max(sysfs_used, fdinfo_total_mb, vulkan_used_mb)
+
+    memory_source = sysfs.get("memory_source", "sysfs")
+    if fdinfo_total_mb >= used_mb and fdinfo_total_mb > 0:
+        memory_source = "fdinfo"
+    elif vulkan_used_mb >= used_mb and vulkan_used_mb > 0:
+        memory_source = "vulkaninfo"
+    elif sysfs.get("memory_source"):
+        memory_source = sysfs["memory_source"]
+
+    result: dict = {}
+    if sysfs.get("memory_total_mb"):
+        result["memory_total_mb"] = sysfs["memory_total_mb"]
+    if used_mb > 0 or sysfs_used > 0 or fdinfo_total_bytes > 0 or vulkan_used_mb > 0:
+        result["memory_used_mb"] = used_mb
+        result["memory_source"] = memory_source
+    if fdinfo_by_pid:
+        result["process_memory_by_pid"] = fdinfo_by_pid
+
+    usage = read_amdgpu_gpu_usage(device_path)
+    if usage is not None:
+        result["usage_percent"] = usage
+        result["usage_source"] = "sysfs"
+
     return result
 
 

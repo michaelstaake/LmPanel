@@ -1,9 +1,12 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from app.core.amdgpu_memory import (
     is_vulkan_integrated_gpu,
+    read_amdgpu_device_metrics,
+    read_amdgpu_gpu_usage,
     read_amdgpu_memory_metrics,
     should_include_gtt,
 )
@@ -56,3 +59,32 @@ class AmdgpuMemoryTests(unittest.TestCase):
         self.assertEqual(metrics["memory_total_mb"], 24576)
         self.assertEqual(metrics["memory_used_mb"], 4096)
         self.assertEqual(metrics["memory_source"], "sysfs")
+
+    def test_read_gpu_usage_prefers_gpu_busy_percent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            device_path = Path(tmpdir)
+            (device_path / "gpu_busy_percent").write_text("42")
+            (device_path / "mem_busy_percent").write_text("99")
+
+            self.assertEqual(read_amdgpu_gpu_usage(device_path), 42)
+
+    def test_read_device_metrics_uses_fdinfo_when_sysfs_under_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            device_path = Path(tmpdir)
+            (device_path / "mem_info_vram_total").write_text(str(24 * 1024**3))
+            (device_path / "mem_info_vram_used").write_text(str(512 * 1024**2))
+
+        with mock.patch(
+            "app.core.amdgpu_memory.fdinfo_vram_mb_by_pid",
+            return_value={1234: 12000},
+        ):
+            metrics = read_amdgpu_device_metrics(
+                "0000:03:00.0",
+                device_path,
+                integrated=False,
+                vulkan_used_mb=8000,
+            )
+
+        self.assertEqual(metrics["memory_used_mb"], 12000)
+        self.assertEqual(metrics["memory_source"], "fdinfo")
+        self.assertEqual(metrics["process_memory_by_pid"], {1234: 12000})
