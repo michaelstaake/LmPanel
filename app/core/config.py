@@ -68,6 +68,20 @@ class Settings(BaseSettings):
     inference_service_timeout_seconds: int = 300
     max_upload_size_mb: int = 102400
 
+    # Background watchdog: periodically re-syncs returning GPUs and auto-restarts
+    # crashed models so a server reboot is never required for recovery.
+    device_watchdog_enabled: bool = True
+    device_watchdog_interval_seconds: int = 30
+    # Max consecutive failed (re)activation attempts before the watchdog backs off
+    # a model until its next genuine state change.
+    model_recovery_max_attempts: int = 5
+    # On startup, wait up to this long for the inference runtime to report a GPU
+    # before reconciling devices, so we don't reconcile against a not-yet-ready GPU.
+    gpu_ready_timeout_seconds: int = 120
+    # Once the runtime is reachable but reports no GPU, wait this long before
+    # accepting a CPU-only result (covers slow amdgpu/driver init).
+    gpu_ready_grace_seconds: int = 20
+
     def supported_device_list(self) -> list[str]:
         return [item.strip().lower() for item in self.supported_devices.split(",") if item.strip()]
 

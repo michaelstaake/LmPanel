@@ -32,7 +32,7 @@ async def get_status(
     since_startup = token_usage["since_startup"]
     devices = db.query(Device).order_by(Device.priority.asc(), Device.id.asc()).all()
     models_by_id = {model.id: model for model in db.query(ModelConfig).all()}
-    runtime_devices, runtime_errors = await _fetch_runtime_devices(settings)
+    runtime_devices, runtime_by_stable_id, runtime_errors = await _fetch_runtime_devices(settings)
     system_cpu_usage_percent = _coalesce_float(runtime_devices.get("cpu:0", {}).get("usage_percent"))
     fallback_models_by_device_id: dict[int, list[dict]] = {}
     # pool_model_device_ids maps model_id -> set of device IDs it spans (for pool models)
@@ -55,7 +55,15 @@ async def get_status(
 
     serialized_devices: list[dict] = []
     for device in devices:
-        runtime_device = runtime_devices.get(device.hardware_id, {})
+        # Match runtime stats by the stable PCI address first. The runtime keys its
+        # payload by the *live* Vulkan index, which can diverge from this DB row's
+        # stored index after an enumeration change — matching by stable id prevents
+        # one card's stats/models from showing up on another card.
+        runtime_device = {}
+        if device.stable_hardware_id:
+            runtime_device = runtime_by_stable_id.get(device.stable_hardware_id, {})
+        if not runtime_device:
+            runtime_device = runtime_devices.get(device.hardware_id, {})
         runtime_models = runtime_device.get("models")
         raw_models = list(runtime_models) if isinstance(runtime_models, list) and runtime_models else list(fallback_models_by_device_id.get(device.id, []))
 
@@ -97,6 +105,7 @@ async def get_status(
                 "vendor": device.vendor,
                 "device_type": device.device_type,
                 "enabled": device.enabled,
+                "available": device.available,
                 "priority": device.priority,
                 "max_slots": device.max_slots,
                 "max_threads": device.max_threads,
@@ -141,9 +150,10 @@ async def get_status(
     }
 
 
-async def _fetch_runtime_devices(settings) -> tuple[dict[str, dict], list[dict]]:
+async def _fetch_runtime_devices(settings) -> tuple[dict[str, dict], dict[str, dict], list[dict]]:
     runtime_map = settings.inference_runtime_url_map()
     devices: dict[str, dict] = {}
+    by_stable_id: dict[str, dict] = {}
     errors: list[dict] = []
 
     async with httpx.AsyncClient(timeout=settings.inference_service_timeout_seconds) as client:
@@ -162,8 +172,11 @@ async def _fetch_runtime_devices(settings) -> tuple[dict[str, dict], list[dict]]
                 if not hardware_id:
                     continue
                 devices[str(hardware_id)] = row
+                stable_id = row.get("stable_hardware_id")
+                if stable_id:
+                    by_stable_id[str(stable_id)] = row
 
-    return devices, errors
+    return devices, by_stable_id, errors
 
 
 def _serialize_status_model(row: dict, models_by_id: dict[int, ModelConfig]) -> dict:

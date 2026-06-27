@@ -309,6 +309,7 @@ def _serialize_device(device: Device, default_name: str | None = None) -> dict:
         "device_type": device.device_type,
         "memory_mb": device.memory_mb,
         "enabled": device.enabled,
+        "available": device.available,
         "priority": device.priority,
         "max_threads": device.max_threads,
         "max_slots": device.max_slots,

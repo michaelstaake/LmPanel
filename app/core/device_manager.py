@@ -2,7 +2,8 @@ import logging
 import re
 import shlex
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -17,8 +18,8 @@ from app.core.amdgpu_memory import (
     resolve_amdgpu_device_path,
 )
 from app.core.config import get_settings
-from app.core.gpu_pool_manager import delete_unavailable_devices
-from app.core.pci_bdf import parse_vulkan_pci_bdf
+from app.core.gpu_pool_manager import mark_unavailable_devices
+from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -59,17 +60,41 @@ class DetectedDevice:
     pci_vendor_id: int | None = None
 
 
+@dataclass
+class DetectionResult:
+    """Result of a hardware detection pass.
+
+    ``authoritative`` is False when we could not actually probe the source of
+    truth (e.g. the inference runtime is configured but unreachable). Callers
+    must never delete/soft-disable devices based on a non-authoritative result,
+    otherwise a transient runtime hiccup wipes GPU/pool/model state.
+    """
+
+    devices: list[DetectedDevice] = field(default_factory=list)
+    authoritative: bool = True
+
+
 class DeviceManager:
     def detect_all(self) -> list[DetectedDevice]:
-        remote = self._detect_runtime_devices()
-        if remote:
-            return remote
+        return self.detect_all_with_status().devices
+
+    def detect_all_with_status(self) -> DetectionResult:
+        settings = get_settings()
+        # When an inference runtime is configured it is the only source that can
+        # actually see the GPUs (the backend container has no /dev/dri). If it is
+        # unreachable we must NOT fall back to the GPU-less local probe and report
+        # an empty/CPU-only device list as if it were the truth.
+        if settings.inference_runtime_urls.strip():
+            remote, reachable = self._detect_runtime_devices_with_status()
+            if reachable:
+                return DetectionResult(remote, authoritative=True)
+            return DetectionResult([], authoritative=False)
 
         configured = self._detect_configured_devices()
         if configured:
-            return configured
+            return DetectionResult(configured, authoritative=True)
 
-        return self.detect_local()
+        return DetectionResult(self.detect_local(), authoritative=True)
 
     def detect_local(self) -> list[DetectedDevice]:
         devices: list[DetectedDevice] = []
@@ -95,7 +120,10 @@ class DeviceManager:
         auto_enable_defaults: bool = False,
         inference: "InferenceManager | None" = None,
     ) -> list[Device]:
-        detected = self.detect_all()
+        detection = self.detect_all_with_status()
+        detected = detection.devices
+        authoritative = detection.authoritative
+        now = datetime.now(timezone.utc)
         self._default_names_by_hardware_id = {item.hardware_id: item.name for item in detected}
         existing_rows = db.query(Device).all()
         existing_by_hardware_id = {device.hardware_id: device for device in existing_rows}
@@ -129,6 +157,8 @@ class DeviceManager:
                     device_type=detected_device.device_type,
                     memory_mb=detected_device.memory_mb,
                     enabled=enabled,
+                    available=True,
+                    last_seen_at=now,
                     max_threads=detected_device.max_threads,
                     max_slots=detected_device.max_slots,
                 )
@@ -144,6 +174,8 @@ class DeviceManager:
                 row.vendor = detected_device.vendor
                 row.device_type = detected_device.device_type
                 row.memory_mb = detected_device.memory_mb
+                row.available = True
+                row.last_seen_at = now
                 if row.device_type == "cpu":
                     row.max_threads = detected_device.max_threads or row.max_threads
                     row.max_slots = max(0, detected_device.max_slots)
@@ -153,18 +185,33 @@ class DeviceManager:
             if detected_device.stable_hardware_id:
                 existing_by_stable_id[detected_device.stable_hardware_id] = row
 
-        removed_device_ids = delete_unavailable_devices(
-            db,
-            detected_hardware_ids,
-            inference,
-            detected_stable_hardware_ids=detected_stable_ids,
-            keep_device_ids=kept_row_ids,
+        # Reconciliation of devices that were NOT detected this pass.
+        #
+        # Only act on an *authoritative* probe (the runtime actually answered).
+        # Belt-and-suspenders: never reconcile when we have GPU rows in the DB
+        # but detected zero GPUs — that is almost always a probe/timing failure
+        # (e.g. amdgpu still initializing) rather than every GPU genuinely gone.
+        existing_gpu_in_db = any(
+            row.device_type == "gpu" and row.vendor != "cpu" for row in existing_rows
         )
-        if removed_device_ids:
-            logger.info(
-                "Removed %s device(s) no longer reported by active runtimes: %s",
-                len(removed_device_ids),
-                removed_device_ids,
+        safe_to_reconcile = authoritative and (gpu_detected or not existing_gpu_in_db)
+        if safe_to_reconcile:
+            disabled_device_ids = mark_unavailable_devices(
+                db,
+                detected_hardware_ids,
+                detected_stable_hardware_ids=detected_stable_ids,
+                keep_device_ids=kept_row_ids,
+            )
+            if disabled_device_ids:
+                logger.info(
+                    "Marked %s device(s) unavailable (not detected by active runtimes): %s",
+                    len(disabled_device_ids),
+                    disabled_device_ids,
+                )
+        elif not authoritative:
+            logger.warning(
+                "Skipping device reconciliation: detection was not authoritative "
+                "(inference runtime unreachable). Preserving existing device/pool state."
             )
 
         db.commit()
@@ -178,13 +225,20 @@ class DeviceManager:
         return device.device_type == "cpu" or device.vendor == "cpu"
 
     def _detect_runtime_devices(self) -> list[DetectedDevice]:
+        return self._detect_runtime_devices_with_status()[0]
+
+    def _detect_runtime_devices_with_status(self) -> tuple[list[DetectedDevice], bool]:
+        """Return (devices, reachable). ``reachable`` is True when at least one
+        configured runtime answered successfully, so an empty device list can be
+        trusted as authoritative."""
         settings = get_settings()
         if not settings.inference_runtime_urls.strip():
-            return []
+            return [], False
 
         devices_by_id: dict[str, DetectedDevice] = {}
         runtime_map = settings.inference_runtime_url_map()
         timeout = settings.inference_service_timeout_seconds
+        reachable = False
 
         for runtime_vendor, base_url in runtime_map.items():
             try:
@@ -195,6 +249,7 @@ class DeviceManager:
                 logger.warning("Failed to fetch devices from runtime %s at %s: %s", runtime_vendor, base_url, exc)
                 continue
 
+            reachable = True
             payload = response.json()
             rows = payload.get("devices", []) if isinstance(payload, dict) else []
             for row in rows:
@@ -205,7 +260,7 @@ class DeviceManager:
                     continue
                 devices_by_id[device.hardware_id] = device
 
-        return list(devices_by_id.values())
+        return list(devices_by_id.values()), reachable
 
     @staticmethod
     def _parse_runtime_device(row: object) -> DetectedDevice | None:
@@ -331,11 +386,16 @@ class DeviceManager:
 
         amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
         amd_ordered_paths = list_amdgpu_device_paths()
+        # Positional fallback (cardN order) is only safe when there is a single AMD
+        # GPU. With multiple AMD GPUs and no PCI BDF, vulkaninfo enumeration order
+        # need not match sorted sysfs cardN order, so a positional guess would
+        # cross-attribute metrics to the wrong card.
+        allow_positional = len(amd_vulkan_indices) <= 1
         for position, vulkan_idx in enumerate(amd_vulkan_indices):
             pci_bdf = amd_vulkan_by_idx.get(vulkan_idx)
             device_path = resolve_amdgpu_device_path(
                 pci_bdf,
-                position=position,
+                position=position if allow_positional else None,
                 cards_by_bdf=amd_cards_by_bdf,
                 ordered_paths=amd_ordered_paths,
             )
@@ -466,6 +526,40 @@ def _parse_vulkaninfo_device_local_heap_mb(output: str) -> dict[int, int]:
         for idx, metrics in _parse_vulkaninfo_gpu_memory_metrics(output).items()
         if metrics["total_mb"] > 0
     }
+
+
+def parse_vulkaninfo_bdf_by_index(output: str) -> dict[int, str]:
+    """Map each vulkaninfo ``GPUn`` index to its normalized PCI BDF.
+
+    Shared by detection and by live model launch / metric collection so the
+    same enumeration is parsed consistently in one place.
+    """
+    result: dict[int, str] = {}
+    blocks = re.split(r"GPU(\d+):", output)
+    i = 1
+    while i + 1 < len(blocks):
+        try:
+            idx = int(blocks[i])
+        except ValueError:
+            i += 2
+            continue
+        block = blocks[i + 1]
+        i += 2
+        bdf = parse_vulkan_pci_bdf(block)
+        if bdf:
+            result[idx] = bdf
+    return result
+
+
+def vulkaninfo_index_by_bdf(output: str) -> dict[str, int]:
+    """Inverse of :func:`parse_vulkaninfo_bdf_by_index`: normalized PCI BDF -> live index.
+
+    Used at model-launch time to translate a device's stable PCI address into the
+    *current* Vulkan enumeration index, so the model lands on the physically
+    correct GPU even after the enumeration order shifts across reboots/driver
+    updates.
+    """
+    return {bdf: idx for idx, bdf in parse_vulkaninfo_bdf_by_index(output).items()}
 
 
 def _parse_vulkan_vendor_id(block: str) -> int | None:

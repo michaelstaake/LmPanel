@@ -126,6 +126,37 @@ def delete_pools_with_unavailable_devices(
     return results
 
 
+def mark_unavailable_devices(
+    db: Session,
+    detected_hardware_ids: set[str],
+    *,
+    detected_stable_hardware_ids: set[str] | None = None,
+    keep_device_ids: set[int] | None = None,
+) -> list[int]:
+    """Soft-disable DB devices not reported by the latest authoritative detection.
+
+    Unlike :func:`delete_unavailable_devices` this is non-destructive: it only
+    flips ``Device.available`` to ``False`` and leaves the row, its pool
+    memberships, and any model pins intact so they recover automatically when the
+    device reappears. Hard deletion is reserved for explicit user-initiated purge.
+    """
+    stable_ids = detected_stable_hardware_ids or set()
+    keep_ids = keep_device_ids or set()
+    changed: list[int] = []
+    for row in db.query(Device).all():
+        if row.id in keep_ids:
+            continue
+        if row.hardware_id in detected_hardware_ids:
+            continue
+        if row.stable_hardware_id and row.stable_hardware_id in stable_ids:
+            continue
+        if row.available:
+            row.available = False
+            db.add(row)
+            changed.append(row.id)
+    return changed
+
+
 def delete_unavailable_devices(
     db: Session,
     detected_hardware_ids: set[str],
@@ -134,7 +165,11 @@ def delete_unavailable_devices(
     detected_stable_hardware_ids: set[str] | None = None,
     keep_device_ids: set[int] | None = None,
 ) -> list[int]:
-    """Remove DB devices that are no longer reported by any active inference runtime."""
+    """Hard-remove DB devices no longer reported by any runtime (explicit purge only).
+
+    Prefer :func:`mark_unavailable_devices` for routine reconciliation; this
+    destructive path cascades to pool membership and reverts pinned models, so it
+    must only run on an authoritative, user-initiated purge."""
     from app.models.inference_job import InferenceJob
 
     stable_ids = detected_stable_hardware_ids or set()

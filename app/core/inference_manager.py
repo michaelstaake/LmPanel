@@ -78,6 +78,27 @@ class InferenceManager:
     def is_active(self, model_id: int) -> bool:
         return model_id in self._running
 
+    async def is_model_process_alive(self, model_id: int) -> bool | None:
+        """Return whether the model's runtime process is alive.
+
+        ``None`` means "unknown" (runtime unreachable) — callers must NOT treat
+        that as dead, otherwise a transient blip would trigger a needless restart.
+        """
+        running = self._running.get(model_id)
+        if not running:
+            return None
+        url = f"{running.base_url}/runtime/models/{model_id}/alive"
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.inference_service_timeout_seconds) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                data = response.json()
+        except Exception:
+            return None
+        if not data.get("tracked", True):
+            return False
+        return bool(data.get("alive"))
+
     def runtime_url_for_vendor(self, vendor: str) -> str | None:
         effective_vendor = vendor.removesuffix("_pool")
         return self.settings.inference_runtime_url_for_vendor(effective_vendor)
@@ -207,6 +228,11 @@ class InferenceManager:
         if not runtime_url:
             raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
 
+        # Send PCI BDFs aligned 1:1 with hardware_ids (empty where unknown) so the
+        # runtime can re-resolve each pool member's live Vulkan index from its
+        # stable address at launch time.
+        aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
+
         payload = {
             "model_id": model.id,
             "alias": model.alias,
@@ -222,7 +248,7 @@ class InferenceManager:
             "hardware_ids": target.hardware_ids,
             "vram_ratios": target.vram_ratios,
             "split_mode": target.split_mode,
-            "stable_hardware_ids": stable_ids,
+            "stable_hardware_ids": aligned_stable_ids,
             "discourage_thinking": model.discourage_thinking,
         }
         timeout = self.settings.inference_service_timeout_seconds

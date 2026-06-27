@@ -1,8 +1,10 @@
 import asyncio
+import time
 from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +20,6 @@ from sqlalchemy.exc import OperationalError
 from app.core.device_manager import DeviceManager
 from app.core.gpu_pool_manager import (
     delete_pools_with_insufficient_members,
-    delete_pools_with_unavailable_devices,
     delete_stale_pool_memberships,
 )
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
@@ -34,12 +35,151 @@ inference_manager = InferenceManager()
 logger = logging.getLogger(__name__)
 
 
+async def _runtime_gpu_count() -> tuple[int, bool]:
+    """Return (gpu_count, reachable) by polling the inference runtime device list."""
+    runtime_map = settings.inference_runtime_url_map()
+    if not settings.inference_runtime_urls.strip():
+        # No separate runtime configured; nothing to wait for.
+        return 0, True
+    seen_urls: set[str] = set()
+    reachable = False
+    gpu_count = 0
+    async with httpx.AsyncClient(timeout=settings.inference_service_timeout_seconds) as client:
+        for base_url in runtime_map.values():
+            if base_url in seen_urls:
+                continue
+            seen_urls.add(base_url)
+            try:
+                response = await client.get(f"{base_url}/runtime/devices")
+                response.raise_for_status()
+                payload = response.json()
+            except Exception:
+                continue
+            reachable = True
+            rows = payload.get("devices", []) if isinstance(payload, dict) else []
+            gpu_count += sum(
+                1
+                for row in rows
+                if isinstance(row, dict)
+                and row.get("device_type") == "gpu"
+                and row.get("vendor") != "cpu"
+            )
+    return gpu_count, reachable
+
+
+async def _wait_for_gpu_ready() -> None:
+    """Wait for the inference runtime to enumerate at least one GPU before syncing.
+
+    Prevents the classic boot race where the runtime answers but amdgpu/Vulkan has
+    not finished initializing, which would otherwise soft-disable every GPU. Bounded
+    so genuinely CPU-only hosts still start promptly.
+    """
+    deadline = time.monotonic() + max(0, settings.gpu_ready_timeout_seconds)
+    first_reachable_at: float | None = None
+    while time.monotonic() < deadline:
+        gpu_count, reachable = await _runtime_gpu_count()
+        if reachable:
+            if gpu_count > 0:
+                logger.info("Inference runtime reports %d GPU(s); proceeding with startup", gpu_count)
+                return
+            now = time.monotonic()
+            if first_reachable_at is None:
+                first_reachable_at = now
+            elif now - first_reachable_at >= max(0, settings.gpu_ready_grace_seconds):
+                logger.info("Inference runtime reachable with no GPU after grace period; assuming CPU-only host")
+                return
+        await asyncio.sleep(2)
+    logger.warning("Timed out waiting for inference runtime GPUs; proceeding with startup anyway")
+
+
+async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
+    # 1. Detect and clear crashed model processes so they can be re-activated.
+    for model_id in list(inference_manager._running.keys()):
+        alive = await inference_manager.is_model_process_alive(model_id)
+        if alive is False:
+            logger.warning("Model %s process is not alive; clearing for recovery", model_id)
+            inference_manager.deactivate_model(model_id)
+
+    db = SessionLocal()
+    try:
+        # 2. Re-sync devices (non-destructive); returning GPUs flip back to available.
+        device_manager.sync_detected_devices(db, auto_enable_defaults=True, inference=inference_manager)
+
+        # 3. (Re)activate any model that should be running but isn't.
+        now = time.monotonic()
+        activated_models = (
+            db.query(ModelConfig)
+            .filter(ModelConfig.activated.is_(True))
+            .order_by(ModelConfig.priority.asc(), ModelConfig.id.asc())
+            .all()
+        )
+        for model in activated_models:
+            if inference_manager.is_active(model.id):
+                recovery_state.pop(model.id, None)
+                continue
+            state = recovery_state.get(model.id)
+            if state is not None:
+                if state["attempts"] >= settings.model_recovery_max_attempts:
+                    continue
+                if now < state["next_attempt"]:
+                    continue
+            try:
+                resolution = await models._resolve_device_for_model(db, model, inference_manager)
+                if resolution is None:
+                    raise RuntimeError("No available device for model")
+                if isinstance(resolution, PoolActivationTarget):
+                    await inference_manager.activate_model_on_pool(model, resolution)
+                else:
+                    await inference_manager.activate_model(model, resolution)
+                recovery_state.pop(model.id, None)
+                logger.info("Watchdog recovered model %s", model.alias)
+            except Exception as exc:
+                attempts = (state["attempts"] if state else 0) + 1
+                backoff = min(
+                    settings.device_watchdog_interval_seconds * (2 ** (attempts - 1)),
+                    3600,
+                )
+                recovery_state[model.id] = {"attempts": attempts, "next_attempt": now + backoff}
+                if attempts >= settings.model_recovery_max_attempts:
+                    logger.error(
+                        "Watchdog giving up on model %s after %d attempts: %s",
+                        model.alias,
+                        attempts,
+                        exc,
+                    )
+                else:
+                    logger.warning(
+                        "Watchdog recovery attempt %d for model %s failed (retry in %ds): %s",
+                        attempts,
+                        model.alias,
+                        backoff,
+                        exc,
+                    )
+        db.commit()
+    finally:
+        db.close()
+
+
+async def schedule_device_watchdog() -> None:
+    """Periodically reconcile GPUs and auto-restart crashed models."""
+    recovery_state: dict[int, dict] = {}
+    interval = max(5, settings.device_watchdog_interval_seconds)
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await _watchdog_tick(recovery_state)
+        except Exception:
+            logger.exception("Device watchdog tick failed")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging(settings.app_log_level)
     Path(settings.models_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.data_dir, "backgrounds").mkdir(parents=True, exist_ok=True)
+
+    await _wait_for_gpu_ready()
 
     db = SessionLocal()
     try:
@@ -57,9 +197,11 @@ async def lifespan(_: FastAPI):
                     "reason": "stale_pool_memberships_on_startup",
                 },
             )
-        detected_hardware_ids = {device.hardware_id for device in device_manager.detect_all()}
-        removed_pools = delete_pools_with_unavailable_devices(db, detected_hardware_ids, inference_manager)
-        removed_pools.extend(delete_pools_with_insufficient_members(db, inference_manager))
+        # NOTE: pools/devices are no longer deleted when a GPU is merely missing on
+        # startup — devices are soft-disabled (Device.available=False) and the
+        # watchdog re-activates everything once the GPU reappears. Only genuinely
+        # under-membered pools (a user removed members) are pruned here.
+        removed_pools = delete_pools_with_insufficient_members(db, inference_manager)
         db.commit()
         for removed_pool in removed_pools:
             log_event(
@@ -68,7 +210,7 @@ async def lifespan(_: FastAPI):
                 details={
                     "pool_id": removed_pool.pool_id,
                     "pool_name": removed_pool.pool_name,
-                    "reason": "device_unavailable_on_startup",
+                    "reason": "insufficient_members_on_startup",
                     "device_ids": removed_pool.member_device_ids,
                     "reverted_model_ids": removed_pool.reverted_model_ids,
                 },
@@ -92,9 +234,9 @@ async def lifespan(_: FastAPI):
                 else:
                     await inference_manager.activate_model(model, resolution)
             except Exception:
-                logger.exception("Failed to auto-load model %s during startup", model.alias)
-                model.activated = False
-                db.add(model)
+                # Keep activated=True so the watchdog keeps retrying (e.g. the GPU
+                # is still initializing). Do not flip it off on a transient failure.
+                logger.exception("Failed to auto-load model %s during startup; watchdog will retry", model.alias)
         db.commit()
     finally:
         db.close()
@@ -102,12 +244,17 @@ async def lifespan(_: FastAPI):
     pruning_task = asyncio.create_task(schedule_daily_pruning())
     ssl_renewal_task = asyncio.create_task(schedule_daily_ssl_renewal())
     update_check_task = asyncio.create_task(schedule_update_check())
+    watchdog_task = (
+        asyncio.create_task(schedule_device_watchdog()) if settings.device_watchdog_enabled else None
+    )
 
     yield
 
     pruning_task.cancel()
     ssl_renewal_task.cancel()
     update_check_task.cancel()
+    if watchdog_task is not None:
+        watchdog_task.cancel()
 
     for model_id in list(inference_manager._running.keys()):
         await inference_manager.deactivate_model(model_id)

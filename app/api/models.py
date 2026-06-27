@@ -832,7 +832,12 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
     if model.assignment_mode == "pinned" and model.pinned_device_id:
         device = (
             db.query(Device)
-            .filter(Device.id == model.pinned_device_id, Device.enabled.is_(True), Device.vendor.in_(supported_vendors))
+            .filter(
+                Device.id == model.pinned_device_id,
+                Device.enabled.is_(True),
+                Device.available.is_(True),
+                Device.vendor.in_(supported_vendors),
+            )
             .first()
         )
         if device and not inference.has_runtime_for_vendor(device.vendor):
@@ -879,7 +884,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
 
     candidates = (
         db.query(Device)
-        .filter(Device.enabled.is_(True), Device.vendor.in_(supported_vendors))
+        .filter(Device.enabled.is_(True), Device.available.is_(True), Device.vendor.in_(supported_vendors))
         .all()
     )
     pooled_device_ids = get_pooled_device_ids(db)

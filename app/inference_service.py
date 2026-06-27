@@ -28,6 +28,7 @@ from app.core.device_manager import (
     DeviceManager,
     get_supported_vendors,
     is_supported_vendor,
+    vulkaninfo_index_by_bdf,
     _parse_vulkan_vendor_id,
     _parse_vulkaninfo_gpu_memory_metrics,
 )
@@ -39,7 +40,7 @@ from app.core.amdgpu_memory import (
     parse_vulkan_device_type,
     resolve_amdgpu_device_path,
 )
-from app.core.pci_bdf import parse_vulkan_pci_bdf
+from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 from app.core.intel_drm_memory import read_intel_vram_metrics
 from app.core.nvidia_memory import (
     map_vulkan_index_to_nvidia_index,
@@ -231,7 +232,14 @@ class InferenceRuntime:
         self._ensure_stable_hardware_available(payload)
 
         port = self.settings.llama_base_port + payload.model_id
-        env = self._build_env(payload.vendor, payload.hardware_id, payload.threads, payload.hardware_ids)
+        env = self._build_env(
+            payload.vendor,
+            payload.hardware_id,
+            payload.threads,
+            payload.hardware_ids,
+            stable_hardware_id=payload.stable_hardware_id,
+            stable_hardware_ids=payload.stable_hardware_ids,
+        )
         flash_attn_enabled = payload.flash_attention_enabled
 
         command = [
@@ -429,19 +437,59 @@ class InferenceRuntime:
 
         return str(configured_path)
 
-    def _build_env(self, vendor: str, hardware_id: str, threads: int, hardware_ids: list[str] | None = None) -> dict[str, str]:
+    def _build_env(
+        self,
+        vendor: str,
+        hardware_id: str,
+        threads: int,
+        hardware_ids: list[str] | None = None,
+        stable_hardware_id: str | None = None,
+        stable_hardware_ids: list[str] | None = None,
+    ) -> dict[str, str]:
         env = os.environ.copy()
         if vendor == "vulkan_pool":
             ids = hardware_ids if hardware_ids else [hardware_id]
-            indices = [hid.split(":")[-1] for hid in ids]
+            stable = stable_hardware_ids if stable_hardware_ids else ([stable_hardware_id] if stable_hardware_id else [])
+            indices = self._resolve_vulkan_indices(ids, stable)
             env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
         elif vendor == "vulkan":
-            env["GGML_VK_VISIBLE_DEVICES"] = hardware_id.split(":")[-1]
+            stable = stable_hardware_ids if stable_hardware_ids else ([stable_hardware_id] if stable_hardware_id else [])
+            indices = self._resolve_vulkan_indices([hardware_id], stable)
+            env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
         elif vendor == "cpu":
             env["OMP_NUM_THREADS"] = str(max(1, threads))
         else:
             raise RuntimeError(f"Unknown device vendor: {vendor}")
         return env
+
+    def _resolve_vulkan_indices(self, hardware_ids: list[str], stable_hardware_ids: list[str]) -> list[str]:
+        """Translate each GPU's stable PCI BDF into its *current* live Vulkan index.
+
+        The stored ``vulkan:{idx}`` enumeration index is not stable across reboots
+        or driver updates, so launching with it can place a model on the wrong GPU.
+        We re-resolve the index from the device's PCI BDF against a fresh
+        ``vulkaninfo`` enumeration at launch time, falling back to the embedded
+        index only when no BDF is available. ``stable_hardware_ids`` is expected to
+        be aligned 1:1 with ``hardware_ids`` (empty string where unknown).
+        """
+        bdf_to_idx: dict[str, int] = {}
+        output = self._run_command(["vulkaninfo"])
+        if output:
+            bdf_to_idx = vulkaninfo_index_by_bdf(output)
+
+        indices: list[str] = []
+        for position, hardware_id in enumerate(hardware_ids):
+            stable = stable_hardware_ids[position] if position < len(stable_hardware_ids) else None
+            live_idx: int | None = None
+            if stable:
+                normalized = normalize_pci_bdf(stable)
+                if normalized is not None:
+                    live_idx = bdf_to_idx.get(normalized)
+            if live_idx is not None:
+                indices.append(str(live_idx))
+            else:
+                indices.append(hardware_id.split(":")[-1])
+        return indices
 
     def _build_vendor_args(
         self,
@@ -694,11 +742,14 @@ class InferenceRuntime:
         try:
             amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
             amd_ordered_paths = list_amdgpu_device_paths()
+            # Positional fallback is only safe with a single AMD GPU; with multiple
+            # GPUs and no PCI BDF, enumeration order need not match sysfs cardN order.
+            allow_positional = len(amd_vulkan_indices) <= 1
             for position, vulkan_idx in enumerate(amd_vulkan_indices):
                 pci_bdf = amd_vulkan_by_idx.get(vulkan_idx)
                 device_path = resolve_amdgpu_device_path(
                     pci_bdf,
-                    position=position,
+                    position=position if allow_positional else None,
                     cards_by_bdf=amd_cards_by_bdf,
                     ordered_paths=amd_ordered_paths,
                 )
@@ -966,6 +1017,18 @@ async def activate_model(payload: ActivateModelRequest) -> dict:
 def deactivate_model(model_id: int) -> dict:
     runtime.deactivate_model(model_id)
     return {"status": "ok"}
+
+
+@app.get("/runtime/models/{model_id}/alive")
+def model_alive(model_id: int) -> dict:
+    """Report whether the model's llama-server process is still running.
+
+    Used by the backend watchdog to detect crashed processes for auto-recovery.
+    ``tracked`` distinguishes "not running because it crashed" from "never started
+    on this runtime"."""
+    running = runtime._running.get(model_id)
+    alive = bool(running and running.process.poll() is None)
+    return {"status": "ok", "alive": alive, "tracked": running is not None}
 
 
 @app.get("/runtime/models/{model_id}/health")
