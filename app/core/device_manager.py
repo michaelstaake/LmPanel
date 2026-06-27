@@ -325,6 +325,10 @@ class DeviceManager:
         amd_vulkan_indices: list[int] = []
         amd_vulkan_by_idx: dict[int, str] = {}
         amd_integrated_by_idx: dict[int, bool] = {}
+        # Parse the PCI BDF per index from the whole output: vulkaninfo may print a
+        # GPU's identity (deviceName/vendorID) and its PCI properties in separate
+        # "GPUn:" blocks, so per-block parsing can miss the address.
+        bdf_by_idx = parse_vulkaninfo_bdf_by_index(output)
         blocks = re.split(r"GPU(\d+):", output)
         i = 1
         while i + 1 < len(blocks):
@@ -340,7 +344,7 @@ class DeviceManager:
             name = name_match.group(1).strip()
             device_type_str = type_match.group(1).strip().lower() if type_match else ""
             vendor_id = _parse_vulkan_vendor_id(block)
-            pci_bdf = parse_vulkan_pci_bdf(block)
+            pci_bdf = bdf_by_idx.get(idx)
             if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
                 continue
 

@@ -28,6 +28,7 @@ from app.core.device_manager import (
     DeviceManager,
     get_supported_vendors,
     is_supported_vendor,
+    parse_vulkaninfo_bdf_by_index,
     vulkaninfo_index_by_bdf,
     _parse_vulkan_vendor_id,
     _parse_vulkaninfo_gpu_memory_metrics,
@@ -40,7 +41,7 @@ from app.core.amdgpu_memory import (
     parse_vulkan_device_type,
     resolve_amdgpu_device_path,
 )
-from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
+from app.core.pci_bdf import normalize_pci_bdf
 from app.core.intel_drm_memory import read_intel_vram_metrics
 from app.core.nvidia_memory import (
     map_vulkan_index_to_nvidia_index,
@@ -696,6 +697,7 @@ class InferenceRuntime:
         intel_vulkan_by_idx: dict[int, str] = {}
         nvidia_vulkan_by_idx: dict[int, str] = {}
         memory_by_idx = _parse_vulkaninfo_gpu_memory_metrics(output) if output else {}
+        bdf_by_idx = parse_vulkaninfo_bdf_by_index(output) if output else {}
         if output:
             blocks = re.split(r"GPU(\d+):", output)
             i = 1
@@ -709,7 +711,7 @@ class InferenceRuntime:
                 i += 2
 
                 vendor_id = _parse_vulkan_vendor_id(block)
-                pci_bdf = parse_vulkan_pci_bdf(block)
+                pci_bdf = bdf_by_idx.get(idx)
                 if vendor_id == AMD_VENDOR_ID:
                     amd_vulkan_indices.append(idx)
                     if pci_bdf:

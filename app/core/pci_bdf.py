@@ -38,6 +38,20 @@ def parse_vulkan_pci_bdf(block: str) -> str | None:
         if normalized:
             return normalized
 
+    # VkPhysicalDevicePCIBusInfoPropertiesEXT fields as printed by vulkaninfo
+    # (e.g. RADV/Mesa): pciDomain / pciBus / pciDevice / pciFunction. These are
+    # decimal integers, so "pciBus = 28" means PCI bus 0x1c.
+    pci_bus_match = re.search(r"\bpciBus\s*=\s*(\d+)", block)
+    pci_device_match = re.search(r"\bpciDevice\s*=\s*(\d+)", block)
+    if pci_bus_match and pci_device_match:
+        pci_domain_match = re.search(r"\bpciDomain\s*=\s*(\d+)", block)
+        pci_function_match = re.search(r"\bpciFunction\s*=\s*(\d+)", block)
+        domain = int(pci_domain_match.group(1)) if pci_domain_match else 0
+        bus = int(pci_bus_match.group(1))
+        device = int(pci_device_match.group(1))
+        function = int(pci_function_match.group(1)) if pci_function_match else 0
+        return f"{domain:04x}:{bus:02x}:{device:02x}.{function}"
+
     domain_match = re.search(r"domainNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
     bus_match = re.search(r"busNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
     device_match = re.search(r"deviceNumber\s*=\s*(?:0x)?([0-9a-f]+)", block, re.IGNORECASE)
