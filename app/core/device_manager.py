@@ -596,9 +596,15 @@ def _vulkan_size_to_mb(value: float, unit: str | None) -> int:
 
 
 def build_device_display_suffix(stable_hardware_id: str | None, hardware_id: str) -> str:
+    # Normalized PCI BDF is "domain:bus:device.function" (e.g. "0000:c0:00.0").
+    # Device and function are almost always "00.0", so trimming to the last 4
+    # compacted characters only kept the *second* digit of the bus byte,
+    # making cards on different buses collide (e.g. bus "c0" and "9c" both
+    # truncated to "0000"). Keeping the last 6 characters preserves the full
+    # two-digit bus byte plus device/function, so distinct buses stay distinct.
     source_value = stable_hardware_id or hardware_id
     compact_value = re.sub(r"[^A-Za-z0-9]", "", source_value)
-    suffix = (compact_value or source_value)[-4:].upper()
+    suffix = (compact_value or source_value)[-6:].upper()
     return suffix if suffix else "????"
 
 
