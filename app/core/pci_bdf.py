@@ -9,12 +9,15 @@ def normalize_pci_bdf(value: str) -> str | None:
     """Normalize PCI BDF strings to ``domain:bus:device.function``."""
     text = value.strip().lower()
     match = re.match(
-        r"(?:([0-9a-f]{1,4}):)?([0-9a-f]{2}):([0-9a-f]{2})(?:\.([0-9a-f]))?",
+        r"(?:([0-9a-f]{1,8}):)?([0-9a-f]{2}):([0-9a-f]{2})(?:\.([0-9a-f]))?",
         text,
     )
     if not match:
         return None
-    domain = (match.group(1) or "0000").zfill(4)
+    # nvidia-smi reports domains zero-padded to 8 hex digits (e.g. "00000000:01:00.0"),
+    # while vulkaninfo/sysfs use 4 digits. Normalize both to 4 so BDFs from either
+    # source compare equal.
+    domain = (match.group(1) or "0000").zfill(4)[-4:]
     function = match.group(4) or "0"
     return f"{domain}:{match.group(2)}:{match.group(3)}.{function}"
 

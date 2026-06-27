@@ -65,6 +65,13 @@ class ParseVulkaninfoBdfByIndexTests(unittest.TestCase):
         block = "\tpciDomain = 0\n\tpciBus = 108\n\tpciDevice = 0\n\tpciFunction = 0\n"
         self.assertEqual(parse_vulkan_pci_bdf(block), normalize_pci_bdf("0000:6c:00.0"))
 
+    def test_normalize_nvidia_smi_8_digit_domain(self) -> None:
+        # nvidia-smi's --query-gpu=pci.bus_id zero-pads the domain to 8 hex digits
+        # (e.g. "00000000:01:00.0"), unlike vulkaninfo/sysfs which use 4. Both must
+        # normalize to the same value or the nvidia-smi memory override never matches.
+        self.assertEqual(normalize_pci_bdf("00000000:01:00.0"), "0000:01:00.0")
+        self.assertEqual(normalize_pci_bdf("00000000:01:00.0"), normalize_pci_bdf("0000:01:00.0"))
+
 
 if __name__ == "__main__":
     unittest.main()
