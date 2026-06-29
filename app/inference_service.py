@@ -327,6 +327,9 @@ class InferenceRuntime:
         running = self._running.pop(model_id, None)
         if not running:
             return
+        self._terminate_running(running)
+
+    def _terminate_running(self, running: "RunningModel") -> None:
         running.process.terminate()
         try:
             running.process.wait(timeout=10)
@@ -337,6 +340,26 @@ class InferenceRuntime:
                 running.log_file.close()
             except Exception:
                 pass
+
+    def _mark_model_failed(self, model_id: int) -> None:
+        """Drop a model whose llama-server connection failed.
+
+        A connection error (refused/reset/no response) means the llama-server
+        process is wedged or dead even though it may still be running and
+        passing /health (e.g. a stuck worker thread). Killing it and clearing
+        the entry makes the next watchdog tick's /alive check report
+        tracked=False, which triggers automatic re-activation instead of every
+        subsequent request hitting the same broken process.
+        """
+        running = self._running.pop(model_id, None)
+        if not running:
+            return
+        logger.error(
+            "Model %d (%s) connection failed; killing llama-server and clearing for auto-recovery",
+            model_id,
+            running.alias,
+        )
+        self._terminate_running(running)
 
     async def wait_until_healthy(self, model_id: int) -> bool:
         running = self._running.get(model_id)
@@ -391,8 +414,12 @@ class InferenceRuntime:
             request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(url, json=request_payload)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(url, json=request_payload)
+        except httpx.HTTPError as exc:
+            self._mark_model_failed(model_id)
+            raise RuntimeError(f"Inference request error: {exc}") from exc
         response.raise_for_status()
         response_payload = response.json()
         self._record_usage_from_payload(response_payload)
@@ -424,6 +451,7 @@ class InferenceRuntime:
                             yield chunk
                     self._finalize_tracked_stream(event_buffer, decoder)
             except httpx.HTTPError as exc:
+                self._mark_model_failed(model_id)
                 raise RuntimeError(f"Inference stream error: {exc}") from exc
 
     def _resolve_llama_server_path(self) -> str:
