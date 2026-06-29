@@ -4,6 +4,7 @@ import os
 import re
 
 import httpx
+from packaging import version
 
 from app.core.config import get_settings
 
@@ -75,9 +76,13 @@ async def check_for_updates(mode: str = "development") -> dict | None:
             update_available = True
     else:
         if latest_version and current_version:
-            current_tag = current_version if current_version.startswith("v") else f"v{current_version}"
-            if latest_version != current_tag:
-                update_available = True
+            try:
+                latest_ver = version.parse(latest_version.lstrip("v"))
+                current_ver = version.parse(current_version.lstrip("v"))
+                if latest_ver > current_ver:
+                    update_available = True
+            except Exception:
+                pass
 
     return {
         "latest_commit": latest_commit,
