@@ -59,6 +59,8 @@ export default function SecurityPage() {
     }
   }, [settings.cloudflare_turnstile_secret_key_set]);
 
+  const hasTurnstileKeys = Boolean(localSiteKey.trim()) && Boolean(settings.cloudflare_turnstile_secret_key_set);
+
   const prevHasKeysRef = useRef(false);
 
   useEffect(() => {
@@ -150,7 +152,6 @@ export default function SecurityPage() {
     }
   }
 
-  const hasTurnstileKeys = Boolean(localSiteKey.trim()) && Boolean(settings.cloudflare_turnstile_secret_key_set);
   const canDisableTurnstile = settings.cloudflare_turnstile_enabled;
   const isCheckboxDisabled = isLoading || isSaving === "cloudflare_turnstile_enabled" || (!canDisableTurnstile && !hasTurnstileKeys);
 
