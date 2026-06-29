@@ -14,3 +14,4 @@ python-jose[cryptography]==3.3.0
 python-multipart==0.0.9
 sqlalchemy==2.0.35
 uvicorn[standard]==0.30.6
+packaging>=21.3
