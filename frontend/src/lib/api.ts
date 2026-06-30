@@ -3,7 +3,7 @@ import { UserUpdateResponse } from "./records";
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export const BACKEND_UNAVAILABLE_EVENT = "lmpanel:backend-unavailable";
-export const BACKEND_UNAVAILABLE_MESSAGE = "Connection to backend lost. Please check container status. You may want to refresh the page.";
+export const BACKEND_UNAVAILABLE_MESSAGE = "Connection lost. Please refresh the page. If this problem persists, check server and container status.";
 
 let backendUnavailableLocked = false;
 

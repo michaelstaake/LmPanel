@@ -12,6 +12,11 @@ const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
 const MODEL_ASSET_ACCEPT = ".gguf,.mmproj,.json,.txt,.yaml,.yml,.bin,.safetensors";
 
+function stripUrlQueryString(url: string): string {
+  const questionIndex = url.indexOf("?");
+  return questionIndex === -1 ? url : url.slice(0, questionIndex);
+}
+
 const CONTEXT_LENGTH_MODE_OPTIONS = [
   { label: "Auto", value: "auto" },
   { label: "Custom", value: "custom" },
@@ -534,7 +539,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       return;
     }
 
-    const url = fetchUrlInput.trim();
+    const url = stripUrlQueryString(fetchUrlInput.trim());
     if (!url.endsWith(".gguf")) {
       showError("URL must point to a .gguf file.", { id: "models-fetch-error" });
       return;
@@ -1407,7 +1412,7 @@ function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
                 type="url"
                 placeholder="https://example.com/model.gguf"
                 value={fetchUrlInput}
-                onChange={(event) => setFetchUrlInput(event.target.value)}
+                onChange={(event) => setFetchUrlInput(stripUrlQueryString(event.target.value))}
                 disabled={isFetching}
                 required
               />

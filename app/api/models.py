@@ -413,15 +413,21 @@ def scan_models(_: User = Depends(get_admin_user), db: Session = Depends(get_db)
     return {"status": "ok", "discovered": discovered, "added": added}
 
 
+def _normalize_fetch_url(url: str) -> str:
+    return url.split("?", 1)[0]
+
+
 @router.post("/fetch")
 async def fetch_model(
     payload: FetchModelRequest,
     _: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    fetch_url = _normalize_fetch_url(payload.url.strip())
+
     # Validate URL
     try:
-        parsed = urlparse(payload.url)
+        parsed = urlparse(fetch_url)
         if parsed.scheme not in ("http", "https"):
             raise ValueError("URL must use http or https")
         if not parsed.netloc:
@@ -460,13 +466,13 @@ async def fetch_model(
         "model_dir_name": model_dir_name,
     }
 
-    fetch_task = asyncio.create_task(_run_fetch_job(job_id, payload.url, file_name, model_dir_name, model_dir, destination, max_bytes))
+    fetch_task = asyncio.create_task(_run_fetch_job(job_id, fetch_url, file_name, model_dir_name, model_dir, destination, max_bytes))
     task_manager.add_task(
         task_id=job_id,
         task_type="model_fetch",
         description=f"Fetching model: {file_name}",
         async_task=fetch_task,
-        metadata={"file_name": file_name, "url": payload.url},
+        metadata={"file_name": file_name, "url": fetch_url},
     )
     return {"status": "ok", "job_id": job_id}
 
