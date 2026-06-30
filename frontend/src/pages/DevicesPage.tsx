@@ -33,6 +33,13 @@ function deviceTypeLabel(device: { vendor: string; device_type: string }) {
 }
 
 function buildDevicePayload(device: DeviceRecord) {
+  if (device.in_pool) {
+    return {
+      name: device.name,
+      enabled: device.enabled,
+    };
+  }
+
   return {
     name: device.name,
     enabled: device.enabled,
@@ -601,7 +608,8 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   function closeDeviceSettingsModal() {
     if (editingDeviceId !== null && deviceModalDraft !== null) {
-      updateDeviceDraft(editingDeviceId, deviceModalDraft);
+      const updates = deviceModalDraft.in_pool ? { name: deviceModalDraft.name } : deviceModalDraft;
+      updateDeviceDraft(editingDeviceId, updates);
       void persistDevice(editingDeviceId);
     }
     setEditingDeviceId(null);
@@ -611,7 +619,8 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   function handleDeviceModalSave() {
     if (editingDeviceId === null || !deviceModalDraft) return;
-    updateDeviceDraft(editingDeviceId, deviceModalDraft);
+    const updates = deviceModalDraft.in_pool ? { name: deviceModalDraft.name } : deviceModalDraft;
+    updateDeviceDraft(editingDeviceId, updates);
     void persistDevice(editingDeviceId);
     setEditingDeviceId(null);
     setDeviceModalDraft(null);
@@ -949,23 +958,23 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               />
             </label>
             {!editableDevice?.in_pool ? (
-              <label className="grid gap-1 text-sm text-sand/70">
-                <span>Priority</span>
-                <span className="text-xs text-sand/45">Higher values are chosen first.</span>
-                <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.priority} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, priority: Number(event.target.value) || 0 })} />
-              </label>
-            ) : null}
-            <label className="grid gap-1 text-sm text-sand/70">
-              <span>Max Threads</span>
-              <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
-              <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.max_threads} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_threads: Number(event.target.value) || 0 })} />
-            </label>
-            {!editableDevice?.in_pool ? (
-              <label className="grid gap-1 text-sm text-sand/70">
-                <span>Max Slots</span>
-                <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
-                <input className=" field px-3 py-2 text-sm" type="number" min={0} value={deviceModalDraft.max_slots} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_slots: parseNonNegativeInput(event.target.value) })} />
-              </label>
+              <>
+                <label className="grid gap-1 text-sm text-sand/70">
+                  <span>Priority</span>
+                  <span className="text-xs text-sand/45">Higher values are chosen first.</span>
+                  <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.priority} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, priority: Number(event.target.value) || 0 })} />
+                </label>
+                <label className="grid gap-1 text-sm text-sand/70">
+                  <span>Max Threads</span>
+                  <span className="text-xs text-sand/45">Caps worker threads for this device.</span>
+                  <input className=" field px-3 py-2 text-sm" type="number" value={deviceModalDraft.max_threads} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_threads: Number(event.target.value) || 0 })} />
+                </label>
+                <label className="grid gap-1 text-sm text-sand/70">
+                  <span>Max Slots</span>
+                  <span className="text-xs text-sand/45">Set 0 to allow unlimited jobs.</span>
+                  <input className=" field px-3 py-2 text-sm" type="number" min={0} value={deviceModalDraft.max_slots} onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, max_slots: parseNonNegativeInput(event.target.value) })} />
+                </label>
+              </>
             ) : null}
           </div>
 
