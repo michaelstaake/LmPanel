@@ -232,6 +232,9 @@ class InferenceRuntime:
 
         self._ensure_stable_hardware_available(payload)
 
+        # CPU-only devices must not offload layers to GPU
+        gpu_layers = 0 if effective_vendor == "cpu" else payload.gpu_layers
+
         port = self.settings.llama_base_port + payload.model_id
         env = self._build_env(
             payload.vendor,
@@ -256,14 +259,14 @@ class InferenceRuntime:
             "--threads",
             str(payload.threads),
             "--n-gpu-layers",
-            _format_gpu_layers_for_cli(payload.gpu_layers),
+            _format_gpu_layers_for_cli(gpu_layers),
             "--flash-attn",
             "on" if flash_attn_enabled else "off",
         ]
         command.extend(
             _llama_offload_extra_args(
                 payload.vendor,
-                payload.gpu_layers,
+                gpu_layers,
                 fit_to_vram=self.settings.llama_fit_to_vram,
             )
         )
@@ -318,7 +321,7 @@ class InferenceRuntime:
             raise RuntimeError(f"Model {payload.alias} failed health check")
 
         try:
-            _validate_gpu_offload_from_log(str(log_path), payload.vendor, payload.gpu_layers)
+            _validate_gpu_offload_from_log(str(log_path), payload.vendor, gpu_layers)
         except RuntimeError:
             self.deactivate_model(payload.model_id)
             raise
