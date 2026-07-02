@@ -1,4 +1,4 @@
-﻿import { type DragEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+﻿import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormWithProgress, pollUntilTaskComplete } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -7,6 +7,7 @@ import { formatDeviceIdLabel } from "../lib/deviceIds";
 import { formatShardStatus, isProtectedModelFile, validateModelUploadFiles } from "../lib/ggufShards";
 import { AssetDeleteResponse, AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
 import Modal from "../components/ui/Modal";
+import ReorderButtons from "../components/ui/ReorderButtons";
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
@@ -219,8 +220,6 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
   const [isSavingModal, setIsSavingModal] = useState(false);
   const [isDeletingModal, setIsDeletingModal] = useState(false);
   const [deletingFileName, setDeletingFileName] = useState<string | null>(null);
-  const [draggedModelId, setDraggedModelId] = useState<number | null>(null);
-  const [modelHoverIndex, setModelHoverIndex] = useState<number | null>(null);
   const modelReorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadTargetModelId, setUploadTargetModelId] = useState<number | null>(null);
@@ -835,64 +834,24 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }
   }
 
-function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
-    const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT") {
-      event.preventDefault();
-      return;
-    }
-    setDraggedModelId(modelId);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", String(modelId));
-  }
-
-  function handleModelDragEnter(event: DragEvent<HTMLElement>, modelId: number) {
-    const sorted = sortModels(models);
-    const index = sorted.findIndex((m) => m.id === modelId);
-    if (index !== -1) {
-      setModelHoverIndex(index);
-    }
-  }
-
-  function handleDragOver(event: DragEvent<HTMLElement>) {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-  }
-
-  function handleDragEnd() {
-    setDraggedModelId(null);
-    setModelHoverIndex(null);
-    if (modelReorderSaveTimerRef.current) {
-      clearTimeout(modelReorderSaveTimerRef.current);
-      modelReorderSaveTimerRef.current = null;
-    }
-  }
-
-  function handleModelDrop(targetModelId: number) {
-    if (draggedModelId === null || draggedModelId === targetModelId || isReordering) {
-      setDraggedModelId(null);
-      setModelHoverIndex(null);
+  async function handleMoveModel(modelId: number, direction: "up" | "down") {
+    if (isReordering) {
       return;
     }
 
     const sorted = sortModels(models);
-    const fromIndex = sorted.findIndex((model) => model.id === draggedModelId);
-    let toIndex: number;
-    if (modelHoverIndex !== null && modelHoverIndex !== fromIndex) {
-      toIndex = modelHoverIndex;
-    } else {
-      toIndex = sorted.findIndex((model) => model.id === targetModelId);
+    const fromIndex = sorted.findIndex((model) => model.id === modelId);
+    if (fromIndex === -1) {
+      return;
     }
-    if (fromIndex === -1 || toIndex === -1) {
-      setDraggedModelId(null);
-      setModelHoverIndex(null);
+
+    const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= sorted.length) {
       return;
     }
 
     const previousModels = models;
     const nextModels = moveModel(sorted, fromIndex, toIndex);
-    setDraggedModelId(null);
-    setModelHoverIndex(null);
     setModels(nextModels);
     void persistModelOrder(nextModels, previousModels);
   }
@@ -913,14 +872,7 @@ function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
   const activeModels = models.filter((model) => model.activated).length;
   const assignmentTargets = buildAssignmentTargets(devices, pools);
   const uploadContextModel = uploadTargetModelId != null ? models.find((model) => model.id === uploadTargetModelId) ?? null : null;
-
-  const modelInsertionIndex = useMemo(() => {
-    if (draggedModelId === null || modelHoverIndex === null) return -1;
-    const sorted = sortModels(models);
-    const fromIndex = sorted.findIndex((m) => m.id === draggedModelId);
-    if (fromIndex === modelHoverIndex) return -1;
-    return modelHoverIndex;
-  }, [draggedModelId, modelHoverIndex, models]);
+  const showModelReorder = models.length > 1;
 
   function closeUploadModal() {
     if (isUploading) {
@@ -983,22 +935,22 @@ function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
             const activationButtonLabel = isActivationLoading ? "Loading..." : model.activated ? "Enabled" : "Disabled";
 
             return (
-              <>
-                {modelInsertionIndex === index && draggedModelId !== model.id && (
-                  <div className="h-1 -ml-4 -mr-4 bg-amber-400/80 rounded-full shadow-sm" />
-                )}
-                <article
-                  key={model.id}
-                  className={`surface-muted p-4 transition-shadow ${draggedModelId === model.id ? "opacity-50 ring-2 ring-amber-500/60 shadow-lg" : ""}`}
-                  draggable={!isReordering}
-                  onDragStart={(event) => handleDragStart(event, model.id)}
-                  onDragEnter={(e) => { e.stopPropagation(); handleModelDragEnter(e, model.id); }}
-                  onDragOver={handleDragOver}
-                  onDragEnd={handleDragEnd}
-                  onDrop={() => handleModelDrop(model.id)}
-                >
+              <article
+                key={model.id}
+                className="surface-muted p-4"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {showModelReorder ? (
+                      <ReorderButtons
+                        onMoveUp={() => void handleMoveModel(model.id, "up")}
+                        onMoveDown={() => void handleMoveModel(model.id, "down")}
+                        canMoveUp={index > 0}
+                        canMoveDown={index < models.length - 1}
+                        disabled={isReordering}
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1">
                     <h3 className="font-display text-base">{model.alias}</h3>
                     <p className="mt-0.5 text-sm text-sand/55">
                       {model.file_name}
@@ -1028,7 +980,6 @@ function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
                   </div>
                 </div>
               </article>
-              </>
             );
           })}
           {!hasLoadedModels ? <p className=" border border-dashed border-white/15 px-4 py-6 text-sm text-sand/60">Loading...</p> : null}
