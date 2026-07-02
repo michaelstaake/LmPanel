@@ -593,6 +593,49 @@ def upload_model_files(
     return {"status": "ok", "uploaded": uploaded_files, "model": _serialize_model(model)}
 
 
+@router.delete("/{model_id}/files/{file_name}")
+def delete_model_file(
+    model_id: int,
+    file_name: str,
+    _: User = Depends(get_admin_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    model = db.query(ModelConfig).filter(ModelConfig.id == model_id).first()
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    if model.activated:
+        raise HTTPException(status_code=409, detail="Disable this model before deleting files from it")
+
+    model_dir = _model_directory_path(model)
+    destination = _resolve_model_asset_path(model_dir, file_name)
+    if not destination.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if _is_protected_model_file(model, destination.name):
+        raise HTTPException(status_code=409, detail="Cannot delete the primary model file or its shards")
+
+    if model.vision_enabled and model.mmproj_file_name == destination.name:
+        raise HTTPException(
+            status_code=409,
+            detail="Disable vision capability or upload a replacement mmproj file before deleting this one",
+        )
+
+    deleted_name = destination.name
+    try:
+        destination.unlink()
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete model asset: {deleted_name}") from exc
+
+    model.mmproj_file_name = _detect_mmproj_file_name(model_dir, model.file_name)
+    db.add(model)
+    db.commit()
+    db.refresh(model)
+
+    log_event(db, "model.file_deleted", details={"alias": model.alias, "file": deleted_name, "model_id": model.id})
+    return {"status": "ok", "deleted": deleted_name, "model": _serialize_model(model)}
+
+
 @router.patch("/{model_id}")
 async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> dict:
     inference: InferenceManager = router.inference_manager  # type: ignore[attr-defined]
@@ -1144,6 +1187,27 @@ def _is_allowed_asset_file(file_name: str) -> bool:
     lower_name = file_name.lower()
     suffix = Path(lower_name).suffix
     return suffix in ALLOWED_MODEL_ASSET_SUFFIXES or "mmproj" in lower_name
+
+
+def _resolve_model_asset_path(model_dir: Path, file_name: str) -> Path:
+    asset_name = Path(file_name).name
+    if not asset_name or asset_name != file_name:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    try:
+        destination = (model_dir / asset_name).resolve()
+        model_dir_resolved = model_dir.resolve()
+    except OSError as exc:
+        raise HTTPException(status_code=400, detail="Invalid file name") from exc
+    if destination.parent != model_dir_resolved:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    return destination
+
+
+def _is_protected_model_file(model: ModelConfig, file_name: str) -> bool:
+    if file_name == model.file_name:
+        return True
+    model_dir = _model_directory_path(model)
+    return any(path.name == file_name for path in collect_shard_files(model_dir, model.file_name))
 
 
 def _ensure_model_vision_assets(model: ModelConfig) -> None:

@@ -60,6 +60,27 @@ export function validateModelUploadFiles(fileNames: string[]): string | null {
   return null;
 }
 
+export function isProtectedModelFile(model: { file_name: string; shard_count?: number | null }, fileName: string): boolean {
+  if (fileName === model.file_name) {
+    return true;
+  }
+
+  const primaryShard = parseGgufShardName(model.file_name);
+  if (!primaryShard || !model.shard_count || model.shard_count < 2) {
+    return false;
+  }
+
+  const candidate = parseGgufShardName(fileName);
+  if (!candidate) {
+    return false;
+  }
+
+  return (
+    candidate.prefix.toLowerCase() === primaryShard.prefix.toLowerCase() &&
+    candidate.total === primaryShard.total
+  );
+}
+
 export function formatShardStatus(shardCount: number | null | undefined, shardsComplete: boolean | undefined, missingShards: string[] | undefined): string | null {
   if (!shardCount || shardCount < 2) {
     return null;

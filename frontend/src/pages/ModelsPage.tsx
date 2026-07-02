@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useBackgroundProgress } from "../context/BackgroundProgressContext";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
-import { formatShardStatus, validateModelUploadFiles } from "../lib/ggufShards";
-import { AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
+import { formatShardStatus, isProtectedModelFile, validateModelUploadFiles } from "../lib/ggufShards";
+import { AssetDeleteResponse, AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
 import Modal from "../components/ui/Modal";
 
 const AUTO_SAVE_DELAY_MS = 700;
@@ -218,6 +218,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
   const [modalNumericDrafts, setModalNumericDraftsState] = useState<Record<string, string>>({});
   const [isSavingModal, setIsSavingModal] = useState(false);
   const [isDeletingModal, setIsDeletingModal] = useState(false);
+  const [deletingFileName, setDeletingFileName] = useState<string | null>(null);
   const [draggedModelId, setDraggedModelId] = useState<number | null>(null);
   const [modelHoverIndex, setModelHoverIndex] = useState<number | null>(null);
   const modelReorderSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -758,6 +759,41 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }
   }
 
+  async function deleteModelFile(fileName: string) {
+    if (!token || !modalDraft) {
+      return;
+    }
+
+    if (modalDraft.activated) {
+      showError("Disable this model before deleting files from it.", { id: "models-error" });
+      return;
+    }
+
+    if (isProtectedModelFile(modalDraft, fileName)) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete ${fileName} from ${modalDraft.alias}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingFileName(fileName);
+
+    try {
+      const response = await apiDelete<AssetDeleteResponse>(
+        `/api/models/${modalDraft.id}/files/${encodeURIComponent(fileName)}`,
+        token,
+      );
+      applyUploadedModel(response.model);
+      showSuccess(`Deleted ${fileName}.`, { id: "models-success" });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Failed to delete file", { id: "models-error" });
+    } finally {
+      setDeletingFileName(null);
+    }
+  }
+
   async function deleteModalModel() {
     if (!token || !modalDraft) {
       return;
@@ -1038,22 +1074,51 @@ function handleDragStart(event: DragEvent<HTMLElement>, modelId: number) {
                       <tr className="bg-white/10 text-left text-xs font-semibold text-sand/60">
                         <th className="px-4 py-2.5">{modalDraft.model_dir_name}</th>
                         <th className="px-4 py-2.5 text-right">{formatFileSize(modalDraft.directory_size ?? 0)}</th>
+                        <th className="w-20 px-4 py-2.5" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-black/5">
                       {(modalDraft.directory_files ?? []).map((file) => (
                         <tr key={file.name} className="text-sand/70">
-                          <td className="px-4 py-2.5 font-mono text-xs">{file.name}</td>
+                          <td className="px-4 py-2.5 font-mono text-xs">
+                            {file.name}
+                            {modalDraft.mmproj_file_name === file.name ? (
+                              <span className="ml-2 text-[10px] font-semibold uppercase tracking-wide text-sand/40">mmproj</span>
+                            ) : null}
+                          </td>
                           <td className="px-4 py-2.5 text-right text-xs text-sand/55">{formatFileSize(file.size)}</td>
+                          <td className="px-4 py-2.5 text-right">
+                            {!isProtectedModelFile(modalDraft, file.name) ? (
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-red-400 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={() => void deleteModelFile(file.name)}
+                                disabled={
+                                  isSavingModal
+                                  || isDeletingModal
+                                  || isUploading
+                                  || deletingFileName !== null
+                                  || modalDraft.activated
+                                }
+                                title={
+                                  modalDraft.activated
+                                    ? "Disable this model before deleting files."
+                                    : `Delete ${file.name}`
+                                }
+                              >
+                                {deletingFileName === file.name ? "Deleting..." : "Delete"}
+                              </button>
+                            ) : null}
+                          </td>
                         </tr>
                       ))}
                       <tr>
-                        <td className="px-4 py-3" colSpan={2}>
+                        <td className="px-4 py-3" colSpan={3}>
                           <button
                             type="button"
                             className=" border border-white/15 px-4 py-2 text-sm font-semibold text-sand hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                             onClick={() => openAssetUploadModal(modalDraft.id)}
-                            disabled={isSavingModal || isDeletingModal || isUploading}
+                            disabled={isSavingModal || isDeletingModal || isUploading || deletingFileName !== null}
                           >
                             Add Files
                           </button>

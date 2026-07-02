@@ -263,6 +263,12 @@ export type AssetUploadResponse = {
   model: ModelRecord;
 };
 
+export type AssetDeleteResponse = {
+  status: string;
+  deleted: string;
+  model: ModelRecord;
+};
+
 export type ModelUpdateResponse = {
   status: string;
   model: ModelRecord;
