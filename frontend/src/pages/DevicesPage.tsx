@@ -680,6 +680,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                       <span className="badge-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]">{splitModeLabel(pool.split_mode)}</span>
                     </div>
                   </div>
+                </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
