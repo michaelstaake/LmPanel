@@ -958,6 +958,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     </p>
                     {model.description ? <p className="mt-1 text-sm text-sand/70">{model.description}</p> : null}
                   </div>
+                </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {savingModelIds.includes(model.id) || pendingModelIds.includes(model.id) ? (
                       <span className="text-xs text-sand/45">{savingModelIds.includes(model.id) ? "Saving..." : "Pending..."}</span>
