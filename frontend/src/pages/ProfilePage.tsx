@@ -31,8 +31,8 @@ export default function ProfilePage() {
       setAccountUsage(response.account_usage ?? null);
       setAccountToolUsage(response.account_tool_usage ?? null);
       setPackageName(response.package_name ?? null);
-    }).catch(() => {});
-  }, [token]);
+    }).catch((error: Error) => showError(error.message));
+  }, [token, showError]);
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

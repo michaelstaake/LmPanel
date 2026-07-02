@@ -482,20 +482,27 @@ export async function deletePackage<TResponse>(packageId: number, token?: string
 }
 
 export async function pollUntilTaskComplete(taskId: string, token?: string, maxAttempts: number = 600, intervalMs: number = 1000): Promise<TaskStatusResponse> {
+  let lastKnownStatus: TaskStatusResponse["status"] | null = null;
+
   for (let i = 0; i < maxAttempts; i++) {
     try {
       const task = await apiGet<TaskStatusResponse>(`/api/tasks/${taskId}`, token);
+      lastKnownStatus = task.status;
       if (task.status !== "running") {
         return task;
       }
     } catch (error) {
-      // Task not found means it was cleaned up - treat as completed
-      if (error instanceof Error && error.message.includes("Task not found")) {
+      if (
+        error instanceof Error
+        && error.message.includes("Task not found")
+        && lastKnownStatus !== null
+        && lastKnownStatus !== "running"
+      ) {
         return {
           task_id: taskId,
           task_type: "",
           description: "",
-          status: "completed",
+          status: lastKnownStatus,
           progress: 1,
           metadata: {},
           created_at: 0,

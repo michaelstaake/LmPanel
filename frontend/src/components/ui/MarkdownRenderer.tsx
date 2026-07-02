@@ -1,17 +1,53 @@
-﻿import { useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 type MarkdownRendererProps = {
   content: string;
   className?: string;
 };
 
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [...(defaultSchema.attributes?.code ?? []), "className", "class"],
+    span: [...(defaultSchema.attributes?.span ?? []), "className", "class"],
+  },
+};
+
+function isSafeHref(href: string): boolean {
+  const trimmed = href.trim();
+  if (!trimmed || trimmed.startsWith("#")) {
+    return true;
+  }
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) {
+    return true;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "mailto:";
+  } catch {
+    return false;
+  }
+}
+
 export default function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   const [copyStates, setCopyStates] = useState<Record<number, "idle" | "copied">>({});
   const codeRefs = useRef<Map<number, HTMLPreElement>>(new Map());
+  const copyTimeoutsRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
   let blockCounter = 0;
+
+  useEffect(() => {
+    const timeouts = copyTimeoutsRef.current;
+    return () => {
+      timeouts.forEach((timeoutId) => clearTimeout(timeoutId));
+      timeouts.clear();
+    };
+  }, []);
 
   const handleCopy = (index: number) => {
     const preEl = codeRefs.current.get(index);
@@ -22,13 +58,29 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
 
     void navigator.clipboard.writeText(text).then(() => {
       setCopyStates((prev) => ({ ...prev, [index]: "copied" }));
-      setTimeout(() => {
+      const existingTimeout = copyTimeoutsRef.current.get(index);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+      }
+      const timeoutId = setTimeout(() => {
         setCopyStates((prev) => ({ ...prev, [index]: "idle" }));
+        copyTimeoutsRef.current.delete(index);
       }, 2000);
+      copyTimeoutsRef.current.set(index, timeoutId);
     });
   };
 
   const components: Components = {
+    a: ({ href, children, ...rest }) => {
+      if (!href || !isSafeHref(href)) {
+        return <span>{children}</span>;
+      }
+      return (
+        <a href={href} rel="noopener noreferrer" target="_blank" {...rest}>
+          {children}
+        </a>
+      );
+    },
     pre: (props) => {
       const { children, ...rest } = props;
       const index = blockCounter++;
@@ -63,9 +115,9 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
       );
     },
     code: (props) => {
-      const { children, className, ...rest } = props;
+      const { children, className: codeClassName, ...rest } = props;
       return (
-        <code className={className} {...rest}>
+        <code className={codeClassName} {...rest}>
           {children}
         </code>
       );
@@ -76,7 +128,7 @@ export default function MarkdownRenderer({ content, className }: MarkdownRendere
     <div className={`markdown-content${className ? ` ${className}` : ""}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[rehypeHighlight, [rehypeSanitize, sanitizeSchema]]}
         components={components}
       >
         {content}

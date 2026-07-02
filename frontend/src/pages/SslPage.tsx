@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -21,13 +21,11 @@ export default function SslPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
-  const hasLoaded = useRef(false);
 
   useEffect(() => {
-    if (!token || hasLoaded.current) {
+    if (!token) {
       return;
     }
-    hasLoaded.current = true;
     void loadStatus(token);
   }, [token]);
 

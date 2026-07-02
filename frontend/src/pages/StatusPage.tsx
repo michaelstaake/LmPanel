@@ -335,15 +335,19 @@ export default function StatusPage() {
     if (!token) {
       return;
     }
-    apiGet<GpuPoolRecord[]>("/api/devices/pools", token).then(setPools).catch(() => {});
-  }, [token]);
+    apiGet<GpuPoolRecord[]>("/api/devices/pools", token)
+      .then(setPools)
+      .catch((error: Error) => showError(error.message, { id: "status-pools-error" }));
+  }, [token, showError]);
 
   useEffect(() => {
     if (!token) {
       return;
     }
-    apiGet<AppSettingsRecord>("/api/admin/settings", token).then(setAppSettings).catch(() => {});
-  }, [token]);
+    apiGet<AppSettingsRecord>("/api/admin/settings", token)
+      .then(setAppSettings)
+      .catch((error: Error) => showError(error.message, { id: "status-settings-error" }));
+  }, [token, showError]);
 
   const estimatedSavings = useMemo(() => {
     if (!tokenUsage || !appSettings) {

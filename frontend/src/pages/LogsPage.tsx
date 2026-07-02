@@ -259,7 +259,7 @@ function DockerLogsTab() {
     return () => {
       if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
     };
-  }, [autoRefresh, selectedContainer, tail]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [autoRefresh, selectedContainer, tail, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to bottom when new lines arrive
   useEffect(() => {

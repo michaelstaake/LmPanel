@@ -40,18 +40,16 @@ export default function KnowledgeBasePage() {
   const [isDeletingCategory, setIsDeletingCategory] = useState<number | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const hasLoaded = useRef(false);
 
   useEffect(() => {
-    if (!token || hasLoaded.current) return;
-    hasLoaded.current = true;
+    if (!token) return;
     void loadAll(token);
   }, [token]);
 
   useEffect(() => {
     if (!token) return;
     void loadDocuments(token);
-  }, [selectedCategoryId, token]);
+  }, [selectedCategoryId]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {

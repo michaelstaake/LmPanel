@@ -257,7 +257,7 @@ async def lifespan(_: FastAPI):
         watchdog_task.cancel()
 
     for model_id in list(inference_manager._running.keys()):
-        await inference_manager.deactivate_model(model_id)
+        await asyncio.to_thread(inference_manager.deactivate_model, model_id)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

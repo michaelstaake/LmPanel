@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import {
@@ -35,11 +35,9 @@ export default function WebSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [savingType, setSavingType] = useState<string | null>(null);
   const [settingActive, setSettingActive] = useState(false);
-  const hasLoaded = useRef(false);
 
   useEffect(() => {
-    if (!token || hasLoaded.current) return;
-    hasLoaded.current = true;
+    if (!token) return;
     void load(token);
   }, [token]);
 

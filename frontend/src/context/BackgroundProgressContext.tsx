@@ -157,7 +157,6 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
       if (prev.fetchJobId) {
         const t = tokenRef.current;
         if (t) {
-          apiGet(`/api/models/fetch/${prev.fetchJobId}`, t).catch(() => {});
           fetch(`/api/models/fetch/${prev.fetchJobId}`, {
             method: "DELETE",
             headers: { Authorization: `Bearer ${t}` },
@@ -308,11 +307,13 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
       return;
     }
 
+    const jobId = state.fetchJobId;
+
     const pollFetch = async () => {
       try {
-        const response = await apiGet<FetchProgressRecord>(`/api/models/fetch/${state.fetchJobId}`, token);
+        const response = await apiGet<FetchProgressRecord>(`/api/models/fetch/${jobId}`, token);
         setState((prev) => {
-          if (prev.fetchJobId !== state.fetchJobId) return prev;
+          if (prev.fetchJobId !== jobId) return prev;
           const loaded = response.downloaded;
           const total = response.total ?? 0;
           const percent = formatPercent(loaded, total);
@@ -348,7 +349,7 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
 
         if (response.status === "completed") {
           setState((prev) => {
-            if (prev.fetchJobId !== state.fetchJobId) return prev;
+            if (prev.fetchJobId !== jobId) return prev;
             if (response.model) {
               window.location.reload();
             }
@@ -369,7 +370,7 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
           }
         } else if (response.status === "error") {
           setState((prev) => {
-            if (prev.fetchJobId !== state.fetchJobId) return prev;
+            if (prev.fetchJobId !== jobId) return prev;
             dismissToast("models-fetch-info");
             showError(response.error ?? "Fetch failed.", { id: "models-fetch-error" });
             return {
@@ -383,11 +384,26 @@ export function BackgroundProgressProvider({ children }: { children: ReactNode }
             };
           });
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : "";
+        const isExpired = message.includes("Fetch job not found") || message.includes("Fetch job expired");
+        const isAuthError = message.includes("Request failed: 401") || message.includes("Request failed: 403");
+
+        if (!isExpired && !isAuthError) {
+          return;
+        }
+
         setState((prev) => {
-          if (prev.fetchJobId !== state.fetchJobId) return prev;
+          if (prev.fetchJobId !== jobId) return prev;
           dismissToast("models-fetch-info");
-          showError("Fetch job not found or expired.", { id: "models-fetch-error" });
+          showError(
+            isExpired ? "Fetch job not found or expired." : message,
+            { id: "models-fetch-error" },
+          );
           return {
             ...prev,
             isFetching: false,
