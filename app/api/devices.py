@@ -185,7 +185,7 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
     for field in ["name", "enabled", "priority", "max_threads", "max_slots"]:
         value = getattr(payload, field)
         if value is not None:
-            if field == "priority" and pool_memberships:
+            if field == "priority" and pool_memberships and value != device.priority:
                 raise HTTPException(status_code=400, detail="Cannot change priority of a device that is a member of a GPU pool")
             if field == "name":
                 stripped = value.strip()
@@ -291,11 +291,11 @@ def _serialize_pool(pool: GpuPool, db: Session) -> dict:
         "max_slots": pool.max_slots,
         "pool_order": pool.pool_order,
         "enabled": pool_enabled,
-        "devices": [_serialize_device(device) for device in devices],
+        "devices": [_serialize_device(device, in_pool=True) for device in devices],
     }
 
 
-def _serialize_device(device: Device, default_name: str | None = None) -> dict:
+def _serialize_device(device: Device, default_name: str | None = None, *, in_pool: bool = False) -> dict:
     resolved_default_name = default_name or device_manager.default_name_for_device(device)
     return {
         "id": device.id,
@@ -313,5 +313,5 @@ def _serialize_device(device: Device, default_name: str | None = None) -> dict:
         "priority": device.priority,
         "max_threads": device.max_threads,
         "max_slots": device.max_slots,
-        "in_pool": False,
+        "in_pool": in_pool,
     }

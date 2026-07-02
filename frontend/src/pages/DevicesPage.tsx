@@ -406,8 +406,9 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     let savedSuccessfully = false;
 
     try {
+      const inPool = device.in_pool || poolDeviceToPool.has(device.id);
       const response = await apiPatch<Record<string, string | number | boolean>, DeviceUpdateResponse>(`/api/devices/${device.id}`, {
-        ...buildDevicePayload(device),
+        ...buildDevicePayload({ ...device, in_pool: inPool }),
       }, token);
       savedSnapshotsRef.current[device.id] = serializeDevice(response.device);
       setDevices((current) => current.map((item) => (item.id === device.id ? response.device : item)));
@@ -601,14 +602,18 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   }
 
   function openDeviceSettingsModal(device: DeviceRecord) {
-    setEditingDeviceId(device.id);
-    setDeviceModalDraft({ ...device });
+    const fromDevices = devices.find((item) => item.id === device.id);
+    const inPool = fromDevices?.in_pool ?? poolDeviceToPool.has(device.id);
+    const resolved = { ...(fromDevices ?? device), ...device, in_pool: inPool };
+    setEditingDeviceId(resolved.id);
+    setDeviceModalDraft(resolved);
     setIsDeviceModalOpen(true);
   }
 
   function closeDeviceSettingsModal() {
     if (editingDeviceId !== null && deviceModalDraft !== null) {
-      const updates = deviceModalDraft.in_pool ? { name: deviceModalDraft.name } : deviceModalDraft;
+      const inPool = deviceModalDraft.in_pool || poolDeviceToPool.has(editingDeviceId);
+      const updates = inPool ? { name: deviceModalDraft.name } : deviceModalDraft;
       updateDeviceDraft(editingDeviceId, updates);
       void persistDevice(editingDeviceId);
     }
@@ -619,7 +624,8 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   function handleDeviceModalSave() {
     if (editingDeviceId === null || !deviceModalDraft) return;
-    const updates = deviceModalDraft.in_pool ? { name: deviceModalDraft.name } : deviceModalDraft;
+    const inPool = deviceModalDraft.in_pool || poolDeviceToPool.has(editingDeviceId);
+    const updates = inPool ? { name: deviceModalDraft.name } : deviceModalDraft;
     updateDeviceDraft(editingDeviceId, updates);
     void persistDevice(editingDeviceId);
     setEditingDeviceId(null);
@@ -628,6 +634,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   }
 
   const editableDevice = editingDeviceId === null ? null : devices.find((d) => d.id === editingDeviceId) ?? null;
+  const editingDeviceInPool = Boolean(editableDevice?.in_pool || (editingDeviceId !== null && poolDeviceToPool.has(editingDeviceId)));
 
   const nonPoolDevices = useMemo(() => sortDevices(devices.filter((d) => !d.in_pool)), [devices]);
 
@@ -957,7 +964,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                 onChange={(event) => setDeviceModalDraft({ ...deviceModalDraft, name: event.target.value })}
               />
             </label>
-            {!editableDevice?.in_pool ? (
+            {!editingDeviceInPool ? (
               <>
                 <label className="grid gap-1 text-sm text-sand/70">
                   <span>Priority</span>
