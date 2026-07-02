@@ -37,7 +37,6 @@ services:
     depends_on:
       inference:
         condition: service_healthy
-    restart: unless-stopped
 
   frontend:
     build:
@@ -55,7 +54,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    restart: unless-stopped
 
   inference:
     build:
@@ -89,7 +87,6 @@ services:
       timeout: ${STARTUP_HEALTHCHECK_TIMEOUT:-5s}
       retries: ${STARTUP_HEALTHCHECK_RETRIES:-40}
       start_period: ${STARTUP_HEALTHCHECK_START_PERIOD:-300s}
-    restart: unless-stopped
 
 volumes:
   lmpanel-data:
