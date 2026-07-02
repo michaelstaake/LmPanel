@@ -218,26 +218,29 @@ async def lifespan(_: FastAPI):
         get_or_create_app_settings(db)
         web_search_api.seed_providers(db)
         models.scan_models_dir(db)
-        activated_models = (
-            db.query(ModelConfig)
-            .filter(ModelConfig.activated.is_(True))
-            .order_by(ModelConfig.priority.asc(), ModelConfig.id.asc())
-            .all()
-        )
-        for model in activated_models:
-            try:
-                resolution = await models._resolve_device_for_model(db, model, inference_manager)
-                if resolution is None:
-                    raise RuntimeError("No enabled device available for model")
-                if isinstance(resolution, PoolActivationTarget):
-                    await inference_manager.activate_model_on_pool(model, resolution)
-                else:
-                    await inference_manager.activate_model(model, resolution)
-            except Exception:
-                # Keep activated=True so the watchdog keeps retrying (e.g. the GPU
-                # is still initializing). Do not flip it off on a transient failure.
-                logger.exception("Failed to auto-load model %s during startup; watchdog will retry", model.alias)
-        db.commit()
+        if settings.auto_load_activated_models_on_startup:
+            activated_models = (
+                db.query(ModelConfig)
+                .filter(ModelConfig.activated.is_(True))
+                .order_by(ModelConfig.priority.asc(), ModelConfig.id.asc())
+                .all()
+            )
+            for model in activated_models:
+                try:
+                    resolution = await models._resolve_device_for_model(db, model, inference_manager)
+                    if resolution is None:
+                        raise RuntimeError("No enabled device available for model")
+                    if isinstance(resolution, PoolActivationTarget):
+                        await inference_manager.activate_model_on_pool(model, resolution)
+                    else:
+                        await inference_manager.activate_model(model, resolution)
+                except Exception:
+                    # Keep activated=True so the watchdog keeps retrying (e.g. the GPU
+                    # is still initializing). Do not flip it off on a transient failure.
+                    logger.exception(
+                        "Failed to auto-load model %s during startup; watchdog will retry", model.alias
+                    )
+            db.commit()
     finally:
         db.close()
 
