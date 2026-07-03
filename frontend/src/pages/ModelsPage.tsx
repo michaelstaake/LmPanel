@@ -132,6 +132,7 @@ function buildModelPayload(model: ModelRecord) {
     threads: model.threads,
     temperature: model.temperature,
     top_p: model.top_p,
+    min_p: model.min_p,
     top_k: model.top_k,
     presence_penalty: model.presence_penalty,
     repetition_penalty: model.repetition_penalty,
@@ -1266,6 +1267,10 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top P</span>
                     <input className=" field px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.top_p ?? String(modalDraft.top_p)} onChange={(event) => setModalNumericDraft("top_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("top_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
+                  </label>
+                  <label className="grid gap-1 text-sm text-sand/70">
+                    <span>Min P</span>
+                    <input className=" field px-3 py-2 text-sm" type="number" min={0} max={1} step={0.05} value={modalNumericDrafts.min_p ?? String(modalDraft.min_p)} onChange={(event) => setModalNumericDraft("min_p", event.target.value)} onBlur={(event) => commitModalNumericDraft("min_p", event.target.value, (n) => Math.min(1, Math.max(0, n)))} />
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Top K</span>

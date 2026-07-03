@@ -446,6 +446,8 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
             request_payload["temperature"] = model.temperature
         if "top_p" not in request_payload:
             request_payload["top_p"] = model.top_p
+        if "min_p" not in request_payload:
+            request_payload["min_p"] = model.min_p
         if "top_k" not in request_payload:
             request_payload["top_k"] = model.top_k
         if "presence_penalty" not in request_payload:

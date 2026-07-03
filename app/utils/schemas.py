@@ -559,6 +559,7 @@ class ModelUpdateRequest(BaseModel):
     threads: int | None = Field(default=None, ge=1)
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     top_p: float | None = Field(default=None, ge=0.0, le=1.0)
+    min_p: float | None = Field(default=None, ge=0.0, le=1.0)
     top_k: int | None = Field(default=None, ge=0)
     presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
     repetition_penalty: float | None = Field(default=None, ge=0.0)
@@ -679,6 +680,7 @@ class OpenAIChatRequest(BaseModel):
     enable_thinking: bool | None = None
     temperature: float | None = None
     top_p: float | None = None
+    min_p: float | None = Field(default=None, ge=0.0, le=1.0)
     top_k: int | None = Field(default=None, ge=0)
     presence_penalty: float | None = None
     repetition_penalty: float | None = Field(default=None, ge=0.0)

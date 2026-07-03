@@ -23,6 +23,7 @@ class ModelConfig(Base):
     threads: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
     temperature: Mapped[float] = mapped_column(Float, default=0.7, nullable=False)
     top_p: Mapped[float] = mapped_column(Float, default=0.95, nullable=False)
+    min_p: Mapped[float] = mapped_column(Float, default=0.05, nullable=False)
     top_k: Mapped[int] = mapped_column(Integer, default=40, nullable=False)
     presence_penalty: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     repetition_penalty: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)

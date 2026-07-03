@@ -96,6 +96,7 @@ export type ModelRecord = {
   threads: number;
   temperature: number;
   top_p: number;
+  min_p: number;
   top_k: number;
   presence_penalty: number;
   repetition_penalty: number;

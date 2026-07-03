@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     default_gpu_layers: int = 99
     default_temperature: float = 0.7
     default_top_p: float = 0.95
+    default_min_p: float = 0.05
     default_top_k: int = 40
     default_presence_penalty: float = 0.0
     default_repetition_penalty: float = 1.0
