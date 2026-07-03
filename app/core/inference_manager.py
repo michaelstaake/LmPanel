@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from app.core.config import get_settings
+from app.core.model_activation import assert_host_ram_for_activation, estimate_model_file_size_mb
 from app.models.device import Device
 from app.models.model_config import ModelConfig
 
@@ -74,6 +75,7 @@ class InferenceManager:
     def __init__(self) -> None:
         self.settings = get_settings()
         self._running: dict[int, RunningModel] = {}
+        self._activation_lock = asyncio.Lock()
 
     def is_active(self, model_id: int) -> bool:
         return model_id in self._running
@@ -171,105 +173,118 @@ class InferenceManager:
                 joined = ", ".join(sorted(overlap))
                 raise RuntimeError(f"GPU already in use (stable id: {joined})")
 
-    async def activate_model(self, model: ModelConfig, device: Device) -> None:
-        if model.id in self._running:
-            return
-
-        stable_ids = self._stable_hardware_ids_for_device(device)
-        self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
-
-        runtime_url = self.runtime_url_for_vendor(device.vendor)
-        if not runtime_url:
-            raise RuntimeError(f"No inference runtime configured for device vendor: {device.vendor}")
-
-        payload = {
-            "model_id": model.id,
-            "alias": model.alias,
-            "file_path": model.file_path,
-            "mmproj_path": _resolve_mmproj_path(model),
-            "context_length": model.context_length,
-            "threads": model.threads,
-            "gpu_layers": model.gpu_layers,
-            "flash_attention_enabled": model.flash_attention_enabled,
-            "memory_mapping_enabled": model.memory_mapping_enabled,
-            "vendor": device.vendor,
-            "hardware_id": device.hardware_id,
-            "stable_hardware_id": device.stable_hardware_id,
-            "stable_hardware_ids": stable_ids,
-            "discourage_thinking": model.discourage_thinking,
-        }
-        timeout = self.settings.inference_service_timeout_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
-            if response.is_error:
-                raise RuntimeError(_runtime_error_detail(response))
-
-        self._running[model.id] = RunningModel(
-            model_id=model.id,
-            base_url=runtime_url,
-            device_id=device.id,
-            vendor=device.vendor,
-            stable_hardware_ids=stable_ids,
+    def _assert_host_ram_for_model(self, model: ModelConfig) -> None:
+        assert_host_ram_for_activation(
+            model_size_mb=estimate_model_file_size_mb(model),
+            min_free_mb=self.settings.model_activation_min_free_ram_mb,
+            headroom_ratio=self.settings.model_activation_ram_headroom_ratio,
         )
 
-        ok = await self.wait_until_healthy(model.id)
-        if not ok:
-            self.deactivate_model(model.id)
-            raise RuntimeError(f"Model {model.alias} failed health check")
+    async def activate_model(self, model: ModelConfig, device: Device) -> None:
+        async with self._activation_lock:
+            if model.id in self._running:
+                return
+
+            stable_ids = self._stable_hardware_ids_for_device(device)
+            self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
+
+            runtime_url = self.runtime_url_for_vendor(device.vendor)
+            if not runtime_url:
+                raise RuntimeError(f"No inference runtime configured for device vendor: {device.vendor}")
+
+            self._assert_host_ram_for_model(model)
+
+            payload = {
+                "model_id": model.id,
+                "alias": model.alias,
+                "file_path": model.file_path,
+                "mmproj_path": _resolve_mmproj_path(model),
+                "context_length": model.context_length,
+                "threads": model.threads,
+                "gpu_layers": model.gpu_layers,
+                "flash_attention_enabled": model.flash_attention_enabled,
+                "memory_mapping_enabled": model.memory_mapping_enabled,
+                "vendor": device.vendor,
+                "hardware_id": device.hardware_id,
+                "stable_hardware_id": device.stable_hardware_id,
+                "stable_hardware_ids": stable_ids,
+                "discourage_thinking": model.discourage_thinking,
+            }
+            timeout = self.settings.inference_service_timeout_seconds
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
+                if response.is_error:
+                    raise RuntimeError(_runtime_error_detail(response))
+
+            self._running[model.id] = RunningModel(
+                model_id=model.id,
+                base_url=runtime_url,
+                device_id=device.id,
+                vendor=device.vendor,
+                stable_hardware_ids=stable_ids,
+            )
+
+            ok = await self.wait_until_healthy(model.id)
+            if not ok:
+                self.deactivate_model(model.id)
+                raise RuntimeError(f"Model {model.alias} failed health check")
 
     async def activate_model_on_pool(self, model: ModelConfig, target: PoolActivationTarget) -> None:
-        if model.id in self._running:
-            return
+        async with self._activation_lock:
+            if model.id in self._running:
+                return
 
-        stable_ids = self._stable_hardware_ids_for_pool(target)
-        self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
+            stable_ids = self._stable_hardware_ids_for_pool(target)
+            self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
 
-        runtime_url = self.runtime_url_for_vendor(target.runtime_vendor)
-        if not runtime_url:
-            raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
+            runtime_url = self.runtime_url_for_vendor(target.runtime_vendor)
+            if not runtime_url:
+                raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
 
-        # Send PCI BDFs aligned 1:1 with hardware_ids (empty where unknown) so the
-        # runtime can re-resolve each pool member's live Vulkan index from its
-        # stable address at launch time.
-        aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
+            self._assert_host_ram_for_model(model)
 
-        payload = {
-            "model_id": model.id,
-            "alias": model.alias,
-            "file_path": model.file_path,
-            "mmproj_path": _resolve_mmproj_path(model),
-            "context_length": model.context_length,
-            "threads": model.threads,
-            "gpu_layers": model.gpu_layers,
-            "flash_attention_enabled": model.flash_attention_enabled,
-            "memory_mapping_enabled": model.memory_mapping_enabled,
-            "vendor": target.runtime_vendor,
-            "hardware_id": target.hardware_ids[0],
-            "hardware_ids": target.hardware_ids,
-            "vram_ratios": target.vram_ratios,
-            "split_mode": target.split_mode,
-            "stable_hardware_ids": aligned_stable_ids,
-            "discourage_thinking": model.discourage_thinking,
-        }
-        timeout = self.settings.inference_service_timeout_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
-            if response.is_error:
-                raise RuntimeError(_runtime_error_detail(response))
+            # Send PCI BDFs aligned 1:1 with hardware_ids (empty where unknown) so the
+            # runtime can re-resolve each pool member's live Vulkan index from its
+            # stable address at launch time.
+            aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
 
-        self._running[model.id] = RunningModel(
-            model_id=model.id,
-            base_url=runtime_url,
-            device_id=None,
-            vendor=target.runtime_vendor,
-            pool_device_ids=[d.id for d in target.devices],
-            stable_hardware_ids=stable_ids,
-        )
+            payload = {
+                "model_id": model.id,
+                "alias": model.alias,
+                "file_path": model.file_path,
+                "mmproj_path": _resolve_mmproj_path(model),
+                "context_length": model.context_length,
+                "threads": model.threads,
+                "gpu_layers": model.gpu_layers,
+                "flash_attention_enabled": model.flash_attention_enabled,
+                "memory_mapping_enabled": model.memory_mapping_enabled,
+                "vendor": target.runtime_vendor,
+                "hardware_id": target.hardware_ids[0],
+                "hardware_ids": target.hardware_ids,
+                "vram_ratios": target.vram_ratios,
+                "split_mode": target.split_mode,
+                "stable_hardware_ids": aligned_stable_ids,
+                "discourage_thinking": model.discourage_thinking,
+            }
+            timeout = self.settings.inference_service_timeout_seconds
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
+                if response.is_error:
+                    raise RuntimeError(_runtime_error_detail(response))
 
-        ok = await self.wait_until_healthy(model.id)
-        if not ok:
-            self.deactivate_model(model.id)
-            raise RuntimeError(f"Model {model.alias} failed health check on GPU pool")
+            self._running[model.id] = RunningModel(
+                model_id=model.id,
+                base_url=runtime_url,
+                device_id=None,
+                vendor=target.runtime_vendor,
+                pool_device_ids=[d.id for d in target.devices],
+                stable_hardware_ids=stable_ids,
+            )
+
+            ok = await self.wait_until_healthy(model.id)
+            if not ok:
+                self.deactivate_model(model.id)
+                raise RuntimeError(f"Model {model.alias} failed health check on GPU pool")
 
     def deactivate_model(self, model_id: int) -> None:
         running = self._running.pop(model_id, None)

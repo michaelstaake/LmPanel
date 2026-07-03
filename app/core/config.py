@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     # Max consecutive failed (re)activation attempts before the watchdog backs off
     # a model until its next genuine state change.
     model_recovery_max_attempts: int = 5
+    # Serialize model activations and require host RAM headroom before each load.
+    # Vulkan staging buffers can use multiple GB of system RAM per concurrent load.
+    model_activation_min_free_ram_mb: int = 4096
+    model_activation_ram_headroom_ratio: float = 1.25
+    # Max model (re)activation attempts per watchdog tick (1 avoids retry storms).
+    watchdog_max_activations_per_tick: int = 1
     # When true, models marked activated in the database are loaded during app startup.
     auto_load_activated_models_on_startup: bool = False
     # On startup, wait up to this long for the inference runtime to report a GPU

@@ -23,6 +23,7 @@ from app.core.gpu_pool_manager import (
     delete_stale_pool_memberships,
 )
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
+from app.core.model_activation import InsufficientHostRamError
 from app.core.logging import configure_logging
 from app.core import token_usage as _token_usage
 from app.models.model_config import ModelConfig
@@ -106,6 +107,7 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
         device_manager.sync_detected_devices(db, auto_enable_defaults=True, inference=inference_manager)
 
         # 3. (Re)activate any model that should be running but isn't.
+        # Only one activation per tick to avoid retry storms and concurrent loads.
         now = time.monotonic()
         activated_models = (
             db.query(ModelConfig)
@@ -113,6 +115,8 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
             .order_by(ModelConfig.priority.asc(), ModelConfig.id.asc())
             .all()
         )
+        activations_this_tick = 0
+        max_activations = max(1, settings.watchdog_max_activations_per_tick)
         for model in activated_models:
             if inference_manager.is_active(model.id):
                 recovery_state.pop(model.id, None)
@@ -123,6 +127,8 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
                     continue
                 if now < state["next_attempt"]:
                     continue
+            if activations_this_tick >= max_activations:
+                break
             try:
                 resolution = await models._resolve_device_for_model(db, model, inference_manager)
                 if resolution is None:
@@ -133,6 +139,13 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
                     await inference_manager.activate_model(model, resolution)
                 recovery_state.pop(model.id, None)
                 logger.info("Watchdog recovered model %s", model.alias)
+            except InsufficientHostRamError as exc:
+                activations_this_tick += 1
+                logger.warning(
+                    "Watchdog deferring activation of %s until more host RAM is free: %s",
+                    model.alias,
+                    exc,
+                )
             except Exception as exc:
                 attempts = (state["attempts"] if state else 0) + 1
                 backoff = min(
@@ -140,6 +153,7 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
                     3600,
                 )
                 recovery_state[model.id] = {"attempts": attempts, "next_attempt": now + backoff}
+                activations_this_tick += 1
                 if attempts >= settings.model_recovery_max_attempts:
                     logger.error(
                         "Watchdog giving up on model %s after %d attempts: %s",
@@ -155,6 +169,10 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
                         backoff,
                         exc,
                     )
+            else:
+                activations_this_tick += 1
+            if activations_this_tick >= max_activations:
+                break
         db.commit()
     finally:
         db.close()
