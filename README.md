@@ -53,12 +53,12 @@ cp .env.example .env
 
 ```bash
 chmod +x lmpanel
-./lmpanel up -d --build
+./lmpanel up --build
 ```
 
-Use `./lmpanel` instead of `docker compose` directly — it auto-configures GPUs then runs compose. Flags need hyphens: `-d`, `--build` (not `up d build`).
+Use `./lmpanel` instead of `docker compose` directly — it auto-configures GPUs then runs compose. `./lmpanel up` starts containers in detached mode by default; pass `-nd` to run in the foreground. Flags need hyphens: `--build` (not `up build`).
 
-The `lmpanel` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./lmpanel up -d` again to refresh the configuration.
+The `lmpanel` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./lmpanel up` again to refresh the configuration.
 
 #### Notes
 
@@ -196,15 +196,15 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 ### Device Issues
 
 - **`./lmpanel` appears to do nothing**:
-  - Use hyphens: `./lmpanel up -d --build` (not `up d build`).
+  - Use hyphens: `./lmpanel up --build` (not `up build`).
   - Run `bash scripts/configure-gpu-compose.sh` to see GPU configure output and errors.
-  - Run `LMPANEL_DEBUG=1 ./lmpanel up -d --build` to trace the wrapper.
+  - Run `LMPANEL_DEBUG=1 ./lmpanel up --build` to trace the wrapper.
   - Bypass the wrapper to test Docker alone: `docker compose up -d --build`.
 - **Device not detected**:
   - Ensure host GPU drivers are installed and restart the system after driver changes.
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `./lmpanel up -d --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan and graphics libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics.
-  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./lmpanel up -d --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
+  - On NVIDIA hosts, run `./lmpanel up --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan and graphics libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics.
+  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./lmpanel up --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
 
 
 ### Performance Issues

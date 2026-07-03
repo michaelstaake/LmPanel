@@ -116,7 +116,7 @@ write_override() {
 
   if write_override_if_changed; then
     log_info "NVIDIA GPU detected. Wrote $OVERRIDE_FILE for GPU passthrough."
-    log_info "Run: ./lmpanel up -d --build --force-recreate inference"
+    log_info "Run: ./lmpanel up --build --force-recreate inference"
     log_info "Then: ./lmpanel restart backend"
     log_info "Verify: bash scripts/verify-gpu-passthrough.sh"
   else
@@ -138,7 +138,7 @@ if has_nvidia_gpu; then
     log_error "NVIDIA GPU detected but NVIDIA Container Toolkit does not appear configured."
     log_error "Install: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html"
     log_error "Then run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker"
-    log_error "Re-run: ./lmpanel up -d"
+    log_error "Re-run: ./lmpanel up"
     exit 1
   fi
 else

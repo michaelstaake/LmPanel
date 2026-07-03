@@ -53,29 +53,29 @@ if [[ -f docker-compose.override.yml ]]; then
     ok "docker-compose.override.yml sets NVIDIA_DRIVER_CAPABILITIES with graphics"
   else
     fail "docker-compose.override.yml missing graphics in NVIDIA_DRIVER_CAPABILITIES"
-    echo "  Run: ./lmpanel up -d"
+    echo "  Run: ./lmpanel up"
   fi
   if grep -q 'capabilities:.*graphics' docker-compose.override.yml || grep -q '\[gpu, graphics\]' docker-compose.override.yml; then
     ok "docker-compose.override.yml requests gpu+graphics capabilities"
   else
     fail "docker-compose.override.yml missing graphics in gpus capabilities"
-    echo "  Re-run: ./lmpanel up -d"
+    echo "  Re-run: ./lmpanel up"
   fi
   if grep -qE 'libEGL_nvidia|libGLX_nvidia' docker-compose.override.yml; then
     fail "docker-compose.override.yml bind-mounts NVIDIA GL libraries (conflicts with NVIDIA Container Toolkit)"
-    echo "  Re-run: ./lmpanel up -d to regenerate a clean override"
+    echo "  Re-run: ./lmpanel up to regenerate a clean override"
   fi
 else
   if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L 2>/dev/null | grep -q 'GPU '; then
     fail "NVIDIA GPU on host but docker-compose.override.yml is missing"
-    echo "  Run: ./lmpanel up -d"
+    echo "  Run: ./lmpanel up"
   else
     ok "No override file (expected on non-NVIDIA hosts)"
   fi
 fi
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$CONTAINER"; then
-  warn "Container $CONTAINER is not running — start with: ./lmpanel up -d"
+  warn "Container $CONTAINER is not running — start with: ./lmpanel up"
   exit "$FAIL"
 fi
 
@@ -83,7 +83,7 @@ section "Container NVIDIA env"
 caps="$(docker exec "$CONTAINER" printenv NVIDIA_DRIVER_CAPABILITIES 2>/dev/null || true)"
 if [[ -z "$caps" ]]; then
   fail "NVIDIA_DRIVER_CAPABILITIES is not set in $CONTAINER"
-  echo "  Recreate: ./lmpanel up -d --force-recreate inference"
+  echo "  Recreate: ./lmpanel up --force-recreate inference"
 elif [[ "$caps" != *graphics* && "$caps" != "all" ]]; then
   fail "NVIDIA_DRIVER_CAPABILITIES=$caps (must include graphics or all)"
 else
@@ -111,7 +111,7 @@ echo "$vulkan_out"
 if echo "$vulkan_out" | grep -qiE 'llvmpipe|lavapipe'; then
   if ! echo "$vulkan_out" | grep -qiE 'nvidia|geforce|rtx|quadro'; then
     fail "vulkaninfo only shows software renderer — NVIDIA Vulkan ICD is not active"
-    echo "  Rebuild and recreate: ./lmpanel up -d --build --force-recreate inference"
+    echo "  Rebuild and recreate: ./lmpanel up --build --force-recreate inference"
   fi
 fi
 if echo "$vulkan_out" | grep -qiE 'nvidia|geforce|rtx|quadro'; then
@@ -136,7 +136,7 @@ if [[ "$FAIL" -eq 0 ]]; then
   echo "All checks passed."
 else
   echo "Some checks failed. Fix the issues above, then run:"
-  echo "  ./lmpanel up -d --build --force-recreate inference"
+  echo "  ./lmpanel up --build --force-recreate inference"
   echo "  ./lmpanel restart backend"
 fi
 

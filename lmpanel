@@ -14,4 +14,31 @@ if [[ "$rc" -ne 0 ]]; then
   exit "$rc"
 fi
 
+if [[ "${1:-}" == "up" ]]; then
+  shift
+  detached=true
+  compose_args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -nd)
+        detached=false
+        shift
+        ;;
+      -d)
+        detached=true
+        shift
+        ;;
+      *)
+        compose_args+=("$1")
+        shift
+        ;;
+    esac
+  done
+  if [[ "$detached" == true ]]; then
+    exec docker compose up -d "${compose_args[@]}"
+  else
+    exec docker compose up "${compose_args[@]}"
+  fi
+fi
+
 exec docker compose "$@"
