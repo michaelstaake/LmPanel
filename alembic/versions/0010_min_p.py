@@ -1,7 +1,7 @@
 """add min_p to model_configs
 
 Revision ID: 0010_min_p
-Revises: a1b2c3d4e5f6
+Revises: 0009_device_availability
 Create Date: 2026-07-03
 """
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0010_min_p"
-down_revision = "a1b2c3d4e5f6"
+down_revision = "0009_device_availability"
 branch_labels = None
 depends_on = None
 
