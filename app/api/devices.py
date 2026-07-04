@@ -30,6 +30,11 @@ def list_devices(_: User = Depends(get_admin_user), db: Session = Depends(get_db
     pooled_device_ids = {row.device_id for row in pool_device_rows}
     result = []
     for d in rows:
+        # Devices soft-disabled by reconciliation (physically gone/undetected) are
+        # kept in the DB so a pool/pin can auto-recover if the GPU reappears, but
+        # they must not be shown as live GPUs in the panel.
+        if not d.available and d.id not in pooled_device_ids:
+            continue
         serialized = _serialize_device(d, device_manager.default_name_for_device(d))
         serialized["in_pool"] = d.id in pooled_device_ids
         result.append(serialized)
