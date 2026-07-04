@@ -7,6 +7,7 @@ import json
 from collections.abc import AsyncIterator
 
 import httpx
+import psutil
 
 from app.core.config import get_settings
 from app.core.model_activation import assert_host_ram_for_activation, estimate_model_file_size_mb
@@ -62,6 +63,13 @@ def _runtime_error_detail(response: httpx.Response) -> str:
 
 
 @dataclass
+class ModelRecoveryState:
+    attempts: int
+    next_attempt: float
+    last_error: str | None = None
+
+
+@dataclass
 class RunningModel:
     model_id: int
     base_url: str
@@ -76,6 +84,47 @@ class InferenceManager:
         self.settings = get_settings()
         self._running: dict[int, RunningModel] = {}
         self._activation_lock = asyncio.Lock()
+        self._recovery_state: dict[int, ModelRecoveryState] = {}
+
+    def clear_recovery_state(self, model_id: int) -> None:
+        self._recovery_state.pop(model_id, None)
+
+    def record_recovery_failure(self, model_id: int, error: str, *, attempts: int, next_attempt: float) -> None:
+        self._recovery_state[model_id] = ModelRecoveryState(
+            attempts=attempts,
+            next_attempt=next_attempt,
+            last_error=error,
+        )
+
+    def note_recovery_error(self, model_id: int, error: str) -> None:
+        state = self._recovery_state.get(model_id)
+        if state is None:
+            self._recovery_state[model_id] = ModelRecoveryState(attempts=0, next_attempt=0.0, last_error=error)
+        else:
+            state.last_error = error
+
+    def get_recovery_state(self, model_id: int) -> ModelRecoveryState | None:
+        return self._recovery_state.get(model_id)
+
+    async def resolve_runtime_state(self, model_id: int, *, activated: bool) -> dict[str, str | None]:
+        if not activated:
+            return {"runtime_state": "disabled", "runtime_error": None}
+
+        if self.is_active(model_id):
+            alive = await self.is_model_process_alive(model_id)
+            if alive is False:
+                return {"runtime_state": "error", "runtime_error": "Model process is not running"}
+            return {"runtime_state": "running", "runtime_error": None}
+
+        state = self._recovery_state.get(model_id)
+        max_attempts = self.settings.model_recovery_max_attempts
+        if state is not None and state.attempts >= max_attempts:
+            return {"runtime_state": "error", "runtime_error": state.last_error}
+
+        return {
+            "runtime_state": "recovering",
+            "runtime_error": state.last_error if state else None,
+        }
 
     def is_active(self, model_id: int) -> bool:
         return model_id in self._running
@@ -177,7 +226,11 @@ class InferenceManager:
         assert_host_ram_for_activation(
             model_size_mb=estimate_model_file_size_mb(model),
             min_free_mb=self.settings.model_activation_min_free_ram_mb,
-            headroom_ratio=self.settings.model_activation_ram_headroom_ratio,
+            gpu_layers=model.gpu_layers,
+            memory_mapping_enabled=model.memory_mapping_enabled,
+            cpu_headroom_ratio=self.settings.model_activation_ram_headroom_ratio,
+            gpu_mmap_headroom_ratio=self.settings.model_activation_gpu_offload_headroom_ratio,
+            gpu_no_mmap_headroom_ratio=self.settings.model_activation_gpu_no_mmap_headroom_ratio,
         )
 
     async def activate_model(self, model: ModelConfig, device: Device) -> None:
@@ -228,6 +281,8 @@ class InferenceManager:
             if not ok:
                 self.deactivate_model(model.id)
                 raise RuntimeError(f"Model {model.alias} failed health check")
+
+            self.clear_recovery_state(model.id)
 
     async def activate_model_on_pool(self, model: ModelConfig, target: PoolActivationTarget) -> None:
         async with self._activation_lock:
@@ -286,6 +341,8 @@ class InferenceManager:
                 self.deactivate_model(model.id)
                 raise RuntimeError(f"Model {model.alias} failed health check on GPU pool")
 
+            self.clear_recovery_state(model.id)
+
     def deactivate_model(self, model_id: int) -> None:
         running = self._running.pop(model_id, None)
         if not running:
@@ -295,6 +352,19 @@ class InferenceManager:
                 client.post(f"{running.base_url}/runtime/models/{model_id}/deactivate").raise_for_status()
         except Exception:
             logger.exception("Failed to deactivate remote model %s", model_id)
+            self._force_kill_remote_model(running, model_id)
+
+    def _force_kill_remote_model(self, running: RunningModel, model_id: int) -> None:
+        try:
+            with httpx.Client(timeout=self.settings.inference_service_timeout_seconds) as client:
+                response = client.get(f"{running.base_url}/runtime/models/{model_id}/alive")
+                response.raise_for_status()
+                pid = response.json().get("pid")
+            if pid:
+                psutil.Process(int(pid)).kill()
+                logger.warning("Force-killed orphaned llama-server process %s for model %s", pid, model_id)
+        except Exception:
+            logger.exception("Failed to force-kill remote model %s process", model_id)
 
     async def wait_until_healthy(self, model_id: int) -> bool:
         running = self._running.get(model_id)

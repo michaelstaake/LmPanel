@@ -279,9 +279,16 @@ def scan_models_dir(db: Session) -> tuple[int, int]:
 
 
 @router.get("")
-def list_models(_: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> list[dict]:
+async def list_models(_: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> list[dict]:
+    inference: InferenceManager = router.inference_manager  # type: ignore[attr-defined]
     rows = db.query(ModelConfig).order_by(ModelConfig.priority.asc(), ModelConfig.id.asc()).all()
-    return [_serialize_model(m) for m in rows]
+    result: list[dict] = []
+    for model in rows:
+        serialized = _serialize_model(model)
+        runtime = await inference.resolve_runtime_state(model.id, activated=model.activated)
+        serialized.update(runtime)
+        result.append(serialized)
+    return result
 
 
 @router.post("/reorder")
@@ -815,6 +822,7 @@ def deactivate_model(model_id: int, _: User = Depends(get_admin_user), db: Sessi
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
     inference.deactivate_model(model.id)
+    inference.clear_recovery_state(model.id)
     model.activated = False
     db.add(model)
     db.commit()

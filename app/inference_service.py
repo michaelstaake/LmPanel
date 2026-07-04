@@ -1061,7 +1061,8 @@ def model_alive(model_id: int) -> dict:
     on this runtime"."""
     running = runtime._running.get(model_id)
     alive = bool(running and running.process.poll() is None)
-    return {"status": "ok", "alive": alive, "tracked": running is not None}
+    pid = running.process.pid if running else None
+    return {"status": "ok", "alive": alive, "tracked": running is not None, "pid": pid}
 
 
 @app.get("/runtime/models/{model_id}/health")

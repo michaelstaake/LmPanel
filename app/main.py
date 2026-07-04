@@ -93,7 +93,7 @@ async def _wait_for_gpu_ready() -> None:
     logger.warning("Timed out waiting for inference runtime GPUs; proceeding with startup anyway")
 
 
-async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
+async def _watchdog_tick() -> None:
     # 1. Detect and clear crashed model processes so they can be re-activated.
     for model_id in list(inference_manager._running.keys()):
         alive = await inference_manager.is_model_process_alive(model_id)
@@ -119,13 +119,13 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
         max_activations = max(1, settings.watchdog_max_activations_per_tick)
         for model in activated_models:
             if inference_manager.is_active(model.id):
-                recovery_state.pop(model.id, None)
+                inference_manager.clear_recovery_state(model.id)
                 continue
-            state = recovery_state.get(model.id)
+            state = inference_manager.get_recovery_state(model.id)
             if state is not None:
-                if state["attempts"] >= settings.model_recovery_max_attempts:
+                if state.attempts >= settings.model_recovery_max_attempts:
                     continue
-                if now < state["next_attempt"]:
+                if now < state.next_attempt:
                     continue
             if activations_this_tick >= max_activations:
                 break
@@ -137,22 +137,28 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
                     await inference_manager.activate_model_on_pool(model, resolution)
                 else:
                     await inference_manager.activate_model(model, resolution)
-                recovery_state.pop(model.id, None)
+                inference_manager.clear_recovery_state(model.id)
                 logger.info("Watchdog recovered model %s", model.alias)
             except InsufficientHostRamError as exc:
                 activations_this_tick += 1
+                inference_manager.note_recovery_error(model.id, str(exc))
                 logger.warning(
                     "Watchdog deferring activation of %s until more host RAM is free: %s",
                     model.alias,
                     exc,
                 )
             except Exception as exc:
-                attempts = (state["attempts"] if state else 0) + 1
+                attempts = (state.attempts if state else 0) + 1
                 backoff = min(
                     settings.device_watchdog_interval_seconds * (2 ** (attempts - 1)),
                     3600,
                 )
-                recovery_state[model.id] = {"attempts": attempts, "next_attempt": now + backoff}
+                inference_manager.record_recovery_failure(
+                    model.id,
+                    str(exc),
+                    attempts=attempts,
+                    next_attempt=now + backoff,
+                )
                 activations_this_tick += 1
                 if attempts >= settings.model_recovery_max_attempts:
                     logger.error(
@@ -180,12 +186,11 @@ async def _watchdog_tick(recovery_state: dict[int, dict]) -> None:
 
 async def schedule_device_watchdog() -> None:
     """Periodically reconcile GPUs and auto-restart crashed models."""
-    recovery_state: dict[int, dict] = {}
     interval = max(5, settings.device_watchdog_interval_seconds)
     while True:
         await asyncio.sleep(interval)
         try:
-            await _watchdog_tick(recovery_state)
+            await _watchdog_tick()
         except Exception:
             logger.exception("Device watchdog tick failed")
 

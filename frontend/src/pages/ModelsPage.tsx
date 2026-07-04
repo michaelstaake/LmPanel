@@ -5,13 +5,55 @@ import { useToast } from "../context/ToastContext";
 import { useBackgroundProgress } from "../context/BackgroundProgressContext";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
 import { formatShardStatus, isProtectedModelFile, validateModelUploadFiles } from "../lib/ggufShards";
-import { AssetDeleteResponse, AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
+import { AssetDeleteResponse, AssetUploadResponse, DeviceRecord, GpuPoolRecord, ModelActivationResponse, ModelRecord, ModelRuntimeState, ModelUpdateResponse, ScanResponse, UploadResponse } from "../lib/records";
 import Modal from "../components/ui/Modal";
 import ReorderButtons from "../components/ui/ReorderButtons";
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
+const MODEL_RUNTIME_POLL_INTERVAL_MS = 5000;
 const MODEL_ASSET_ACCEPT = ".gguf,.mmproj,.json,.txt,.yaml,.yml,.bin,.safetensors";
+
+function getModelRuntimeState(model: ModelRecord): ModelRuntimeState {
+  return model.runtime_state ?? (model.activated ? "recovering" : "disabled");
+}
+
+function getActivationButtonPresentation(model: ModelRecord, isActivationLoading: boolean) {
+  if (isActivationLoading) {
+    return {
+      label: "Loading...",
+      className: "border-sky-300 bg-sky-100 text-sky-800",
+      title: undefined,
+    };
+  }
+
+  switch (getModelRuntimeState(model)) {
+    case "running":
+      return {
+        label: "Enabled",
+        className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
+        title: undefined,
+      };
+    case "recovering":
+      return {
+        label: "Recovering...",
+        className: "border-amber-500/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25",
+        title: model.runtime_error ?? "Model is restarting in the background.",
+      };
+    case "error":
+      return {
+        label: "Error",
+        className: "border-rose-500/40 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25",
+        title: model.runtime_error ?? "Model is enabled but not running. Click to disable and troubleshoot.",
+      };
+    default:
+      return {
+        label: "Disabled",
+        className: "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10",
+        title: undefined,
+      };
+  }
+}
 
 function stripUrlQueryString(url: string): string {
   const questionIndex = url.indexOf("?");
@@ -258,6 +300,11 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
   const saveTimeoutsRef = useRef<Record<number, number>>({});
   const savingIdsRef = useRef<Set<number>>(new Set());
   const resaveRequestedRef = useRef<Set<number>>(new Set());
+  const loadingActivationIdsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    loadingActivationIdsRef.current = loadingActivationIds;
+  }, [loadingActivationIds]);
 
   useEffect(() => {
     latestModelsRef.current = models;
@@ -269,6 +316,43 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       return;
     }
     void refreshData(token);
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const pollRuntimeStatus = async () => {
+      try {
+        const modelsResponse = await apiGet<ModelRecord[]>("/api/models", token);
+        const polledById = new Map(modelsResponse.map((model) => [model.id, model]));
+        setModels((current) =>
+          current.map((item) => {
+            const polled = polledById.get(item.id);
+            if (!polled) {
+              return item;
+            }
+
+            const isActivationLoading = loadingActivationIdsRef.current.includes(item.id);
+            return {
+              ...item,
+              activated: isActivationLoading ? item.activated : polled.activated,
+              runtime_state: polled.runtime_state,
+              runtime_error: polled.runtime_error,
+            };
+          })
+        );
+      } catch {
+        // Ignore transient poll failures; the next tick will retry.
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void pollRuntimeStatus();
+    }, MODEL_RUNTIME_POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
   }, [token]);
 
   async function refreshData(activeToken: string) {
@@ -668,13 +752,33 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     if (!token) {
       return;
     }
-    const nextActivated = !model.activated;
+    const runtimeState = getModelRuntimeState(model);
+    const nextActivated = runtimeState === "disabled";
     setLoadingActivationIds((current) => (current.includes(model.id) ? current : [...current, model.id]));
     try {
       const response = await apiPost<Record<string, never>, ModelActivationResponse | { status: string }>(`/api/models/${model.id}/${nextActivated ? "activate" : "deactivate"}`, {}, token);
-      setModels((current) => current.map((item) => (item.id === model.id ? { ...item, activated: nextActivated } : item)));
+      const nextRuntimeState: ModelRuntimeState = nextActivated ? "running" : "disabled";
+      setModels((current) =>
+        current.map((item) =>
+          item.id === model.id
+            ? {
+                ...item,
+                activated: nextActivated,
+                runtime_state: nextRuntimeState,
+                runtime_error: null,
+              }
+            : item
+        )
+      );
       savedActivationRef.current[model.id] = nextActivated;
-      showSuccess(nextActivated ? formatModelActivationSuccessMessage(model.alias, "elapsed_seconds" in response ? response.elapsed_seconds : undefined) : `${model.alias} disabled.`, { id: "models-success" });
+      showSuccess(
+        nextActivated
+          ? formatModelActivationSuccessMessage(model.alias, "elapsed_seconds" in response ? response.elapsed_seconds : undefined)
+          : runtimeState === "error"
+            ? `${model.alias} disabled. You can re-enable it after troubleshooting.`
+            : `${model.alias} disabled.`,
+        { id: "models-success" }
+      );
     } catch (error) {
       showError(error instanceof Error ? error.message : "Failed to update model activation", { id: "models-error" });
     } finally {
@@ -870,7 +974,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }, REORDER_AUTO_SAVE_DELAY_MS);
   }
 
-  const activeModels = models.filter((model) => model.activated).length;
+  const activeModels = models.filter((model) => getModelRuntimeState(model) === "running").length;
   const assignmentTargets = buildAssignmentTargets(devices, pools);
   const uploadContextModel = uploadTargetModelId != null ? models.find((model) => model.id === uploadTargetModelId) ?? null : null;
   const showModelReorder = models.length > 1;
@@ -928,12 +1032,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         <div className="mt-5 space-y-4">
           {models.map((model, index) => {
             const isActivationLoading = loadingActivationIds.includes(model.id);
-            const activationButtonClassName = isActivationLoading
-              ? "border-sky-300 bg-sky-100 text-sky-800"
-              : model.activated
-                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
-                : "border-white/15 bg-white/10 text-sand/55 hover:bg-white/10";
-            const activationButtonLabel = isActivationLoading ? "Loading..." : model.activated ? "Enabled" : "Disabled";
+            const activationButton = getActivationButtonPresentation(model, isActivationLoading);
 
             return (
               <article
@@ -967,10 +1066,11 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <button
                       type="button"
                       onClick={() => void toggleModelActivation(model)}
-                      className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed ${activationButtonClassName}`}
+                      className={`cursor-pointer  border px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors disabled:cursor-not-allowed ${activationButton.className}`}
                       disabled={isActivationLoading}
+                      title={activationButton.title}
                     >
-                      {activationButtonLabel}
+                      {activationButton.label}
                     </button>
                     <button
                       className="cursor-pointer  btn-secondary px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors hover:bg-white/10"
