@@ -1380,7 +1380,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     <span>Presence Penalty</span>
                     <input className=" field px-3 py-2 text-sm" type="number" min={-2} max={2} step={0.05} value={modalNumericDrafts.presence_penalty ?? String(modalDraft.presence_penalty)} onChange={(event) => setModalNumericDraft("presence_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("presence_penalty", event.target.value, (n) => Math.min(2, Math.max(-2, n)))} />
                   </label>
-                  <label className="grid gap-1 text-sm text-sand/70 md:col-span-2">
+                  <label className="grid gap-1 text-sm text-sand/70">
                     <span>Repetition Penalty</span>
                     <input className=" field px-3 py-2 text-sm" type="number" min={0} step={0.05} value={modalNumericDrafts.repetition_penalty ?? String(modalDraft.repetition_penalty)} onChange={(event) => setModalNumericDraft("repetition_penalty", event.target.value)} onBlur={(event) => commitModalNumericDraft("repetition_penalty", event.target.value, (n) => Math.max(0, n))} />
                   </label>
