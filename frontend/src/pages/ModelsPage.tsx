@@ -1265,7 +1265,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Mode</span>
-                    <span className="text-xs text-sand/45">Auto uses the model default limit.</span>
+                    <span className="text-xs text-sand/45">Auto uses the model&apos;s GGUF maximum (can be 256k+). That reserves a huge KV cache and hurts decode — prefer Custom at 32k–64k for everyday use.</span>
                     <select
                       className=" field px-3 py-2 text-sm"
                       value={modalContextLengthMode}
@@ -1280,7 +1280,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Context Length</span>
-                    <span className="text-xs text-sand/45">Larger context lengths may increase memory usage.</span>
+                    <span className="text-xs text-sand/45">Larger values reserve more KV cache VRAM and slow decode on Vulkan. Use 32k–64k for chat; reserve 256k only when you need the full window.</span>
                     <input
                       className=" field px-3 py-2 text-sm disabled:bg-white/10 disabled:text-sand/45"
                       type="number"
