@@ -1,6 +1,6 @@
 # Template for NVIDIA GPU passthrough. Copied to docker-compose.override.yml by scripts/configure-gpu-compose.sh
 # Driver libraries and Vulkan ICD are injected by the NVIDIA Container Toolkit (runtime: nvidia + graphics).
-# /dev/dri remains required for AMD and Intel GPUs in mixed-vendor hosts.
+# AMD/Intel access uses /dev/dri, device_cgroup_rules, and group_add from docker-compose.yml (do not duplicate here).
 services:
   inference:
     runtime: nvidia
@@ -10,10 +10,3 @@ services:
     environment:
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: all
-    volumes:
-      - /dev/dri:/dev/dri
-    device_cgroup_rules:
-      - 'c 226:* rwm'
-    group_add:
-      - video
-      - render

@@ -105,10 +105,10 @@ if [[ "$HOST_HAS_NVIDIA" -eq 1 ]]; then
       fail "docker-compose.override.yml missing graphics in gpus capabilities"
       echo "  Re-run: ./lmpanel up"
     fi
-    if grep -q '/dev/dri:/dev/dri' docker-compose.override.yml; then
-      ok "docker-compose.override.yml passes /dev/dri for AMD/Intel GPUs"
+    if grep -q '/dev/dri:/dev/dri' docker-compose.override.yml docker-compose.yml 2>/dev/null; then
+      ok "Compose stack passes /dev/dri for AMD/Intel GPUs"
     else
-      warn "docker-compose.override.yml missing /dev/dri (mixed-vendor hosts need it)"
+      warn "Compose stack missing /dev/dri (mixed-vendor hosts need it)"
     fi
     if grep -qE 'libEGL_nvidia|libGLX_nvidia' docker-compose.override.yml; then
       fail "docker-compose.override.yml bind-mounts NVIDIA GL libraries (conflicts with NVIDIA Container Toolkit)"
