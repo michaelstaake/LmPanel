@@ -68,6 +68,7 @@ services:
       LLAMA_STARTUP_TIMEOUT_SECONDS: ${LLAMA_STARTUP_TIMEOUT_SECONDS:-600}
       LLAMA_HEALTH_TIMEOUT_SECONDS: ${LLAMA_HEALTH_TIMEOUT_SECONDS:-30}
       LLAMA_FIT_TO_VRAM: ${LLAMA_FIT_TO_VRAM:-false}
+      RADV_PERFTEST: ${RADV_PERFTEST:-nogttspill}
     volumes:
       - ./models:/app/models
       - ./logs:/app/logs

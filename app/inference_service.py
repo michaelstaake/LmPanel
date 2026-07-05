@@ -125,6 +125,9 @@ def _runtime_error_detail(response: httpx.Response) -> str:
     return f"Inference runtime request failed with status {response.status_code}"
 
 _GPU_OFFLOAD_VENDORS = frozenset({"vulkan"})
+_POOL_DEFAULT_BATCH_SIZE = 16384
+_POOL_DEFAULT_UBATCH_SIZE = 2048
+_VULKAN_RADV_PERFTEST = "nogttspill"
 
 
 def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
@@ -141,8 +144,7 @@ def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool
     args: list[str] = []
     if not fit_to_vram:
         args.extend(["--fit", "off"])
-    if not vendor.endswith("_pool"):
-        args.extend(["--main-gpu", "0"])
+    args.extend(["--main-gpu", "0"])
     return args
 
 
@@ -456,6 +458,9 @@ class InferenceRuntime:
             env["OMP_NUM_THREADS"] = str(max(1, threads))
         else:
             raise RuntimeError(f"Unknown device vendor: {vendor}")
+
+        if vendor.removesuffix("_pool") == "vulkan":
+            env.setdefault("RADV_PERFTEST", _VULKAN_RADV_PERFTEST)
         return env
 
     def _resolve_vulkan_indices(self, hardware_ids: list[str], stable_hardware_ids: list[str]) -> list[str]:
@@ -488,6 +493,7 @@ class InferenceRuntime:
         return indices
 
     def _build_llama_command(self, payload: ActivateModelRequest, port: int, gpu_layers: int) -> list[str]:
+        effective_vendor = payload.vendor.removesuffix("_pool")
         flash_attn_enabled = payload.flash_attention_enabled
         if payload.vendor.endswith("_pool") and payload.split_mode == "tensor" and not flash_attn_enabled:
             logger.info(
@@ -496,6 +502,21 @@ class InferenceRuntime:
                 payload.alias,
             )
             flash_attn_enabled = True
+        elif effective_vendor == "vulkan" and not flash_attn_enabled:
+            logger.info(
+                "Enabling flash attention for Vulkan inference on model %d (%s)",
+                payload.model_id,
+                payload.alias,
+            )
+            flash_attn_enabled = True
+
+        batch_size = payload.batch_size
+        ubatch_size = payload.ubatch_size
+        if payload.vendor.endswith("_pool"):
+            if not batch_size:
+                batch_size = _POOL_DEFAULT_BATCH_SIZE
+            if not ubatch_size:
+                ubatch_size = _POOL_DEFAULT_UBATCH_SIZE
 
         command = [
             self._resolve_llama_server_path(),
@@ -509,15 +530,17 @@ class InferenceRuntime:
             str(payload.context_length),
             "--threads",
             str(payload.threads),
+            "--threads-batch",
+            str(payload.threads),
             "--n-gpu-layers",
             _format_gpu_layers_for_cli(gpu_layers),
             "--flash-attn",
             "on" if flash_attn_enabled else "off",
         ]
-        if payload.batch_size:
-            command.extend(["--batch-size", str(payload.batch_size)])
-        if payload.ubatch_size:
-            command.extend(["--ubatch-size", str(payload.ubatch_size)])
+        if batch_size:
+            command.extend(["--batch-size", str(batch_size)])
+        if ubatch_size:
+            command.extend(["--ubatch-size", str(ubatch_size)])
         command.extend(
             _llama_offload_extra_args(
                 payload.vendor,

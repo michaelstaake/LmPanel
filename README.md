@@ -252,9 +252,13 @@ You can try different types of model distribution when using GPU Pools — **lay
 
 With **layer** split (the default), each GPU takes turns during token generation. Alternating ~50% utilization per GPU in tools like `nvtop` is normal — GPUs do not run concurrently for single-stream decode. Pools primarily add **VRAM capacity** and **prompt-processing (prefill) throughput**; decode can be slightly slower than a single GPU on the Vulkan backend ([llama.cpp #16767](https://github.com/ggml-org/llama.cpp/issues/16767)).
 
-For faster prompt processing on pooled models, open the model's **Advanced** settings and try **uBatch 2048** with **batch 16384** (increases VRAM use).
+For faster prompt processing on pooled models, open the model's **Advanced** settings and try **uBatch 2048** with **batch 16384** (increases VRAM use). LmPanel applies those defaults automatically when activating on a pool.
 
-**Tensor** split is experimental and requires a recent llama.cpp build (leave `LLAMA_CPP_TAG` unset or pin to current master). LmPanel auto-enables flash attention when a pool uses tensor split. Tensor split can improve token-generation scaling on fast GPU interconnects; try layer first for compatibility.
+**Decode speed:** If your model fits on one GPU, pin it to that GPU (or use **Auto** assignment) instead of the pool. Layer-split pools trade decode speed for combined VRAM — ~15 tok/s on dual R9700s is typical for large models that genuinely need both cards. For models that fit on a single 32 GB card, LmPanel now prefers one GPU automatically.
+
+**Tensor** split is experimental and requires a recent llama.cpp build (leave `LLAMA_CPP_TAG` unset or pin to current master). LmPanel auto-enables flash attention for Vulkan and when a pool uses tensor split. Tensor split can improve token-generation scaling on fast GPU interconnects; try layer first for compatibility.
+
+The inference container sets `RADV_PERFTEST=nogttspill` by default, which avoids a common RADV GTT-spill slowdown on AMD during long-context decode.
 
 ## Need Help?
 

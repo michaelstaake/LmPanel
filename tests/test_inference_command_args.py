@@ -65,7 +65,7 @@ class BuildLlamaCommandTests(unittest.TestCase):
         flash_idx = command.index("--flash-attn")
         self.assertEqual(command[flash_idx + 1], "on")
 
-    def test_layer_mode_unaffected_by_tensor_flash_override(self) -> None:
+    def test_layer_mode_still_enables_flash_attention_on_vulkan_pool(self) -> None:
         command = self.runtime._build_llama_command(
             _base_payload(
                 vendor="vulkan_pool",
@@ -77,9 +77,33 @@ class BuildLlamaCommandTests(unittest.TestCase):
             99,
         )
         flash_idx = command.index("--flash-attn")
-        self.assertEqual(command[flash_idx + 1], "off")
+        self.assertEqual(command[flash_idx + 1], "on")
         split_idx = command.index("--split-mode")
         self.assertEqual(command[split_idx + 1], "layer")
+
+    def test_pool_defaults_batch_sizes_when_unset(self) -> None:
+        command = self.runtime._build_llama_command(
+            _base_payload(vendor="vulkan_pool", vram_ratios=[32000, 32000]),
+            8101,
+            99,
+        )
+        batch_idx = command.index("--batch-size")
+        self.assertEqual(command[batch_idx + 1], "16384")
+        ubatch_idx = command.index("--ubatch-size")
+        self.assertEqual(command[ubatch_idx + 1], "2048")
+
+    def test_vulkan_env_sets_radv_perftest(self) -> None:
+        env = self.runtime._build_env("vulkan", "vulkan:0", 8)
+        self.assertEqual(env.get("RADV_PERFTEST"), "nogttspill")
+
+    def test_main_gpu_emitted_for_pool_offload(self) -> None:
+        command = self.runtime._build_llama_command(
+            _base_payload(vendor="vulkan_pool", vram_ratios=[32000, 32000]),
+            8101,
+            99,
+        )
+        main_gpu_idx = command.index("--main-gpu")
+        self.assertEqual(command[main_gpu_idx + 1], "0")
 
 
 class BuildVendorArgsTests(unittest.TestCase):

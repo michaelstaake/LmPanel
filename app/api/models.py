@@ -30,6 +30,11 @@ from app.core.gguf_shards import (
 )
 from app.core.gpu_pool_manager import get_pooled_device_ids, is_pooled_device, ordered_pool_devices
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
+from app.core.model_device_resolution import (
+    best_fitting_pool_member,
+    pick_best_pool_candidate,
+    resolve_fitting_gpu,
+)
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
@@ -889,6 +894,11 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
                         f"{combined_available} MB combined available"
                     ),
                 )
+        # Layer-split pools serialize decode across GPUs. Use one card when the model fits.
+        if pool.split_mode == "layer" and model_size_mb > 0:
+            single_gpu = best_fitting_pool_member(target, model_size_mb, memory_metrics)
+            if single_gpu is not None:
+                return single_gpu
         return target
 
     if model.assignment_mode == "pinned" and model.pinned_device_id:
@@ -922,28 +932,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
                 )
         return device
 
-    # AUTO mode — prefer GPU pool if available and fits, then single GPU, then CPU
-    pool_candidates: list[tuple[PoolActivationTarget, int]] = []
-    for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
-        target = _build_pool_target(db, pool, require_enabled=True)
-        if len(target.devices) < 2 or not inference.has_runtime_for_vendor(target.runtime_vendor):
-            continue
-
-        _, combined_available, totals_verified = _pool_combined_memory_mb(target, memory_metrics)
-        pool_fits = model_size_mb == 0 or (totals_verified and combined_available >= model_size_mb)
-        if pool_fits:
-            pool_candidates.append((target, combined_available))
-
-    if pool_candidates:
-        pool_candidates.sort(
-            key=lambda item: (
-                min(device.priority for device in item[0].devices),
-                -item[1],
-                item[0].pool_id,
-            )
-        )
-        return pool_candidates[0][0]
-
+    # AUTO mode — prefer a single GPU when the model fits, then pool, then CPU
     candidates = (
         db.query(Device)
         .filter(Device.enabled.is_(True), Device.available.is_(True), Device.vendor.in_(supported_vendors))
@@ -957,39 +946,48 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
     ]
     cpu_candidates = [c for c in candidates if c.vendor == "cpu" and inference.has_runtime_for_vendor(c.vendor)]
 
+    fitting_gpu = resolve_fitting_gpu(gpu_candidates, model_size_mb, memory_metrics)
+    if fitting_gpu is not None:
+        return fitting_gpu
+
+    # Pool members are excluded from gpu_candidates, but layer-split decode is much
+    # slower — use one pool GPU when the model fits on a single card.
+    if model_size_mb > 0:
+        best_pool_member: tuple[Device, int] | None = None
+        for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
+            if pool.split_mode != "layer":
+                continue
+            target = _build_pool_target(db, pool, require_enabled=True)
+            if len(target.devices) < 2:
+                continue
+            single_gpu = best_fitting_pool_member(target, model_size_mb, memory_metrics)
+            if single_gpu is None:
+                continue
+            available_mb = memory_metrics.get(single_gpu.hardware_id, {}).get("available_mb", 0)
+            if best_pool_member is None or available_mb > best_pool_member[1]:
+                best_pool_member = (single_gpu, available_mb)
+        if best_pool_member is not None:
+            return best_pool_member[0]
+
+    pool_candidates: list[tuple[PoolActivationTarget, int]] = []
+    for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
+        target = _build_pool_target(db, pool, require_enabled=True)
+        if len(target.devices) < 2 or not inference.has_runtime_for_vendor(target.runtime_vendor):
+            continue
+
+        _, combined_available, totals_verified = _pool_combined_memory_mb(target, memory_metrics)
+        pool_fits = model_size_mb == 0 or (totals_verified and combined_available >= model_size_mb)
+        if pool_fits:
+            pool_candidates.append((target, combined_available))
+
+    pool_target = pick_best_pool_candidate(pool_candidates)
+    if pool_target is not None:
+        return pool_target
+
     if not gpu_candidates and not cpu_candidates:
         if candidates:
             raise HTTPException(status_code=409, detail="No inference runtime configured for any enabled device")
         return None
-
-    # Try GPUs first
-    if gpu_candidates:
-        if model_size_mb > 0 and memory_metrics:
-            # Separate into GPUs with valid metrics vs unknown (total=0 means metrics unavailable)
-            fitting: list[tuple[Device, int]] = []
-            unknown: list[Device] = []
-            for gpu in gpu_candidates:
-                metrics = memory_metrics.get(gpu.hardware_id, {})
-                total_mb = metrics.get("total_mb", 0)
-                available_mb = metrics.get("available_mb", 0)
-                if total_mb == 0:
-                    unknown.append(gpu)  # No metrics — treat as potentially compatible
-                elif available_mb >= model_size_mb:
-                    fitting.append((gpu, available_mb))
-
-            if fitting:
-                # Pick the GPU with the most available VRAM
-                fitting.sort(key=lambda x: x[1], reverse=True)
-                return fitting[0][0]
-            if unknown:
-                # No metrics available for these GPUs — fall back to priority ordering
-                unknown.sort(key=lambda g: (g.priority, g.id))
-                return unknown[0]
-            # All GPUs have metrics but none fit — fall through to CPU
-        else:
-            # No memory info or model size unknown; pick best GPU by priority
-            gpu_candidates.sort(key=lambda g: (g.priority, g.id))
-            return gpu_candidates[0]
 
     # CPU fallback
     if cpu_candidates:
