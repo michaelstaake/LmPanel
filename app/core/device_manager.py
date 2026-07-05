@@ -17,6 +17,7 @@ from app.core.amdgpu_memory import (
     read_amdgpu_memory_metrics,
     resolve_amdgpu_device_path,
 )
+from app.core.config import get_settings
 from app.core.gpu_pool_manager import mark_unavailable_devices
 from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 from typing import TYPE_CHECKING
