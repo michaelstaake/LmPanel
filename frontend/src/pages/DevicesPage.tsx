@@ -40,8 +40,8 @@ function splitModeLabel(mode: string) {
 }
 
 function splitModeDescription(mode: string) {
-  if (mode === "layer") return "Default for multi-GPU pools. Splits the model by layer across pool members.";
-  if (mode === "tensor") return "Experimental. May improve token speed on fast GPU interconnects; try layer first.";
+  if (mode === "layer") return "Stable and most compatible. Adds VRAM capacity and speeds up prompt processing; token generation alternates between GPUs.";
+  if (mode === "tensor") return "Experimental. Best token-generation scaling on fast interconnects; requires and auto-enables flash attention.";
   return "";
 }
 

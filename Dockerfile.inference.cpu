@@ -2,6 +2,14 @@ FROM ubuntu:24.04
 
 WORKDIR /app
 
+# Recent Mesa/RADV (kisak-mesa PPA) includes RDNA4 performance fixes. If the PPA is
+# unavailable at build time, delete this RUN block; noble stock mesa-vulkan-drivers
+# is the fallback.
+RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common \
+    && add-apt-repository -y ppa:kisak/kisak-mesa \
+    && apt-get purge -y --auto-remove software-properties-common \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \

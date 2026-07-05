@@ -581,6 +581,8 @@ class ModelUpdateRequest(BaseModel):
     web_search_enabled: bool | None = None
     rag_enabled: bool | None = None
     flash_attention_enabled: bool | None = None
+    batch_size: int | None = Field(default=None, ge=32, le=65536)
+    ubatch_size: int | None = Field(default=None, ge=32, le=65536)
     memory_mapping_enabled: bool | None = None
     assignment_mode: str | None = None
     pinned_device_id: int | None = None

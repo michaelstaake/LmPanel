@@ -187,6 +187,8 @@ function buildModelPayload(model: ModelRecord) {
     web_search_enabled: model.web_search_enabled,
     rag_enabled: model.rag_enabled,
     flash_attention_enabled: model.flash_attention_enabled,
+    batch_size: model.batch_size,
+    ubatch_size: model.ubatch_size,
     memory_mapping_enabled: model.memory_mapping_enabled,
     assignment_mode: model.assignment_mode,
     pinned_device_id: model.assignment_mode === "pinned" ? model.pinned_device_id : null,
@@ -825,6 +827,26 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }
   }
 
+  function commitModalNullableNumericDraft(
+    field: "batch_size" | "ubatch_size",
+    value: string,
+    clamp: (n: number) => number,
+  ) {
+    setModalNumericDraftsState((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+    if (value.trim() === "") {
+      updateModalDraft({ [field]: null });
+      return;
+    }
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed)) {
+      updateModalDraft({ [field]: clamp(parsed) });
+    }
+  }
+
   function updateModalContextLengthMode(mode: ContextLengthMode) {
     setModalContextLengthMode(mode);
     setModalNumericDraftsState((current) => {
@@ -1400,6 +1422,34 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       <span className="text-sm text-sand/70">Flash Attention</span>
                       <span className="text-xs text-sand/45">Use flash attention to speed up inference.</span>
                     </span>
+                  </label>
+                  <label className="grid gap-1 text-sm text-sand/70">
+                    <span>Batch Size</span>
+                    <span className="text-xs text-sand/45">Maximum tokens processed per batch during prompt evaluation.</span>
+                    <input
+                      className=" field px-3 py-2 text-sm"
+                      type="number"
+                      min={32}
+                      max={65536}
+                      placeholder="2048 (default)"
+                      value={modalNumericDrafts.batch_size ?? (modalDraft.batch_size != null ? String(modalDraft.batch_size) : "")}
+                      onChange={(event) => setModalNumericDraft("batch_size", event.target.value)}
+                      onBlur={(event) => commitModalNullableNumericDraft("batch_size", event.target.value, (n) => Math.min(65536, Math.max(32, Math.round(n))))}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-sm text-sand/70">
+                    <span>Micro-Batch Size (uBatch)</span>
+                    <span className="text-xs text-sand/45">For multi-GPU pools, try uBatch 2048 with batch 16384 for much faster prompt processing; increases VRAM use.</span>
+                    <input
+                      className=" field px-3 py-2 text-sm"
+                      type="number"
+                      min={32}
+                      max={65536}
+                      placeholder="512 (default)"
+                      value={modalNumericDrafts.ubatch_size ?? (modalDraft.ubatch_size != null ? String(modalDraft.ubatch_size) : "")}
+                      onChange={(event) => setModalNumericDraft("ubatch_size", event.target.value)}
+                      onBlur={(event) => commitModalNullableNumericDraft("ubatch_size", event.target.value, (n) => Math.min(65536, Math.max(32, Math.round(n))))}
+                    />
                   </label>
                   <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                     <input className="mt-1" type="checkbox" checked={modalDraft.memory_mapping_enabled} onChange={(event) => updateModalDraft({ memory_mapping_enabled: event.target.checked })} />

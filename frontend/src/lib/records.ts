@@ -110,6 +110,8 @@ export type ModelRecord = {
   web_search_enabled: boolean;
   rag_enabled: boolean;
   flash_attention_enabled: boolean;
+  batch_size: number | null;
+  ubatch_size: number | null;
   memory_mapping_enabled: boolean;
   mmproj_file_name: string | null;
   shard_count: number | null;

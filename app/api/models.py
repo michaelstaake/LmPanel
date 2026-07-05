@@ -727,6 +727,10 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
         if value is not None:
             setattr(model, field, value)
 
+    for nullable_int_field in ("batch_size", "ubatch_size"):
+        if nullable_int_field in payload.model_fields_set:
+            setattr(model, nullable_int_field, getattr(payload, nullable_int_field))
+
     model.assignment_mode = next_assignment_mode
     model.pinned_device_id = next_pinned_device_id
     model.pinned_pool_id = next_pinned_pool_id
@@ -1115,6 +1119,8 @@ def _serialize_model(model: ModelConfig) -> dict:
         "context_length": model.context_length,
         "gpu_layers": model.gpu_layers,
         "threads": model.threads,
+        "batch_size": model.batch_size,
+        "ubatch_size": model.ubatch_size,
         "temperature": model.temperature,
         "top_p": model.top_p,
         "top_k": model.top_k,

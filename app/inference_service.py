@@ -192,6 +192,8 @@ class ActivateModelRequest(BaseModel):
     threads: int
     gpu_layers: int
     flash_attention_enabled: bool = False
+    batch_size: int | None = None
+    ubatch_size: int | None = None
     memory_mapping_enabled: bool = True
     vendor: str
     hardware_id: str
@@ -245,46 +247,7 @@ class InferenceRuntime:
             stable_hardware_id=payload.stable_hardware_id,
             stable_hardware_ids=payload.stable_hardware_ids,
         )
-        flash_attn_enabled = payload.flash_attention_enabled
-
-        command = [
-            self._resolve_llama_server_path(),
-            "-m",
-            payload.file_path,
-            "--host",
-            self.settings.llama_host,
-            "--port",
-            str(port),
-            "-c",
-            str(payload.context_length),
-            "--threads",
-            str(payload.threads),
-            "--n-gpu-layers",
-            _format_gpu_layers_for_cli(gpu_layers),
-            "--flash-attn",
-            "on" if flash_attn_enabled else "off",
-        ]
-        command.extend(
-            _llama_offload_extra_args(
-                payload.vendor,
-                gpu_layers,
-                fit_to_vram=self.settings.llama_fit_to_vram,
-            )
-        )
-        if not payload.memory_mapping_enabled:
-            command.append("--no-mmap")
-        if payload.mmproj_path:
-            command.extend(["--mmproj", payload.mmproj_path])
-        command.extend(
-            self._build_vendor_args(
-                payload.vendor,
-                payload.vram_ratios,
-                payload.split_mode,
-            )
-        )
-        command.append("--jinja")
-        if payload.discourage_thinking:
-            command.extend(["--reasoning", "off", "--reasoning-budget", "0"])
+        command = self._build_llama_command(payload, port, gpu_layers)
 
         logs_dir = Path(self.settings.logs_dir)
         logs_dir.mkdir(parents=True, exist_ok=True)
@@ -524,6 +487,60 @@ class InferenceRuntime:
                 indices.append(hardware_id.split(":")[-1])
         return indices
 
+    def _build_llama_command(self, payload: ActivateModelRequest, port: int, gpu_layers: int) -> list[str]:
+        flash_attn_enabled = payload.flash_attention_enabled
+        if payload.vendor.endswith("_pool") and payload.split_mode == "tensor" and not flash_attn_enabled:
+            logger.info(
+                "Tensor split mode requires flash attention; forcing --flash-attn on for model %d (%s)",
+                payload.model_id,
+                payload.alias,
+            )
+            flash_attn_enabled = True
+
+        command = [
+            self._resolve_llama_server_path(),
+            "-m",
+            payload.file_path,
+            "--host",
+            self.settings.llama_host,
+            "--port",
+            str(port),
+            "-c",
+            str(payload.context_length),
+            "--threads",
+            str(payload.threads),
+            "--n-gpu-layers",
+            _format_gpu_layers_for_cli(gpu_layers),
+            "--flash-attn",
+            "on" if flash_attn_enabled else "off",
+        ]
+        if payload.batch_size:
+            command.extend(["--batch-size", str(payload.batch_size)])
+        if payload.ubatch_size:
+            command.extend(["--ubatch-size", str(payload.ubatch_size)])
+        command.extend(
+            _llama_offload_extra_args(
+                payload.vendor,
+                gpu_layers,
+                fit_to_vram=self.settings.llama_fit_to_vram,
+            )
+        )
+        if not payload.memory_mapping_enabled:
+            command.append("--no-mmap")
+        if payload.mmproj_path:
+            command.extend(["--mmproj", payload.mmproj_path])
+        command.extend(
+            self._build_vendor_args(
+                payload.vendor,
+                payload.vram_ratios,
+                payload.split_mode,
+            )
+        )
+        command.append("--jinja")
+        if payload.discourage_thinking:
+            command.extend(["--reasoning", "off", "--reasoning-budget", "0"])
+        return command
+
     def _build_vendor_args(
         self,
         vendor: str,
@@ -532,7 +549,7 @@ class InferenceRuntime:
     ) -> list[str]:
         if vendor.endswith("_pool"):
             args: list[str] = []
-            if split_mode == "tensor" and vram_ratios and len(vram_ratios) >= 2:
+            if vram_ratios and len(vram_ratios) >= 2:
                 args.extend(["--tensor-split", ",".join(str(r) for r in vram_ratios)])
             args.extend(["--split-mode", split_mode])
             return args

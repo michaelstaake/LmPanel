@@ -248,7 +248,13 @@ Experiment with settings like flash attention and the other settings available i
 
 #### Tweak Pool Settings
 
-You can try different types of model distribution when using GPU Pools - layer and tensor.
+You can try different types of model distribution when using GPU Pools — **layer** and **tensor**.
+
+With **layer** split (the default), each GPU takes turns during token generation. Alternating ~50% utilization per GPU in tools like `nvtop` is normal — GPUs do not run concurrently for single-stream decode. Pools primarily add **VRAM capacity** and **prompt-processing (prefill) throughput**; decode can be slightly slower than a single GPU on the Vulkan backend ([llama.cpp #16767](https://github.com/ggml-org/llama.cpp/issues/16767)).
+
+For faster prompt processing on pooled models, open the model's **Advanced** settings and try **uBatch 2048** with **batch 16384** (increases VRAM use).
+
+**Tensor** split is experimental and requires a recent llama.cpp build (leave `LLAMA_CPP_TAG` unset or pin to current master). LmPanel auto-enables flash attention when a pool uses tensor split. Tensor split can improve token-generation scaling on fast GPU interconnects; try layer first for compatibility.
 
 ## Need Help?
 
