@@ -203,7 +203,7 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 - **Device not detected**:
   - Ensure host GPU drivers are installed and restart the system after driver changes.
   - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On NVIDIA hosts, run `./lmpanel up --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan and graphics libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics.
+  - On mixed AMD/Intel/NVIDIA hosts, run `./lmpanel up --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics; AMD and Intel GPUs use `/dev/dri` alongside NVIDIA.
   - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./lmpanel up --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
 
 

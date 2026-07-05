@@ -49,7 +49,8 @@ RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
 COPY app ./app
 
 COPY scripts/inference-entrypoint.sh /usr/local/bin/inference-entrypoint.sh
-RUN chmod +x /usr/local/bin/inference-entrypoint.sh \
+COPY scripts/collect-vulkan-icds.sh /usr/local/bin/collect-vulkan-icds.sh
+RUN chmod +x /usr/local/bin/inference-entrypoint.sh /usr/local/bin/collect-vulkan-icds.sh \
     && mkdir -p /app/models /app/logs
 
 ENV LLAMA_SERVER_PATH=/opt/llama.cpp/build/bin/llama-server

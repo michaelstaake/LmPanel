@@ -97,7 +97,8 @@ def _log_gpu_passthrough_warning() -> None:
         )
         logger.warning(
             "No physical Vulkan GPU detected in inference container. "
-            "On NVIDIA hosts, run ./lmpanel up --build --force-recreate inference. "
+            "On mixed-vendor hosts, recreate inference after driver changes: "
+            "./lmpanel up --build --force-recreate inference. "
             "NVIDIA_DRIVER_CAPABILITIES must include graphics (current: %r). "
             "nvidia_icd.json present: %s. "
             "Run bash scripts/verify-gpu-passthrough.sh for diagnostics.",

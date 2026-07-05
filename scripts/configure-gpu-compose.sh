@@ -116,6 +116,7 @@ write_override() {
 
   if write_override_if_changed; then
     log_info "NVIDIA GPU detected. Wrote $OVERRIDE_FILE for GPU passthrough."
+    log_info "AMD/Intel GPUs remain available via /dev/dri for mixed-vendor hosts."
     log_info "Run: ./lmpanel up --build --force-recreate inference"
     log_info "Then: ./lmpanel restart backend"
     log_info "Verify: bash scripts/verify-gpu-passthrough.sh"

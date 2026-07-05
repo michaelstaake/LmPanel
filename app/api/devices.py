@@ -6,6 +6,7 @@ from app.core.activity_logger import log_event
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.device_manager import DeviceManager, build_device_display_suffix, get_supported_vendors
+from app.core.gpu_chip_vendor import chip_vendor_key, chip_vendor_label
 from app.core.gpu_pool_manager import (
     deactivate_pool_models,
     delete_pool_and_revert_models,
@@ -258,6 +259,7 @@ def _validate_pool_devices(device_ids: list[int], vendor: str, db: Session) -> l
 
     devices: list[Device] = []
     seen_ids: set[int] = set()
+    chip_vendor_id: int | None = None
     for device_id in device_ids:
         if device_id in seen_ids:
             raise HTTPException(status_code=400, detail="GPU pool device list contains duplicates")
@@ -270,6 +272,22 @@ def _validate_pool_devices(device_ids: list[int], vendor: str, db: Session) -> l
             raise HTTPException(
                 status_code=400,
                 detail=f"Device {device.name} is a {device.vendor} device and cannot be added to a {vendor} pool",
+            )
+        if device.device_type != "gpu":
+            raise HTTPException(status_code=400, detail=f"Device {device.name} is not a GPU")
+        if device.pci_vendor_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Device {device.name} has no GPU chip vendor id; restart inference and refresh devices",
+            )
+        if chip_vendor_id is None:
+            chip_vendor_id = device.pci_vendor_id
+        elif device.pci_vendor_id != chip_vendor_id:
+            left = chip_vendor_label(chip_vendor_id) or "unknown"
+            right = chip_vendor_label(device.pci_vendor_id) or "unknown"
+            raise HTTPException(
+                status_code=400,
+                detail=f"GPU pool members must share the same chip vendor ({left} and {right} cannot be pooled together)",
             )
         devices.append(device)
 
@@ -319,4 +337,7 @@ def _serialize_device(device: Device, default_name: str | None = None, *, in_poo
         "max_threads": device.max_threads,
         "max_slots": device.max_slots,
         "in_pool": in_pool,
+        "pci_vendor_id": device.pci_vendor_id,
+        "chip_vendor": chip_vendor_key(device.pci_vendor_id),
+        "chip_vendor_label": chip_vendor_label(device.pci_vendor_id),
     }

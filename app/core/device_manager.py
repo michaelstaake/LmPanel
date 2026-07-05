@@ -17,7 +17,6 @@ from app.core.amdgpu_memory import (
     read_amdgpu_memory_metrics,
     resolve_amdgpu_device_path,
 )
-from app.core.config import get_settings
 from app.core.gpu_pool_manager import mark_unavailable_devices
 from app.core.pci_bdf import normalize_pci_bdf, parse_vulkan_pci_bdf
 from typing import TYPE_CHECKING
@@ -161,6 +160,7 @@ class DeviceManager:
                     last_seen_at=now,
                     max_threads=detected_device.max_threads,
                     max_slots=detected_device.max_slots,
+                    pci_vendor_id=detected_device.pci_vendor_id,
                 )
                 db.add(row)
                 db.flush()
@@ -174,6 +174,7 @@ class DeviceManager:
                 row.vendor = detected_device.vendor
                 row.device_type = detected_device.device_type
                 row.memory_mb = detected_device.memory_mb
+                row.pci_vendor_id = detected_device.pci_vendor_id
                 row.available = True
                 row.last_seen_at = now
                 if row.device_type == "cpu":

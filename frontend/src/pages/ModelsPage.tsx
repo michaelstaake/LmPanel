@@ -79,13 +79,13 @@ function buildAssignmentTargets(devices: DeviceRecord[], pools: GpuPoolRecord[])
 
   return [
     ...devices.filter((device) => device.enabled && !pooledDeviceIds.has(device.id)).map((device) => ({
-      label: `${device.name} (${device.vendor} device, ${formatDeviceIdLabel(device)})`,
+      label: `${device.name} (${device.chip_vendor_label ?? device.vendor} device, ${formatDeviceIdLabel(device)})`,
       value: `device:${device.id}`,
       assignment_mode: "pinned" as const,
       id: device.id,
     })),
     ...pools.map((pool) => ({
-      label: `${pool.name} (${pool.vendor} pool, ${pool.devices.length} GPU${pool.devices.length === 1 ? "" : "s"})`,
+      label: `${pool.name} (${pool.devices[0]?.chip_vendor_label ?? "GPU"} pool, ${pool.devices.length} GPU${pool.devices.length === 1 ? "" : "s"})`,
       value: `pool:${pool.id}`,
       assignment_mode: "pool" as const,
       id: pool.id,

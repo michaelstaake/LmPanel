@@ -9,8 +9,25 @@ import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/record
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
-const POOL_VENDORS = ["vulkan"] as const;
+const RUNTIME_POOL_VENDOR = "vulkan";
+const POOL_CHIP_VENDORS = ["amd", "intel", "nvidia"] as const;
 const SPLIT_MODES = ["layer", "tensor"] as const;
+
+function chipVendorLabel(chipVendor: string | null | undefined) {
+  if (chipVendor === "amd") return "AMD";
+  if (chipVendor === "intel") return "Intel";
+  if (chipVendor === "nvidia") return "NVIDIA";
+  return chipVendor ?? "GPU";
+}
+
+function deviceChipVendor(device: DeviceRecord) {
+  return device.chip_vendor ?? null;
+}
+
+function poolChipVendor(pool: GpuPoolRecord) {
+  const first = pool.devices[0];
+  return first ? deviceChipVendor(first) : null;
+}
 
 function normalizePoolSplitMode(mode: string): (typeof SPLIT_MODES)[number] {
   return mode === "tensor" ? "tensor" : "layer";
@@ -28,8 +45,9 @@ function splitModeDescription(mode: string) {
   return "";
 }
 
-function deviceTypeLabel(device: { vendor: string; device_type: string }) {
+function deviceTypeLabel(device: { vendor: string; device_type: string; chip_vendor_label?: string | null }) {
   if (device.vendor === "cpu" && device.device_type === "cpu") return "CPU";
+  if (device.chip_vendor_label) return `${device.chip_vendor_label.toUpperCase()} ${device.device_type.toUpperCase()}`;
   return `${vendorLabel(device.vendor).toUpperCase()} ${device.device_type.toUpperCase()}`;
 }
 
@@ -94,7 +112,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const [poolLoadingTarget, setPoolLoadingTarget] = useState<string | null>(null);
   const [selectedPoolDeviceIds, setSelectedPoolDeviceIds] = useState<number[]>([]);
   const [poolDraftName, setPoolDraftName] = useState("GPU Pool");
-  const [poolDraftVendor, setPoolDraftVendor] = useState<(typeof POOL_VENDORS)[number]>("vulkan");
+  const [poolDraftChipVendor, setPoolDraftChipVendor] = useState<(typeof POOL_CHIP_VENDORS)[number]>("amd");
   const [poolDraftSplitMode, setPoolDraftSplitMode] = useState<(typeof SPLIT_MODES)[number]>("layer");
   const [poolDraftMaxSlots, setPoolDraftMaxSlots] = useState(0);
   const [editingPoolId, setEditingPoolId] = useState<number | null>(null);
@@ -369,15 +387,24 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   }
 
   const enabledDevices = devices.filter((device) => device.enabled).length;
-  const availablePoolVendors = useMemo(
-    () => POOL_VENDORS.filter((vendor) => devices.filter((device) => device.vendor === vendor).length > 1),
-    [devices],
-  );
-  const draftVendorOptions = useMemo(() => {
-    const currentVendor = editingPoolId === null ? null : pools.find((pool) => pool.id === editingPoolId)?.vendor ?? null;
-    return Array.from(new Set([...(currentVendor ? [currentVendor] : []), ...availablePoolVendors]));
-  }, [availablePoolVendors, editingPoolId, pools]);
-  const showNewPoolButton = !setupMode && availablePoolVendors.length > 0;
+  const availablePoolChipVendors = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const device of devices) {
+      const chipVendor = deviceChipVendor(device);
+      if (!chipVendor || device.device_type !== "gpu") {
+        continue;
+      }
+      counts.set(chipVendor, (counts.get(chipVendor) ?? 0) + 1);
+    }
+    return POOL_CHIP_VENDORS.filter((chipVendor) => (counts.get(chipVendor) ?? 0) > 1);
+  }, [devices]);
+  const draftChipVendorOptions = useMemo(() => {
+    const currentChipVendor = editingPoolId === null
+      ? null
+      : poolChipVendor(pools.find((pool) => pool.id === editingPoolId) ?? { devices: [] } as GpuPoolRecord);
+    return Array.from(new Set([...(currentChipVendor ? [currentChipVendor] : []), ...availablePoolChipVendors]));
+  }, [availablePoolChipVendors, editingPoolId, pools]);
+  const showNewPoolButton = !setupMode && availablePoolChipVendors.length > 0;
   const poolDeviceToPool = useMemo(() => {
     const mapping = new Map<number, GpuPoolRecord>();
     for (const pool of pools) {
@@ -390,23 +417,23 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const editablePool = editingPoolId === null ? null : pools.find((pool) => pool.id === editingPoolId) ?? null;
   const filteredDraftDevices = useMemo(
     () => devices.filter((device) => {
-      if (device.vendor !== poolDraftVendor) {
+      if (deviceChipVendor(device) !== poolDraftChipVendor) {
         return false;
       }
       const owningPool = poolDeviceToPool.get(device.id);
       return !owningPool || owningPool.id === editingPoolId;
     }),
-    [devices, editingPoolId, poolDeviceToPool, poolDraftVendor],
+    [devices, editingPoolId, poolDeviceToPool, poolDraftChipVendor],
   );
 
   useEffect(() => {
-    if (draftVendorOptions.length === 0) {
+    if (draftChipVendorOptions.length === 0) {
       return;
     }
-    if (!draftVendorOptions.includes(poolDraftVendor)) {
-      setPoolDraftVendor(draftVendorOptions[0] as (typeof POOL_VENDORS)[number]);
+    if (!draftChipVendorOptions.includes(poolDraftChipVendor)) {
+      setPoolDraftChipVendor(draftChipVendorOptions[0] as (typeof POOL_CHIP_VENDORS)[number]);
     }
-  }, [draftVendorOptions, poolDraftVendor]);
+  }, [draftChipVendorOptions, poolDraftChipVendor]);
 
   useEffect(() => {
     setSelectedPoolDeviceIds((current) => current.filter((deviceId) => filteredDraftDevices.some((device) => device.id === deviceId)));
@@ -415,7 +442,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   function resetPoolDraft() {
     setEditingPoolId(null);
     setPoolDraftName("GPU Pool");
-    setPoolDraftVendor((draftVendorOptions[0] ?? availablePoolVendors[0] ?? "vulkan") as (typeof POOL_VENDORS)[number]);
+    setPoolDraftChipVendor((draftChipVendorOptions[0] ?? availablePoolChipVendors[0] ?? "amd") as (typeof POOL_CHIP_VENDORS)[number]);
     setPoolDraftSplitMode("layer");
     setPoolDraftMaxSlots(0);
     setSelectedPoolDeviceIds([]);
@@ -435,7 +462,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   function startEditingPool(pool: GpuPoolRecord) {
     setEditingPoolId(pool.id);
     setPoolDraftName(pool.name);
-    setPoolDraftVendor(pool.vendor as (typeof POOL_VENDORS)[number]);
+    setPoolDraftChipVendor((poolChipVendor(pool) ?? "amd") as (typeof POOL_CHIP_VENDORS)[number]);
     setPoolDraftSplitMode(normalizePoolSplitMode(pool.split_mode));
     setPoolDraftMaxSlots(pool.max_slots);
     setSelectedPoolDeviceIds(pool.devices.map((device) => device.id));
@@ -483,7 +510,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     try {
       const response = await apiPost<{ name: string; vendor: string; device_ids: number[]; split_mode: string; max_slots: number }, { pool: GpuPoolRecord }>(
         "/api/devices/pools",
-        { name: poolDraftName.trim(), vendor: poolDraftVendor, device_ids: selectedPoolDeviceIds, split_mode: poolDraftSplitMode, max_slots: poolDraftMaxSlots },
+        { name: poolDraftName.trim(), vendor: RUNTIME_POOL_VENDOR, device_ids: selectedPoolDeviceIds, split_mode: poolDraftSplitMode, max_slots: poolDraftMaxSlots },
         token,
       );
       setPools((current) => sortPools([...current, response.pool]));
@@ -503,7 +530,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     try {
       const response = await apiPatch<{ name: string; vendor: string; device_ids: number[]; split_mode: string; max_slots: number }, { pool: GpuPoolRecord }>(
         `/api/devices/pools/${editablePool.id}`,
-        { name: poolDraftName.trim(), vendor: poolDraftVendor, device_ids: selectedPoolDeviceIds, split_mode: poolDraftSplitMode, max_slots: poolDraftMaxSlots },
+        { name: poolDraftName.trim(), vendor: RUNTIME_POOL_VENDOR, device_ids: selectedPoolDeviceIds, split_mode: poolDraftSplitMode, max_slots: poolDraftMaxSlots },
         token,
       );
       setPools((current) => sortPools(current.map((pool) => (pool.id === response.pool.id ? response.pool : pool))));
@@ -676,7 +703,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                     <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display text-base text-sand">{pool.name}</h3>
-                      <span className="badge-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]">{vendorLabel(pool.vendor)}</span>
+                      <span className="badge-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]">{chipVendorLabel(poolChipVendor(pool))}</span>
                       <span className="badge-accent px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em]">{splitModeLabel(pool.split_mode)}</span>
                     </div>
                   </div>
@@ -790,10 +817,10 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
               <input className=" field px-3 py-2 text-sm" value={poolDraftName} onChange={(event) => setPoolDraftName(event.target.value)} />
             </label>
             <label className="grid gap-1 text-sm text-sand/70">
-              <span>Pool Type</span>
-              <select className=" field px-3 py-2 text-sm" value={poolDraftVendor} onChange={(event) => setPoolDraftVendor(event.target.value as (typeof POOL_VENDORS)[number])}>
-                {draftVendorOptions.map((vendor) => (
-                  <option key={vendor} value={vendor}>{vendorLabel(vendor)}</option>
+              <span>Chip Vendor</span>
+              <select className=" field px-3 py-2 text-sm" value={poolDraftChipVendor} onChange={(event) => setPoolDraftChipVendor(event.target.value as (typeof POOL_CHIP_VENDORS)[number])}>
+                {draftChipVendorOptions.map((chipVendor) => (
+                  <option key={chipVendor} value={chipVendor}>{chipVendorLabel(chipVendor)}</option>
                 ))}
               </select>
             </label>
@@ -825,12 +852,12 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
                     <span className="text-xs text-sand/45">{formatDeviceIdLabel(device)} · {device.memory_mb.toLocaleString()} MB</span>
                   </label>
                 )) : (
-                  <p className="surface-muted border border-dashed border-white/15 px-3 py-3 text-sm text-sand/60">No unassigned {vendorLabel(poolDraftVendor)} GPUs are available for this pool.</p>
+                  <p className="surface-muted border border-dashed border-white/15 px-3 py-3 text-sm text-sand/60">No unassigned {chipVendorLabel(poolDraftChipVendor)} GPUs are available for this pool.</p>
                 )}
               </div>
             </div>
             {selectedPoolDeviceIds.length < 2 ? (
-              <p className="text-xs text-sand/55">Select at least 2 {vendorLabel(poolDraftVendor)} GPUs.</p>
+              <p className="text-xs text-sand/55">Select at least 2 {chipVendorLabel(poolDraftChipVendor)} GPUs.</p>
             ) : null}
           </div>
 

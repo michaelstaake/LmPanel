@@ -104,6 +104,39 @@ class DeleteUnavailableDevicesTests(unittest.TestCase):
 
 
 class SyncDetectedDevicesTests(unittest.TestCase):
+    def test_sync_persists_pci_vendor_id(self) -> None:
+        db = _make_session()
+        manager = DeviceManager()
+        detected = [
+            DetectedDevice(
+                hardware_id="vulkan:0",
+                stable_hardware_id="0000:01:00.0",
+                stable_hardware_id_source="pci_bdf",
+                name="AMD Radeon RX 9070",
+                vendor="vulkan",
+                device_type="gpu",
+                memory_mb=16000,
+                pci_vendor_id=0x1002,
+            ),
+            DetectedDevice(
+                hardware_id="vulkan:1",
+                stable_hardware_id="0000:02:00.0",
+                stable_hardware_id_source="pci_bdf",
+                name="NVIDIA GeForce RTX 5060 Ti",
+                vendor="vulkan",
+                device_type="gpu",
+                memory_mb=16000,
+                pci_vendor_id=0x10DE,
+            ),
+        ]
+
+        with mock.patch.object(DeviceManager, "detect_all_with_status", return_value=_detection(detected)):
+            manager.sync_detected_devices(db)
+
+        rows = {row.hardware_id: row for row in db.query(Device).all()}
+        self.assertEqual(rows["vulkan:0"].pci_vendor_id, 0x1002)
+        self.assertEqual(rows["vulkan:1"].pci_vendor_id, 0x10DE)
+
     def test_sync_soft_disables_undetected_vulkan_rows(self) -> None:
         db = _make_session()
         db.add(

@@ -139,6 +139,9 @@ export type DeviceRecord = {
   max_threads: number;
   max_slots: number;
   in_pool: boolean;
+  pci_vendor_id: number | null;
+  chip_vendor: string | null;
+  chip_vendor_label: string | null;
 };
 
 export type GpuPoolRecord = {
