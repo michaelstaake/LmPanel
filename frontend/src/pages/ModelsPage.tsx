@@ -1,6 +1,7 @@
 ﻿import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormWithProgress, pollUntilTaskComplete } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useModelsCatalog } from "../context/ModelsCatalogContext";
 import { useToast } from "../context/ToastContext";
 import { useBackgroundProgress } from "../context/BackgroundProgressContext";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
@@ -251,6 +252,7 @@ function formatModelActivationSuccessMessage(modelAlias: string, elapsedSeconds?
 
 export default function ModelsPage({ setupMode = false, onComplete }: ModelsPageProps) {
   const { token } = useAuth();
+  const { invalidateModelsCatalog } = useModelsCatalog();
   const { showError, showSuccess } = useToast();
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [hasLoadedModels, setHasLoadedModels] = useState(false);
@@ -697,6 +699,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         await apiPost<Record<string, never>, { status: string }>(`/api/models/${model.id}/${model.activated ? "activate" : "deactivate"}`, {}, token);
         savedActivationRef.current[model.id] = model.activated;
         setModels((current) => current.map((item) => (item.id === model.id ? { ...item, activated: model.activated } : item)));
+        invalidateModelsCatalog();
       }
 
       showSuccess(`Saved settings for ${model.alias}.`, { id: "models-success" });
@@ -771,6 +774,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
         )
       );
       savedActivationRef.current[model.id] = nextActivated;
+      invalidateModelsCatalog();
       showSuccess(
         nextActivated
           ? formatModelActivationSuccessMessage(model.alias, "elapsed_seconds" in response ? response.elapsed_seconds : undefined)
