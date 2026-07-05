@@ -171,7 +171,7 @@ class DeviceManager:
                     row.hardware_id = detected_device.hardware_id
                 row.stable_hardware_id = detected_device.stable_hardware_id
                 row.stable_hardware_id_source = detected_device.stable_hardware_id_source
-                row.name = detected_device.name
+                # Preserve user-assigned names; only new rows get the detected label.
                 row.vendor = detected_device.vendor
                 row.device_type = detected_device.device_type
                 row.memory_mb = detected_device.memory_mb

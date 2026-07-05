@@ -270,6 +270,40 @@ class SyncDetectedDevicesTests(unittest.TestCase):
         self.assertTrue(device.available)
         self.assertIsNotNone(device.last_seen_at)
 
+    def test_sync_preserves_user_assigned_device_name(self) -> None:
+        db = _make_session()
+        device = Device(
+            hardware_id="vulkan:0",
+            stable_hardware_id="0000:03:00.0",
+            stable_hardware_id_source="pci_bdf",
+            name="My Workstation GPU",
+            vendor="vulkan",
+            device_type="gpu",
+            memory_mb=24000,
+            enabled=True,
+        )
+        db.add(device)
+        db.commit()
+
+        manager = DeviceManager()
+        detected = [
+            DetectedDevice(
+                hardware_id="vulkan:0",
+                stable_hardware_id="0000:03:00.0",
+                stable_hardware_id_source="pci_bdf",
+                name="AMD Radeon RX 7900 XTX",
+                vendor="vulkan",
+                device_type="gpu",
+                memory_mb=24576,
+            )
+        ]
+
+        with mock.patch.object(DeviceManager, "detect_all_with_status", return_value=_detection(detected)):
+            rows = manager.sync_detected_devices(db)
+
+        self.assertEqual(rows[0].name, "My Workstation GPU")
+        self.assertEqual(manager.default_name_for_device(rows[0]), "AMD Radeon RX 7900 XTX")
+
     def test_default_name_for_device_uses_last_detected_map(self) -> None:
         db = _make_session()
         manager = DeviceManager()
