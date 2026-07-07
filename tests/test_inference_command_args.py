@@ -4,7 +4,7 @@ from unittest import mock
 from pydantic import ValidationError
 
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
-from app.inference_service import ActivateModelRequest, InferenceRuntime, _kv_cache_extra_args
+from app.inference_service import ActivateModelRequest, InferenceRuntime
 from app.models.device import Device
 from app.models.model_config import ModelConfig
 from app.utils.schemas import ModelUpdateRequest
@@ -104,42 +104,6 @@ class BuildLlamaCommandTests(unittest.TestCase):
         )
         main_gpu_idx = command.index("--main-gpu")
         self.assertEqual(command[main_gpu_idx + 1], "0")
-
-    def test_vulkan_long_context_uses_q8_kv_cache(self) -> None:
-        command = self.runtime._build_llama_command(
-            _base_payload(context_length=262144),
-            8101,
-            99,
-        )
-        self.assertEqual(command[command.index("--cache-type-k") + 1], "q8_0")
-        self.assertEqual(command[command.index("--cache-type-v") + 1], "q8_0")
-
-    def test_tensor_split_pool_skips_kv_quantization(self) -> None:
-        command = self.runtime._build_llama_command(
-            _base_payload(
-                vendor="vulkan_pool",
-                split_mode="tensor",
-                context_length=262144,
-                vram_ratios=[32000, 32000],
-            ),
-            8101,
-            99,
-        )
-        self.assertNotIn("--cache-type-k", command)
-
-
-class KvCacheExtraArgsTests(unittest.TestCase):
-    def test_vulkan_layer_pool_quantizes_at_long_context(self) -> None:
-        self.assertEqual(
-            _kv_cache_extra_args("vulkan_pool", "layer", 32768),
-            ["--cache-type-k", "q8_0", "--cache-type-v", "q8_0"],
-        )
-
-    def test_tensor_split_pool_omits_kv_quantization(self) -> None:
-        self.assertEqual(_kv_cache_extra_args("vulkan_pool", "tensor", 32768), [])
-
-    def test_short_context_omits_kv_quantization(self) -> None:
-        self.assertEqual(_kv_cache_extra_args("vulkan", "layer", 4096), [])
 
 
 class BuildVendorArgsTests(unittest.TestCase):

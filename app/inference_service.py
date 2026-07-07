@@ -128,8 +128,6 @@ _GPU_OFFLOAD_VENDORS = frozenset({"vulkan"})
 _POOL_DEFAULT_BATCH_SIZE = 16384
 _POOL_DEFAULT_UBATCH_SIZE = 2048
 _VULKAN_RADV_PERFTEST = "nogttspill"
-_VULKAN_KV_QUANT_CONTEXT_THRESHOLD = 8192
-_VULKAN_HIGH_CONTEXT_WARN_THRESHOLD = 65536
 
 
 def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
@@ -148,21 +146,6 @@ def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool
         args.extend(["--fit", "off"])
     args.extend(["--main-gpu", "0"])
     return args
-
-
-def _kv_cache_extra_args(vendor: str, split_mode: str, context_length: int) -> list[str]:
-    """Quantized KV cache on Vulkan frees VRAM and bandwidth at long context.
-
-    Tensor split requires an unquantized (f16) KV cache in current llama.cpp builds.
-    """
-    effective_vendor = vendor.removesuffix("_pool")
-    if effective_vendor != "vulkan":
-        return []
-    if vendor.endswith("_pool") and split_mode == "tensor":
-        return []
-    if context_length < _VULKAN_KV_QUANT_CONTEXT_THRESHOLD:
-        return []
-    return ["--cache-type-k", "q8_0", "--cache-type-v", "q8_0"]
 
 
 def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) -> None:
@@ -558,23 +541,6 @@ class InferenceRuntime:
             command.extend(["--batch-size", str(batch_size)])
         if ubatch_size:
             command.extend(["--ubatch-size", str(ubatch_size)])
-        kv_args = _kv_cache_extra_args(payload.vendor, payload.split_mode, payload.context_length)
-        if kv_args:
-            logger.info(
-                "Using q8_0 KV cache for Vulkan model %d (%s) with context %d",
-                payload.model_id,
-                payload.alias,
-                payload.context_length,
-            )
-            command.extend(kv_args)
-        if effective_vendor == "vulkan" and payload.context_length > _VULKAN_HIGH_CONTEXT_WARN_THRESHOLD:
-            logger.warning(
-                "Model %d (%s) is activating with context length %d on Vulkan; "
-                "decode is often much faster at 32k–64k unless the full window is required",
-                payload.model_id,
-                payload.alias,
-                payload.context_length,
-            )
         command.extend(
             _llama_offload_extra_args(
                 payload.vendor,

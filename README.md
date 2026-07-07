@@ -260,8 +260,6 @@ For faster prompt processing on pooled models, open the model's **Advanced** set
 
 The inference container sets `RADV_PERFTEST=nogttspill` by default, which avoids a common RADV GTT-spill slowdown on AMD during long-context decode.
 
-**Large models + long context (e.g. 27B Q8 on a pool at 256k):** You need the pool for ~34 GB weights, but a 256k context window reserves a very large KV cache and is the main reason decode sits around ~15 tok/s on Vulkan layer split. For everyday chat, set **Custom context 32768 or 65536** instead of Auto/max. LmPanel auto-applies `--cache-type-k q8_0 --cache-type-v q8_0` on Vulkan (except tensor split) when context ≥ 8k to halve KV VRAM and improve bandwidth.
-
 ## Need Help?
 
 [Documentation on GitHub Wiki](https://github.com/michaelstaake/LmPanel/wiki)
