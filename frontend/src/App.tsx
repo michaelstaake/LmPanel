@@ -52,7 +52,9 @@ function getMainNavItems(user: CurrentUser | null, knowledgeBaseEnabled: boolean
     items.push({ to: "/settings", iconClassName: "bi bi-gear", label: "Settings" });
   }
 
-  items.push({ to: "/status", iconClassName: "bi bi-activity", label: "Status" });
+  if (user) {
+    items.push({ to: "/status", iconClassName: "bi bi-activity", label: "Status" });
+  }
 
   items.push({
     to: user ? "/profile" : "/login",
@@ -385,7 +387,7 @@ export default function App() {
               <Route path="/login" element={<AuthPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/auth" element={<Navigate to="/login" replace />} />
-              <Route path="/status" element={<RequireSetup><StatusPage /></RequireSetup>} />
+              <Route path="/status" element={<RequireUser><StatusPage /></RequireUser>} />
               <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
               <Route path="/api" element={<Navigate to="/apikeys" replace />} />
               <Route path="/apikeys" element={<RequireUser><ApiPage /></RequireUser>} />
