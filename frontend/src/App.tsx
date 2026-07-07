@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, type ReactNode } from "react";
+﻿import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatPage from "./pages/ChatPage";
 import AuthPage from "./pages/AuthPage";
@@ -189,6 +189,11 @@ export default function App() {
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [mobileNavSection, setMobileNavSection] = useState<MobileNavSection>(null);
+  const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
+  const mobileNavValue = useMemo(
+    () => ({ closeMobileNav, setMobileNavSection }),
+    [closeMobileNav],
+  );
   const showMainNav = !isBootstrapping && !requiresSetup;
   const mainNavItems = getMainNavItems(user, knowledgeBaseEnabled);
 
@@ -334,7 +339,7 @@ export default function App() {
       <ModelsCatalogProvider>
       <div className="min-h-screen bg-canvas text-sand font-body">
         <ToastViewport />
-        <MobileNavProvider value={{ closeMobileNav: () => setIsMobileNavOpen(false), setMobileNavSection }}>
+        <MobileNavProvider value={mobileNavValue}>
           <div className="mx-auto max-w-7xl px-4 md:px-8">
             <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible py-4 isolate">
               <NavLink to="/" className="inline-flex items-baseline gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sand/30">
