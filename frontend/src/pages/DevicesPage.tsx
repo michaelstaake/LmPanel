@@ -602,7 +602,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
 
   const nonPoolDevices = useMemo(() => sortDevices(devices.filter((d) => !d.in_pool)), [devices]);
   const showDeviceReorder = devices.length > 1;
-  const showPoolReorder = devices.length > 1 && nonPoolDevices.length > 0 && pools.length > 0;
+  const showPoolReorder = pools.length > 0;
 
   return (
     <section className="grid gap-4">
