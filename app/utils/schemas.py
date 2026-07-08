@@ -337,7 +337,6 @@ class AppSettingsResponse(BaseModel):
     usage_limit_tools_24_hours: int = 0
     usage_limit_tools_7_days: int = 0
     usage_limit_tools_30_days: int = 0
-    update_check_mode: Literal["development", "release", "disabled"] = "disabled"
     brute_force_enabled: bool = True
     brute_force_max_failures: int = 10
     brute_force_window_minutes: int = 15
@@ -381,7 +380,6 @@ class AppSettingsUpdateRequest(BaseModel):
     usage_limit_tools_24_hours: int | None = None
     usage_limit_tools_7_days: int | None = None
     usage_limit_tools_30_days: int | None = None
-    update_check_mode: Literal["development", "release", "disabled"] | None = None
     brute_force_enabled: bool | None = None
     brute_force_max_failures: int | None = None
     brute_force_window_minutes: int | None = None

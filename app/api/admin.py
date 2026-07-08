@@ -1,35 +1,10 @@
-import os
-import re
 from pathlib import Path
 from uuid import uuid4
 
-import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_admin_user, get_current_user
-from app.core.update_check import check_for_updates as _check_for_updates
-
-_BUILD_INFO_PATH = "/app/shared/build-info.env"
-
-
-def _read_build_info() -> tuple[str, str]:
-    try:
-        with open(_BUILD_INFO_PATH) as f:
-            content = f.read()
-        commit = ""
-        version = ""
-        for line in content.splitlines():
-            m = re.match(r'VITE_APP_GIT_COMMIT="([^"]*)"', line)
-            if m:
-                commit = m.group(1)
-            m = re.match(r'VITE_APP_VERSION="([^"]*)"', line)
-            if m:
-                version = m.group(1)
-        return commit, version
-    except Exception:
-        return "", ""
 from app.core.activity_logger import log_event
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
@@ -100,8 +75,6 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.brute_force_window_minutes = payload.brute_force_window_minutes
     if payload.brute_force_block_minutes is not None:
         app_settings.brute_force_block_minutes = payload.brute_force_block_minutes
-    if payload.update_check_mode is not None:
-        app_settings.update_check_mode = payload.update_check_mode
 
     notification_updates = {
         "notifications_enabled": payload.notifications_enabled,
@@ -275,25 +248,6 @@ def delete_logo(admin_user: User = Depends(get_admin_user), db: Session = Depend
     db.refresh(app_settings)
     log_event(db, "admin.settings_changed", user_id=admin_user.id, username=admin_user.username)
     return _serialize_app_settings(app_settings)
-
-
-class UpdateCheckResponse(BaseModel):
-    latest_commit: str
-    latest_version: str
-    update_available: bool
-
-
-@router.get("/updates/check", response_model=UpdateCheckResponse)
-async def check_for_updates(admin_user: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> UpdateCheckResponse:
-    app_settings = get_or_create_app_settings(db)
-    result = await _check_for_updates(mode=app_settings.update_check_mode)
-    if result is None:
-        result = {"latest_commit": "", "latest_version": "", "update_available": False}
-    return UpdateCheckResponse(
-        latest_commit=result["latest_commit"],
-        latest_version=result["latest_version"],
-        update_available=result["update_available"],
-    )
 
 
 @router.get("/users")
@@ -694,7 +648,6 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         usage_limit_tools_24_hours=app_settings.usage_limit_tools_24_hours,
         usage_limit_tools_7_days=app_settings.usage_limit_tools_7_days,
         usage_limit_tools_30_days=app_settings.usage_limit_tools_30_days,
-        update_check_mode=app_settings.update_check_mode,
         brute_force_enabled=app_settings.brute_force_enabled,
         brute_force_max_failures=app_settings.brute_force_max_failures,
         brute_force_window_minutes=app_settings.brute_force_window_minutes,

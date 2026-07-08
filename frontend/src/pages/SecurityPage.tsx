@@ -29,7 +29,6 @@ export default function SecurityPage() {
     usage_limit_tools_24_hours: 0,
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
-    update_check_mode: "disabled",
     brute_force_enabled: true,
     brute_force_max_failures: 10,
     brute_force_window_minutes: 15,

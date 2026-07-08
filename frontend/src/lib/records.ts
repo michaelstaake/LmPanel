@@ -337,7 +337,6 @@ export type AppSettingsRecord = {
   usage_limit_tools_24_hours: number;
   usage_limit_tools_7_days: number;
   usage_limit_tools_30_days: number;
-  update_check_mode: "development" | "release" | "disabled";
   brute_force_enabled: boolean;
   brute_force_max_failures: number;
   brute_force_window_minutes: number;

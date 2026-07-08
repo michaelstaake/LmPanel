@@ -376,16 +376,6 @@ export async function deleteKbCategory<TResponse>(catId: number, token?: string)
   return apiDelete<TResponse>(`/api/knowledge-base/categories/${catId}`, token);
 }
 
-export type UpdateCheckRecord = {
-  latest_commit: string;
-  latest_version: string;
-  update_available: boolean;
-};
-
-export async function checkForUpdates(token?: string): Promise<UpdateCheckRecord> {
-  return apiGet<UpdateCheckRecord>("/api/admin/updates/check", token);
-}
-
 export type RunningTaskRecord = {
   task_id: string;
   task_type: string;
