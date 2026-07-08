@@ -11,6 +11,7 @@ from app.models.model_config import ModelConfig
 
 
 def estimate_model_vram_need_mb(model: ModelConfig, settings: Settings, *, vram_share: float = 1.0) -> int:
+    """Full VRAM estimate for multi-GPU pool preflight (weights + KV + margin)."""
     return estimate_activation_vram_mb(
         model_size_mb=estimate_model_file_size_mb(model),
         context_length=model.context_length,
@@ -19,6 +20,8 @@ def estimate_model_vram_need_mb(model: ModelConfig, settings: Settings, *, vram_
         compute_margin_mb=settings.vram_compute_margin_mb,
         headroom_mb=settings.vram_headroom_mb,
         vram_share=vram_share,
+        cache_type_k=model.cache_type_k,
+        cache_type_v=model.cache_type_v,
     )
 
 

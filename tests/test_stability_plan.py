@@ -23,7 +23,7 @@ class VramEstimatorTests(unittest.TestCase):
             compute_margin_mb=512,
             headroom_mb=1024,
         )
-        kv = int((32768 / 1000) * 80)
+        kv = int((32768 / 1000) * 80 * 0.5)  # default q8-scale when cache types unset
         self.assertEqual(need, 20000 + kv + 512 + 1024)
 
     def test_pool_share_halves_estimate(self) -> None:
