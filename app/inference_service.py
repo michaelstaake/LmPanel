@@ -238,8 +238,8 @@ class InferenceRuntime:
     def clear_failure_kind(self, model_id: int) -> None:
         self._model_failures.pop(model_id, None)
 
-    def _llama_http_timeout(self, *, for_stream: bool = False) -> httpx.Timeout:
-        request_timeout = self.settings.llama_request_timeout_seconds
+    def _llama_http_timeout(self, *, for_stream: bool = False, request_timeout: int | None = None) -> httpx.Timeout:
+        request_timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         read_timeout = (
             self.settings.llama_stream_stall_timeout_seconds
             if for_stream
@@ -464,7 +464,7 @@ class InferenceRuntime:
             request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         try:
-            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False)) as client:
+            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False, request_timeout=request_timeout)) as client:
                 response = await client.post(url, json=request_payload)
         except httpx.HTTPError as exc:
             self._mark_model_failed(model_id)
@@ -486,7 +486,7 @@ class InferenceRuntime:
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         decoder = codecs.getincrementaldecoder("utf-8")("ignore")
         event_buffer = ""
-        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True)) as client:
+        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True, request_timeout=request_timeout)) as client:
             try:
                 async with client.stream("POST", url, json=request_payload) as response:
                     if response.is_error:

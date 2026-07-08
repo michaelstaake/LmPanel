@@ -338,8 +338,8 @@ class InferenceManager:
     def has_runtime_for_vendor(self, vendor: str) -> bool:
         return self.runtime_url_for_vendor(vendor) is not None
 
-    def _llama_http_timeout(self, *, for_stream: bool = False) -> httpx.Timeout:
-        request_timeout = self.settings.llama_request_timeout_seconds
+    def _llama_http_timeout(self, *, for_stream: bool = False, request_timeout: int | None = None) -> httpx.Timeout:
+        request_timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         read_timeout = (
             self.settings.llama_stream_stall_timeout_seconds
             if for_stream
@@ -773,7 +773,7 @@ class InferenceManager:
                 self.settings.pool_startup_timeout_seconds,
             )
         timeout = request_timeout if request_timeout is not None else self.settings.inference_service_timeout_seconds
-        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False)) as client:
+        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False, request_timeout=timeout)) as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
         return response.json()
@@ -791,7 +791,7 @@ class InferenceManager:
             )
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
-            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True)) as client:
+            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True, request_timeout=timeout)) as client:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.is_error:
                         await response.aread()
