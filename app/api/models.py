@@ -35,6 +35,7 @@ from app.core.model_device_resolution import (
     pick_best_pool_candidate,
     resolve_fitting_gpu,
 )
+from app.core.pool_lifecycle import log_pool_event
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
@@ -745,7 +746,7 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
     db.refresh(model)
 
     if was_activated:
-        inference.deactivate_model(model.id)
+        await inference.deactivate_model(model.id)
         model.activated = False
         db.add(model)
         db.commit()
@@ -830,7 +831,7 @@ def deactivate_model(model_id: int, _: User = Depends(get_admin_user), db: Sessi
     model = db.query(ModelConfig).filter(ModelConfig.id == model_id).first()
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
-    inference.deactivate_model(model.id)
+    inference.deactivate_model_sync(model.id)
     inference.clear_recovery_state(model.id)
     model.activated = False
     db.add(model)
@@ -876,6 +877,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
         target = _build_pool_target(db, pool, require_enabled=True)
         if len(target.devices) < 2:
             raise HTTPException(status_code=409, detail="GPU pool has fewer than two devices")
+        _validate_pool_stable_ids(target)
         if not inference.has_runtime_for_vendor(target.runtime_vendor):
             raise HTTPException(status_code=409, detail=f"No inference runtime configured for {pool.vendor} (required for GPU pool)")
 
@@ -894,10 +896,17 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
                         f"{combined_available} MB combined available"
                     ),
                 )
-        # Layer-split pools serialize decode across GPUs. Use one card when the model fits.
-        if pool.split_mode == "layer" and model_size_mb > 0:
+        # Prefer one GPU when the model fits to avoid unnecessary pool overhead.
+        if get_settings().pool_prefer_single_gpu_when_fit and model_size_mb > 0:
             single_gpu = best_fitting_pool_member(target, model_size_mb, memory_metrics)
             if single_gpu is not None:
+                log_pool_event(
+                    "single_gpu_fallback",
+                    pool_id=pool.id,
+                    model_id=model.id,
+                    device_id=single_gpu.id,
+                    split_mode=pool.split_mode,
+                )
                 return single_gpu
         return target
 
@@ -982,6 +991,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
 
     pool_target = pick_best_pool_candidate(pool_candidates)
     if pool_target is not None:
+        _validate_pool_stable_ids(pool_target)
         return pool_target
 
     if not gpu_candidates and not cpu_candidates:
@@ -1049,6 +1059,24 @@ def _pool_combined_memory_mb(target: PoolActivationTarget, memory_metrics: dict)
         combined_total += total_mb
         total += available_mb
     return combined_total, total, True
+
+
+def _validate_pool_stable_ids(target: PoolActivationTarget) -> None:
+    if len(target.devices) < 2:
+        return
+    missing = [
+        device.hardware_id
+        for device in target.devices
+        if not device.stable_hardware_id or not device.stable_hardware_id.strip()
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "GPU pool launch requires a stable PCI BDF for every member; "
+                f"missing for: {', '.join(missing)}"
+            ),
+        )
 
 
 def _build_pool_target(db: Session, pool: GpuPool, require_enabled: bool) -> PoolActivationTarget:

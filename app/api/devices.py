@@ -209,7 +209,7 @@ def update_device(device_id: int, payload: DeviceUpdateRequest, _: User = Depend
         ).all()
         for model in pinned_models:
             if model.activated and inference is not None:
-                inference.deactivate_model(model.id)
+                inference.deactivate_model_sync(model.id)
             if model.activated:
                 model.activated = False
             model.assignment_mode = "auto"

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from app.core.pool_lifecycle import DeactivateReason, log_pool_event
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
@@ -17,6 +18,14 @@ class PoolCleanupResult:
     pool_name: str
     member_device_ids: list[int]
     reverted_model_ids: list[int]
+
+
+@dataclass
+class PoolDegradeResult:
+    pool_id: int
+    pool_name: str
+    suspended_model_ids: list[int]
+    reason: str
 
 
 @dataclass
@@ -65,7 +74,7 @@ def revert_models_pinned_to_devices(
     ).all()
     for model in models:
         if model.activated and inference is not None:
-            inference.deactivate_model(model.id)
+            inference.deactivate_model_sync(model.id, reason=DeactivateReason.POOL_CLEANUP)
         if model.activated:
             model.activated = False
         model.assignment_mode = "auto"
@@ -86,13 +95,39 @@ def revert_models_assigned_to_pool(
     ).all()
     for model in models:
         if model.activated and inference is not None:
-            inference.deactivate_model(model.id)
+            inference.deactivate_model_sync(model.id, reason=DeactivateReason.POOL_CLEANUP)
         if model.activated:
             model.activated = False
         model.assignment_mode = "auto"
         model.pinned_pool_id = None
         model.pinned_device_id = None
         db.add(model)
+    return models
+
+
+def suspend_pool_models(
+    db: Session,
+    pool_id: int,
+    inference: "InferenceManager | None" = None,
+    *,
+    reason: str = "pool_member_unavailable",
+) -> list[ModelConfig]:
+    """Stop inference for pool-assigned models but preserve pool assignment intent."""
+    models = db.query(ModelConfig).filter(
+        ModelConfig.assignment_mode == "pool",
+        ModelConfig.pinned_pool_id == pool_id,
+    ).all()
+    for model in models:
+        if inference is not None:
+            inference.deactivate_model_sync(model.id, reason=DeactivateReason.POOL_SUSPEND)
+        db.add(model)
+    if models:
+        log_pool_event(
+            "suspend",
+            pool_id=pool_id,
+            reason=reason,
+            model_ids=",".join(str(model.id) for model in models),
+        )
     return models
 
 
@@ -113,17 +148,42 @@ def delete_pool_and_revert_models(
     )
 
 
+def degrade_pools_with_unavailable_devices(
+    db: Session,
+    available_hardware_ids: set[str],
+    inference: "InferenceManager | None" = None,
+) -> list[PoolDegradeResult]:
+    """Suspend pool models when a member disappears without deleting the pool."""
+    results: list[PoolDegradeResult] = []
+    for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
+        member_devices = _pool_member_devices(db, pool.id)
+        if not member_devices:
+            continue
+        if any(device.hardware_id not in available_hardware_ids for device in member_devices):
+            suspended = suspend_pool_models(
+                db,
+                pool.id,
+                inference,
+                reason="pool_member_unavailable",
+            )
+            results.append(
+                PoolDegradeResult(
+                    pool_id=pool.id,
+                    pool_name=pool.name,
+                    suspended_model_ids=[model.id for model in suspended],
+                    reason="pool_member_unavailable",
+                )
+            )
+    return results
+
+
 def delete_pools_with_unavailable_devices(
     db: Session,
     available_hardware_ids: set[str],
     inference: "InferenceManager | None" = None,
-) -> list[PoolCleanupResult]:
-    results: list[PoolCleanupResult] = []
-    for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
-        member_devices = _pool_member_devices(db, pool.id)
-        if any(device.hardware_id not in available_hardware_ids for device in member_devices):
-            results.append(delete_pool_and_revert_models(db, pool, inference))
-    return results
+) -> list[PoolDegradeResult]:
+    """Deprecated alias: degrades pools in place instead of deleting them."""
+    return degrade_pools_with_unavailable_devices(db, available_hardware_ids, inference)
 
 
 def mark_unavailable_devices(
@@ -233,20 +293,8 @@ def deactivate_pool_models(
     pool_id: int,
     inference: "InferenceManager | None" = None,
 ) -> list[ModelConfig]:
-    models = db.query(ModelConfig).filter(
-        ModelConfig.assignment_mode == "pool",
-        ModelConfig.pinned_pool_id == pool_id,
-    ).all()
-    for model in models:
-        if model.activated and inference is not None:
-            inference.deactivate_model(model.id)
-        if model.activated:
-            model.activated = False
-        model.assignment_mode = "auto"
-        model.pinned_pool_id = None
-        model.pinned_device_id = None
-        db.add(model)
-    return models
+    """Suspend pool models while preserving pool assignment for automatic recovery."""
+    return suspend_pool_models(db, pool_id, inference, reason="pool_deactivated")
 
 
 def _pool_member_device_ids(db: Session, pool_id: int) -> list[int]:

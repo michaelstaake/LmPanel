@@ -1,20 +1,65 @@
 import asyncio
-import time
 import logging
+import threading
+import time
+from collections.abc import AsyncIterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 import json
-from collections.abc import AsyncIterator
 
 import httpx
 import psutil
 
 from app.core.config import get_settings
 from app.core.model_activation import assert_host_ram_for_activation, estimate_model_file_size_mb
+from app.core.pool_lifecycle import (
+    DeactivateReason,
+    LivenessKind,
+    RuntimeStateKind,
+    log_pool_event,
+)
 from app.models.device import Device
 from app.models.model_config import ModelConfig
 
 logger = logging.getLogger(__name__)
+
+_pool_lock_registry_guard = threading.Lock()
+_pool_lock_registry: dict[str, threading.Lock] = {}
+
+
+def _lock_key_for_pool(pool_id: int) -> str:
+    return f"pool:{pool_id}"
+
+
+def _lock_key_for_device(stable_ids: list[str]) -> str:
+    if not stable_ids:
+        return "device:unknown"
+    return "device:" + "|".join(sorted(stable_ids))
+
+
+def _get_transition_lock(key: str) -> threading.Lock:
+    with _pool_lock_registry_guard:
+        lock = _pool_lock_registry.get(key)
+        if lock is None:
+            lock = threading.Lock()
+            _pool_lock_registry[key] = lock
+        return lock
+
+
+@contextmanager
+def _acquire_transition_lock(*keys: str):
+    ordered = sorted({key for key in keys if key})
+    acquired: list[threading.Lock] = []
+    try:
+        for key in ordered:
+            lock = _get_transition_lock(key)
+            lock.acquire()
+            acquired.append(lock)
+        yield
+    finally:
+        for lock in reversed(acquired):
+            lock.release()
 
 
 @dataclass
@@ -67,6 +112,7 @@ class ModelRecoveryState:
     attempts: int
     next_attempt: float
     last_error: str | None = None
+    failure_kind: str | None = None
 
 
 @dataclass
@@ -75,59 +121,124 @@ class RunningModel:
     base_url: str
     device_id: int | None
     vendor: str
+    pool_id: int | None = None
     pool_device_ids: list[int] = field(default_factory=list)
     stable_hardware_ids: list[str] = field(default_factory=list)
+
+
+@dataclass
+class LivenessResult:
+    kind: LivenessKind
+    detail: str | None = None
 
 
 class InferenceManager:
     def __init__(self) -> None:
         self.settings = get_settings()
         self._running: dict[int, RunningModel] = {}
+        self._starting: set[int] = set()
         self._activation_lock = asyncio.Lock()
         self._recovery_state: dict[int, ModelRecoveryState] = {}
 
     def clear_recovery_state(self, model_id: int) -> None:
         self._recovery_state.pop(model_id, None)
 
-    def record_recovery_failure(self, model_id: int, error: str, *, attempts: int, next_attempt: float) -> None:
+    def record_recovery_failure(
+        self,
+        model_id: int,
+        error: str,
+        *,
+        attempts: int,
+        next_attempt: float,
+        failure_kind: str | None = None,
+    ) -> None:
         self._recovery_state[model_id] = ModelRecoveryState(
             attempts=attempts,
             next_attempt=next_attempt,
             last_error=error,
+            failure_kind=failure_kind,
         )
 
-    def note_recovery_error(self, model_id: int, error: str) -> None:
+    def note_recovery_error(self, model_id: int, error: str, *, failure_kind: str | None = None) -> None:
         state = self._recovery_state.get(model_id)
         if state is None:
-            self._recovery_state[model_id] = ModelRecoveryState(attempts=0, next_attempt=0.0, last_error=error)
+            self._recovery_state[model_id] = ModelRecoveryState(
+                attempts=0,
+                next_attempt=0.0,
+                last_error=error,
+                failure_kind=failure_kind,
+            )
         else:
             state.last_error = error
+            if failure_kind is not None:
+                state.failure_kind = failure_kind
 
     def get_recovery_state(self, model_id: int) -> ModelRecoveryState | None:
         return self._recovery_state.get(model_id)
 
+    def pool_active_model_id(self, pool_id: int, *, exclude_model_id: int | None = None) -> int | None:
+        for model_id, running in self._running.items():
+            if exclude_model_id is not None and model_id == exclude_model_id:
+                continue
+            if running.pool_id == pool_id:
+                return model_id
+        return None
+
     async def resolve_runtime_state(self, model_id: int, *, activated: bool) -> dict[str, str | None]:
         if not activated:
-            return {"runtime_state": "disabled", "runtime_error": None}
+            return {"runtime_state": RuntimeStateKind.DISABLED, "runtime_error": None}
+
+        if model_id in self._starting:
+            return {"runtime_state": RuntimeStateKind.STARTING, "runtime_error": None}
 
         if self.is_active(model_id):
-            alive = await self.is_model_process_alive(model_id)
-            if alive is False:
-                return {"runtime_state": "error", "runtime_error": "Model process is not running"}
-            return {"runtime_state": "running", "runtime_error": None}
+            liveness = await self.classify_model_liveness(model_id)
+            if liveness.kind == LivenessKind.PROCESS_DEAD:
+                return {
+                    "runtime_state": RuntimeStateKind.ERROR,
+                    "runtime_error": liveness.detail or "Model process is not running",
+                }
+            if liveness.kind == LivenessKind.RUNTIME_UNREACHABLE:
+                return {
+                    "runtime_state": RuntimeStateKind.DEGRADED,
+                    "runtime_error": liveness.detail,
+                }
+            return {"runtime_state": RuntimeStateKind.RUNNING, "runtime_error": None}
 
         state = self._recovery_state.get(model_id)
         max_attempts = self.settings.model_recovery_max_attempts
-        if state is not None and state.attempts >= max_attempts:
-            return {"runtime_state": "error", "runtime_error": state.last_error}
+        if state is not None:
+            if state.failure_kind == RuntimeStateKind.UNAVAILABLE:
+                return {
+                    "runtime_state": RuntimeStateKind.UNAVAILABLE,
+                    "runtime_error": state.last_error,
+                }
+            if state.attempts >= max_attempts:
+                return {
+                    "runtime_state": RuntimeStateKind.BACKOFF_LIMITED,
+                    "runtime_error": state.last_error,
+                }
 
         return {
-            "runtime_state": "recovering",
+            "runtime_state": RuntimeStateKind.RECOVERING,
             "runtime_error": state.last_error if state else None,
         }
 
     def is_active(self, model_id: int) -> bool:
         return model_id in self._running
+
+    async def classify_model_liveness(self, model_id: int) -> LivenessResult:
+        running = self._running.get(model_id)
+        if not running:
+            return LivenessResult(LivenessKind.NOT_TRACKED, "Model is not registered as running")
+
+        alive = await self.is_model_process_alive(model_id)
+        if alive is False:
+            return LivenessResult(LivenessKind.PROCESS_DEAD, "Model process is not running")
+        if alive is None:
+            return LivenessResult(LivenessKind.RUNTIME_UNREACHABLE, "Inference runtime unreachable")
+
+        return LivenessResult(LivenessKind.HEALTHY)
 
     async def is_model_process_alive(self, model_id: int) -> bool | None:
         """Return whether the model's runtime process is alive.
@@ -222,6 +333,14 @@ class InferenceManager:
                 joined = ", ".join(sorted(overlap))
                 raise RuntimeError(f"GPU already in use (stable id: {joined})")
 
+    def _ensure_pool_available(self, pool_id: int, *, exclude_model_id: int | None = None) -> None:
+        active_model_id = self.pool_active_model_id(pool_id, exclude_model_id=exclude_model_id)
+        if active_model_id is not None:
+            raise RuntimeError(
+                f"GPU pool {pool_id} already has an active model (model_id={active_model_id}); "
+                "only one pooled model may run at a time"
+            )
+
     def _assert_host_ram_for_model(self, model: ModelConfig) -> None:
         assert_host_ram_for_activation(
             model_size_mb=estimate_model_file_size_mb(model),
@@ -233,130 +352,226 @@ class InferenceManager:
             gpu_no_mmap_headroom_ratio=self.settings.model_activation_gpu_no_mmap_headroom_ratio,
         )
 
-    async def activate_model(self, model: ModelConfig, device: Device) -> None:
-        async with self._activation_lock:
-            if model.id in self._running:
-                return
-
-            stable_ids = self._stable_hardware_ids_for_device(device)
-            self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
-
-            runtime_url = self.runtime_url_for_vendor(device.vendor)
-            if not runtime_url:
-                raise RuntimeError(f"No inference runtime configured for device vendor: {device.vendor}")
-
-            self._assert_host_ram_for_model(model)
-
-            payload = {
-                "model_id": model.id,
-                "alias": model.alias,
-                "file_path": model.file_path,
-                "mmproj_path": _resolve_mmproj_path(model),
-                "context_length": model.context_length,
-                "threads": model.threads,
-                "gpu_layers": model.gpu_layers,
-                "flash_attention_enabled": model.flash_attention_enabled,
-                "batch_size": model.batch_size,
-                "ubatch_size": model.ubatch_size,
-                "memory_mapping_enabled": model.memory_mapping_enabled,
-                "vendor": device.vendor,
-                "hardware_id": device.hardware_id,
-                "stable_hardware_id": device.stable_hardware_id,
-                "stable_hardware_ids": stable_ids,
-                "discourage_thinking": model.discourage_thinking,
-            }
-            timeout = self.settings.inference_service_timeout_seconds
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
-                if response.is_error:
-                    raise RuntimeError(_runtime_error_detail(response))
-
-            self._running[model.id] = RunningModel(
-                model_id=model.id,
-                base_url=runtime_url,
-                device_id=device.id,
-                vendor=device.vendor,
-                stable_hardware_ids=stable_ids,
+    def _health_timeout_for_vendor(self, vendor: str) -> int:
+        if vendor.endswith("_pool"):
+            return max(
+                self.settings.llama_startup_timeout_seconds,
+                self.settings.pool_startup_timeout_seconds,
             )
+        return self.settings.llama_startup_timeout_seconds
 
-            ok = await self.wait_until_healthy(model.id)
-            if not ok:
-                self.deactivate_model(model.id)
-                raise RuntimeError(f"Model {model.alias} failed health check")
+    async def activate_model(self, model: ModelConfig, device: Device) -> None:
+        stable_ids = self._stable_hardware_ids_for_device(device)
+        lock_keys = (_lock_key_for_device(stable_ids),)
 
-            self.clear_recovery_state(model.id)
+        async with self._activation_lock:
+            with _acquire_transition_lock(*lock_keys):
+                if model.id in self._running:
+                    return
+
+                self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
+
+                runtime_url = self.runtime_url_for_vendor(device.vendor)
+                if not runtime_url:
+                    raise RuntimeError(f"No inference runtime configured for device vendor: {device.vendor}")
+
+                self._assert_host_ram_for_model(model)
+
+                payload = {
+                    "model_id": model.id,
+                    "alias": model.alias,
+                    "file_path": model.file_path,
+                    "mmproj_path": _resolve_mmproj_path(model),
+                    "context_length": model.context_length,
+                    "threads": model.threads,
+                    "gpu_layers": model.gpu_layers,
+                    "flash_attention_enabled": model.flash_attention_enabled,
+                    "batch_size": model.batch_size,
+                    "ubatch_size": model.ubatch_size,
+                    "memory_mapping_enabled": model.memory_mapping_enabled,
+                    "vendor": device.vendor,
+                    "hardware_id": device.hardware_id,
+                    "stable_hardware_id": device.stable_hardware_id,
+                    "stable_hardware_ids": stable_ids,
+                    "discourage_thinking": model.discourage_thinking,
+                }
+                timeout = self.settings.inference_service_timeout_seconds
+                started = time.monotonic()
+                self._starting.add(model.id)
+                try:
+                    async with httpx.AsyncClient(timeout=timeout) as client:
+                        response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
+                        if response.is_error:
+                            raise RuntimeError(_runtime_error_detail(response))
+
+                    self._running[model.id] = RunningModel(
+                        model_id=model.id,
+                        base_url=runtime_url,
+                        device_id=device.id,
+                        vendor=device.vendor,
+                        stable_hardware_ids=stable_ids,
+                    )
+
+                    ok = await self.wait_until_healthy(model.id)
+                    if not ok:
+                        await self.deactivate_model(model.id, reason=DeactivateReason.ACTIVATION_ROLLBACK)
+                        raise RuntimeError(f"Model {model.alias} failed health check")
+                finally:
+                    self._starting.discard(model.id)
+
+                log_pool_event(
+                    "activate.success",
+                    model_id=model.id,
+                    vendor=device.vendor,
+                    hardware_id=device.hardware_id,
+                    startup_duration_ms=int((time.monotonic() - started) * 1000),
+                )
+                self.clear_recovery_state(model.id)
 
     async def activate_model_on_pool(self, model: ModelConfig, target: PoolActivationTarget) -> None:
+        stable_ids = self._stable_hardware_ids_for_pool(target)
+        lock_keys = (_lock_key_for_pool(target.pool_id), _lock_key_for_device(stable_ids))
+
         async with self._activation_lock:
-            if model.id in self._running:
-                return
+            with _acquire_transition_lock(*lock_keys):
+                if model.id in self._running:
+                    return
 
-            stable_ids = self._stable_hardware_ids_for_pool(target)
-            self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
+                self._ensure_pool_available(target.pool_id, exclude_model_id=model.id)
+                self._ensure_stable_hardware_available(stable_ids, exclude_model_id=model.id)
 
-            runtime_url = self.runtime_url_for_vendor(target.runtime_vendor)
-            if not runtime_url:
-                raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
+                runtime_url = self.runtime_url_for_vendor(target.runtime_vendor)
+                if not runtime_url:
+                    raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
 
-            self._assert_host_ram_for_model(model)
+                self._assert_host_ram_for_model(model)
 
-            # Send PCI BDFs aligned 1:1 with hardware_ids (empty where unknown) so the
-            # runtime can re-resolve each pool member's live Vulkan index from its
-            # stable address at launch time.
-            aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
+                aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
 
-            payload = {
-                "model_id": model.id,
-                "alias": model.alias,
-                "file_path": model.file_path,
-                "mmproj_path": _resolve_mmproj_path(model),
-                "context_length": model.context_length,
-                "threads": model.threads,
-                "gpu_layers": model.gpu_layers,
-                "flash_attention_enabled": model.flash_attention_enabled,
-                "batch_size": model.batch_size,
-                "ubatch_size": model.ubatch_size,
-                "memory_mapping_enabled": model.memory_mapping_enabled,
-                "vendor": target.runtime_vendor,
-                "hardware_id": target.hardware_ids[0],
-                "hardware_ids": target.hardware_ids,
-                "vram_ratios": target.vram_ratios,
-                "split_mode": target.split_mode,
-                "stable_hardware_ids": aligned_stable_ids,
-                "discourage_thinking": model.discourage_thinking,
-            }
-            timeout = self.settings.inference_service_timeout_seconds
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
-                if response.is_error:
-                    raise RuntimeError(_runtime_error_detail(response))
+                payload = {
+                    "model_id": model.id,
+                    "alias": model.alias,
+                    "file_path": model.file_path,
+                    "mmproj_path": _resolve_mmproj_path(model),
+                    "context_length": model.context_length,
+                    "threads": model.threads,
+                    "gpu_layers": model.gpu_layers,
+                    "flash_attention_enabled": model.flash_attention_enabled,
+                    "batch_size": model.batch_size,
+                    "ubatch_size": model.ubatch_size,
+                    "memory_mapping_enabled": model.memory_mapping_enabled,
+                    "vendor": target.runtime_vendor,
+                    "hardware_id": target.hardware_ids[0],
+                    "hardware_ids": target.hardware_ids,
+                    "vram_ratios": target.vram_ratios,
+                    "split_mode": target.split_mode,
+                    "stable_hardware_ids": aligned_stable_ids,
+                    "discourage_thinking": model.discourage_thinking,
+                }
+                timeout = self.settings.inference_service_timeout_seconds
+                started = time.monotonic()
+                log_pool_event(
+                    "activate.start",
+                    model_id=model.id,
+                    pool_id=target.pool_id,
+                    pool_name=target.pool_name,
+                    split_mode=target.split_mode,
+                    vram_ratios=",".join(str(r) for r in target.vram_ratios),
+                    stable_bdfs=",".join(stable_ids),
+                )
+                self._starting.add(model.id)
+                try:
+                    async with httpx.AsyncClient(timeout=timeout) as client:
+                        response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
+                        if response.is_error:
+                            raise RuntimeError(_runtime_error_detail(response))
 
-            self._running[model.id] = RunningModel(
-                model_id=model.id,
-                base_url=runtime_url,
-                device_id=None,
-                vendor=target.runtime_vendor,
-                pool_device_ids=[d.id for d in target.devices],
-                stable_hardware_ids=stable_ids,
-            )
+                    self._running[model.id] = RunningModel(
+                        model_id=model.id,
+                        base_url=runtime_url,
+                        device_id=None,
+                        vendor=target.runtime_vendor,
+                        pool_id=target.pool_id,
+                        pool_device_ids=[d.id for d in target.devices],
+                        stable_hardware_ids=stable_ids,
+                    )
 
-            ok = await self.wait_until_healthy(model.id)
-            if not ok:
-                self.deactivate_model(model.id)
-                raise RuntimeError(f"Model {model.alias} failed health check on GPU pool")
+                    ok = await self.wait_until_healthy(model.id)
+                    if not ok:
+                        await self.deactivate_model(model.id, reason=DeactivateReason.ACTIVATION_ROLLBACK)
+                        raise RuntimeError(f"Model {model.alias} failed health check on GPU pool")
+                finally:
+                    self._starting.discard(model.id)
 
-            self.clear_recovery_state(model.id)
+                log_pool_event(
+                    "activate.success",
+                    model_id=model.id,
+                    pool_id=target.pool_id,
+                    split_mode=target.split_mode,
+                    startup_duration_ms=int((time.monotonic() - started) * 1000),
+                )
+                self.clear_recovery_state(model.id)
 
-    def deactivate_model(self, model_id: int) -> None:
-        running = self._running.pop(model_id, None)
+    async def deactivate_model(self, model_id: int, *, reason: DeactivateReason | str = DeactivateReason.USER) -> None:
+        running = self._running.get(model_id)
         if not running:
             return
-        try:
-            with httpx.Client(timeout=self.settings.inference_service_timeout_seconds) as client:
-                client.post(f"{running.base_url}/runtime/models/{model_id}/deactivate").raise_for_status()
-        except Exception:
-            logger.exception("Failed to deactivate remote model %s", model_id)
-            self._force_kill_remote_model(running, model_id)
+
+        lock_keys: list[str] = []
+        if running.pool_id is not None:
+            lock_keys.append(_lock_key_for_pool(running.pool_id))
+        if running.stable_hardware_ids:
+            lock_keys.append(_lock_key_for_device(running.stable_hardware_ids))
+
+        async with self._activation_lock:
+            with _acquire_transition_lock(*lock_keys):
+                running = self._running.pop(model_id, None)
+                if not running:
+                    return
+                log_pool_event(
+                    "deactivate",
+                    model_id=model_id,
+                    pool_id=running.pool_id,
+                    vendor=running.vendor,
+                    reason=str(reason),
+                )
+                try:
+                    await asyncio.to_thread(self._deactivate_remote, running, model_id)
+                except Exception:
+                    logger.exception("Failed to deactivate remote model %s", model_id)
+                    await asyncio.to_thread(self._force_kill_remote_model, running, model_id)
+
+    def deactivate_model_sync(self, model_id: int, *, reason: DeactivateReason | str = DeactivateReason.USER) -> None:
+        running = self._running.get(model_id)
+        if not running:
+            return
+
+        lock_keys: list[str] = []
+        if running.pool_id is not None:
+            lock_keys.append(_lock_key_for_pool(running.pool_id))
+        if running.stable_hardware_ids:
+            lock_keys.append(_lock_key_for_device(running.stable_hardware_ids))
+
+        with _acquire_transition_lock(*lock_keys):
+            running = self._running.pop(model_id, None)
+            if not running:
+                return
+            log_pool_event(
+                "deactivate",
+                model_id=model_id,
+                pool_id=running.pool_id,
+                vendor=running.vendor,
+                reason=str(reason),
+            )
+            try:
+                self._deactivate_remote(running, model_id)
+            except Exception:
+                logger.exception("Failed to deactivate remote model %s", model_id)
+                self._force_kill_remote_model(running, model_id)
+
+    def _deactivate_remote(self, running: RunningModel, model_id: int) -> None:
+        with httpx.Client(timeout=self.settings.inference_service_timeout_seconds) as client:
+            client.post(f"{running.base_url}/runtime/models/{model_id}/deactivate").raise_for_status()
 
     def _force_kill_remote_model(self, running: RunningModel, model_id: int) -> None:
         try:
@@ -377,7 +592,8 @@ class InferenceManager:
 
         url = f"{running.base_url}/runtime/models/{model_id}/health"
         timeout = self.settings.llama_health_timeout_seconds
-        deadline = time.monotonic() + max(timeout, self.settings.llama_startup_timeout_seconds)
+        startup_timeout = self._health_timeout_for_vendor(running.vendor)
+        deadline = time.monotonic() + max(timeout, startup_timeout)
 
         while time.monotonic() < deadline:
             try:
@@ -397,6 +613,11 @@ class InferenceManager:
             raise RuntimeError("Model is not active")
 
         url = f"{running.base_url}/runtime/models/{model_id}/chat/completions"
+        if request_timeout is None and running.vendor.endswith("_pool"):
+            request_timeout = max(
+                self.settings.inference_service_timeout_seconds,
+                self.settings.pool_startup_timeout_seconds,
+            )
         timeout = request_timeout if request_timeout is not None else self.settings.inference_service_timeout_seconds
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(url, json=payload)
@@ -409,6 +630,11 @@ class InferenceManager:
             raise RuntimeError("Model is not active")
 
         url = f"{running.base_url}/runtime/models/{model_id}/chat/completions"
+        if request_timeout is None and running.vendor.endswith("_pool"):
+            request_timeout = max(
+                self.settings.llama_request_timeout_seconds,
+                self.settings.pool_startup_timeout_seconds,
+            )
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:

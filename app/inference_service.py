@@ -125,8 +125,6 @@ def _runtime_error_detail(response: httpx.Response) -> str:
     return f"Inference runtime request failed with status {response.status_code}"
 
 _GPU_OFFLOAD_VENDORS = frozenset({"vulkan"})
-_POOL_DEFAULT_BATCH_SIZE = 16384
-_POOL_DEFAULT_UBATCH_SIZE = 2048
 _VULKAN_RADV_PERFTEST = "nogttspill"
 
 
@@ -227,76 +225,82 @@ class InferenceRuntime:
         self._running: dict[int, RunningModel] = {}
         self._tokens_processed = 0
         self._tokens_lock = threading.Lock()
+        self._activation_lock = threading.Lock()
 
     async def activate_model(self, payload: ActivateModelRequest) -> None:
         effective_vendor = payload.vendor.removesuffix("_pool")
         if not is_supported_vendor(effective_vendor):
             raise RuntimeError(f"Unsupported device vendor for this inference service: {payload.vendor}")
-        if payload.model_id in self._running:
-            return
 
-        self._ensure_stable_hardware_available(payload)
+        with self._activation_lock:
+            if payload.model_id in self._running:
+                return
 
-        # CPU-only devices must not offload layers to GPU
-        gpu_layers = 0 if effective_vendor == "cpu" else payload.gpu_layers
+            self._ensure_stable_hardware_available(payload)
 
-        port = self.settings.llama_base_port + payload.model_id
-        env = self._build_env(
-            payload.vendor,
-            payload.hardware_id,
-            payload.threads,
-            payload.hardware_ids,
-            stable_hardware_id=payload.stable_hardware_id,
-            stable_hardware_ids=payload.stable_hardware_ids,
-        )
-        command = self._build_llama_command(payload, port, gpu_layers)
+            # CPU-only devices must not offload layers to GPU
+            gpu_layers = 0 if effective_vendor == "cpu" else payload.gpu_layers
 
-        logs_dir = Path(self.settings.logs_dir)
-        logs_dir.mkdir(parents=True, exist_ok=True)
-        log_path = logs_dir / f"llama-{payload.model_id}.log"
-
-        try:
-            log_file: IO[bytes] = open(log_path, "wb")
-            logger.info(
-                "Launching llama-server for model %d (%s) on %s %s; log=%s; command=%s",
-                payload.model_id,
-                payload.alias,
+            port = self.settings.llama_base_port + payload.model_id
+            pool_launch = payload.vendor.endswith("_pool") and len(payload.hardware_ids) > 1
+            env = self._build_env(
                 payload.vendor,
                 payload.hardware_id,
-                log_path,
-                shlex.join(command),
+                payload.threads,
+                payload.hardware_ids,
+                stable_hardware_id=payload.stable_hardware_id,
+                stable_hardware_ids=payload.stable_hardware_ids,
+                pool_launch=pool_launch,
             )
-            process = subprocess.Popen(command, env=env, stdout=log_file, stderr=log_file)
-        except FileNotFoundError as exc:
-            raise RuntimeError(f"llama-server executable not found at {self.settings.llama_server_path}") from exc
+            command = self._build_llama_command(payload, port, gpu_layers)
 
-        self._running[payload.model_id] = RunningModel(
-            model_id=payload.model_id,
-            alias=payload.alias,
-            hardware_id=payload.hardware_id,
-            vendor=payload.vendor,
-            port=port,
-            process=process,
-            stable_hardware_ids=self._stable_hardware_ids_from_payload(payload),
-            command=command,
-            log_path=str(log_path),
-            log_file=log_file,
-        )
-        if not await self.wait_until_healthy(payload.model_id):
-            self.deactivate_model(payload.model_id)
-            raise RuntimeError(f"Model {payload.alias} failed health check")
+            logs_dir = Path(self.settings.logs_dir)
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            log_path = logs_dir / f"llama-{payload.model_id}.log"
 
-        try:
-            _validate_gpu_offload_from_log(str(log_path), payload.vendor, gpu_layers)
-        except RuntimeError:
-            self.deactivate_model(payload.model_id)
-            raise
+            try:
+                log_file: IO[bytes] = open(log_path, "wb")
+                logger.info(
+                    "Launching llama-server for model %d (%s) on %s %s; log=%s; command=%s",
+                    payload.model_id,
+                    payload.alias,
+                    payload.vendor,
+                    payload.hardware_id,
+                    log_path,
+                    shlex.join(command),
+                )
+                process = subprocess.Popen(command, env=env, stdout=log_file, stderr=log_file)
+            except FileNotFoundError as exc:
+                raise RuntimeError(f"llama-server executable not found at {self.settings.llama_server_path}") from exc
+
+            self._running[payload.model_id] = RunningModel(
+                model_id=payload.model_id,
+                alias=payload.alias,
+                hardware_id=payload.hardware_id,
+                vendor=payload.vendor,
+                port=port,
+                process=process,
+                stable_hardware_ids=self._stable_hardware_ids_from_payload(payload),
+                command=command,
+                log_path=str(log_path),
+                log_file=log_file,
+            )
+            if not await self.wait_until_healthy(payload.model_id):
+                self.deactivate_model(payload.model_id)
+                raise RuntimeError(f"Model {payload.alias} failed health check")
+
+            try:
+                _validate_gpu_offload_from_log(str(log_path), payload.vendor, gpu_layers)
+            except RuntimeError:
+                self.deactivate_model(payload.model_id)
+                raise
 
     def deactivate_model(self, model_id: int) -> None:
-        running = self._running.pop(model_id, None)
-        if not running:
-            return
-        self._terminate_running(running)
+        with self._activation_lock:
+            running = self._running.pop(model_id, None)
+            if not running:
+                return
+            self._terminate_running(running)
 
     def _terminate_running(self, running: "RunningModel") -> None:
         running.process.terminate()
@@ -320,15 +324,16 @@ class InferenceRuntime:
         tracked=False, which triggers automatic re-activation instead of every
         subsequent request hitting the same broken process.
         """
-        running = self._running.pop(model_id, None)
-        if not running:
-            return
-        logger.error(
-            "Model %d (%s) connection failed; killing llama-server and clearing for auto-recovery",
-            model_id,
-            running.alias,
-        )
-        self._terminate_running(running)
+        with self._activation_lock:
+            running = self._running.pop(model_id, None)
+            if not running:
+                return
+            logger.error(
+                "Model %d (%s) connection failed; killing llama-server and clearing for auto-recovery",
+                model_id,
+                running.alias,
+            )
+            self._terminate_running(running)
 
     async def wait_until_healthy(self, model_id: int) -> bool:
         running = self._running.get(model_id)
@@ -337,7 +342,12 @@ class InferenceRuntime:
 
         url = f"http://{self.settings.llama_host}:{running.port}/health"
         timeout = self.settings.llama_health_timeout_seconds
-        deadline = time.monotonic() + max(timeout, self.settings.llama_startup_timeout_seconds)
+        startup_timeout = (
+            max(self.settings.llama_startup_timeout_seconds, self.settings.pool_startup_timeout_seconds)
+            if running.vendor.endswith("_pool")
+            else self.settings.llama_startup_timeout_seconds
+        )
+        deadline = time.monotonic() + max(timeout, startup_timeout)
 
         while time.monotonic() < deadline:
             exit_code = running.process.poll()
@@ -443,16 +453,18 @@ class InferenceRuntime:
         hardware_ids: list[str] | None = None,
         stable_hardware_id: str | None = None,
         stable_hardware_ids: list[str] | None = None,
+        *,
+        pool_launch: bool = False,
     ) -> dict[str, str]:
         env = os.environ.copy()
         if vendor == "vulkan_pool":
             ids = hardware_ids if hardware_ids else [hardware_id]
             stable = stable_hardware_ids if stable_hardware_ids else ([stable_hardware_id] if stable_hardware_id else [])
-            indices = self._resolve_vulkan_indices(ids, stable)
+            indices = self._resolve_vulkan_indices(ids, stable, pool_launch=pool_launch)
             env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
         elif vendor == "vulkan":
             stable = stable_hardware_ids if stable_hardware_ids else ([stable_hardware_id] if stable_hardware_id else [])
-            indices = self._resolve_vulkan_indices([hardware_id], stable)
+            indices = self._resolve_vulkan_indices([hardware_id], stable, pool_launch=False)
             env["GGML_VK_VISIBLE_DEVICES"] = ",".join(indices)
         elif vendor == "cpu":
             env["OMP_NUM_THREADS"] = str(max(1, threads))
@@ -463,22 +475,41 @@ class InferenceRuntime:
             env.setdefault("RADV_PERFTEST", _VULKAN_RADV_PERFTEST)
         return env
 
-    def _resolve_vulkan_indices(self, hardware_ids: list[str], stable_hardware_ids: list[str]) -> list[str]:
+    def _resolve_vulkan_indices(
+        self,
+        hardware_ids: list[str],
+        stable_hardware_ids: list[str],
+        *,
+        pool_launch: bool = False,
+    ) -> list[str]:
         """Translate each GPU's stable PCI BDF into its *current* live Vulkan index.
 
         The stored ``vulkan:{idx}`` enumeration index is not stable across reboots
         or driver updates, so launching with it can place a model on the wrong GPU.
         We re-resolve the index from the device's PCI BDF against a fresh
         ``vulkaninfo`` enumeration at launch time, falling back to the embedded
-        index only when no BDF is available. ``stable_hardware_ids`` is expected to
-        be aligned 1:1 with ``hardware_ids`` (empty string where unknown).
+        index only when no BDF is available for single-GPU launches.
         """
         bdf_to_idx: dict[str, int] = {}
         output = self._run_command(["vulkaninfo"])
         if output:
             bdf_to_idx = vulkaninfo_index_by_bdf(output)
 
+        if pool_launch and len(hardware_ids) > 1:
+            if not bdf_to_idx:
+                raise RuntimeError("vulkaninfo unavailable; cannot resolve pool GPU indices")
+            if len(stable_hardware_ids) < len(hardware_ids):
+                raise RuntimeError("Pool launch requires stable PCI BDF for every pool member")
+            for position in range(len(hardware_ids)):
+                stable = stable_hardware_ids[position].strip() if position < len(stable_hardware_ids) else ""
+                if not stable:
+                    raise RuntimeError(
+                        f"Pool member {hardware_ids[position]} is missing a stable PCI BDF; "
+                        "refusing positional Vulkan index fallback"
+                    )
+
         indices: list[str] = []
+        remap_log: dict[str, str] = {}
         for position, hardware_id in enumerate(hardware_ids):
             stable = stable_hardware_ids[position] if position < len(stable_hardware_ids) else None
             live_idx: int | None = None
@@ -486,10 +517,31 @@ class InferenceRuntime:
                 normalized = normalize_pci_bdf(stable)
                 if normalized is not None:
                     live_idx = bdf_to_idx.get(normalized)
+                    if pool_launch and len(hardware_ids) > 1 and live_idx is None:
+                        raise RuntimeError(
+                            f"Stable PCI BDF {normalized} for pool member {hardware_id} "
+                            "is not present in the current Vulkan enumeration"
+                        )
             if live_idx is not None:
                 indices.append(str(live_idx))
+                remap_log[hardware_id] = f"{stable}->{live_idx}"
             else:
-                indices.append(hardware_id.split(":")[-1])
+                if pool_launch and len(hardware_ids) > 1:
+                    raise RuntimeError(
+                        f"Could not resolve live Vulkan index for pool member {hardware_id}"
+                    )
+                fallback = hardware_id.split(":")[-1]
+                indices.append(fallback)
+                remap_log[hardware_id] = f"fallback->{fallback}"
+
+        if pool_launch and len(indices) > 1 and len(set(indices)) != len(indices):
+            raise RuntimeError(f"Duplicate Vulkan indices after BDF remap: {indices}")
+
+        logger.info(
+            "Vulkan index remap for %s launch: %s",
+            "pool" if pool_launch else "single",
+            remap_log,
+        )
         return indices
 
     def _build_llama_command(self, payload: ActivateModelRequest, port: int, gpu_layers: int) -> list[str]:
@@ -514,9 +566,9 @@ class InferenceRuntime:
         ubatch_size = payload.ubatch_size
         if payload.vendor.endswith("_pool"):
             if not batch_size:
-                batch_size = _POOL_DEFAULT_BATCH_SIZE
+                batch_size = self.settings.pool_default_batch_size
             if not ubatch_size:
-                ubatch_size = _POOL_DEFAULT_UBATCH_SIZE
+                ubatch_size = self.settings.pool_default_ubatch_size
 
         command = [
             self._resolve_llama_server_path(),

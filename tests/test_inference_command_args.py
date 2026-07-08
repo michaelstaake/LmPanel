@@ -88,9 +88,9 @@ class BuildLlamaCommandTests(unittest.TestCase):
             99,
         )
         batch_idx = command.index("--batch-size")
-        self.assertEqual(command[batch_idx + 1], "16384")
+        self.assertEqual(command[batch_idx + 1], "4096")
         ubatch_idx = command.index("--ubatch-size")
-        self.assertEqual(command[ubatch_idx + 1], "2048")
+        self.assertEqual(command[ubatch_idx + 1], "512")
 
     def test_vulkan_env_sets_radv_perftest(self) -> None:
         env = self.runtime._build_env("vulkan", "vulkan:0", 8)

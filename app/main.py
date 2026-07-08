@@ -19,13 +19,16 @@ from app.core.db import SessionLocal
 from sqlalchemy.exc import OperationalError
 from app.core.device_manager import DeviceManager
 from app.core.gpu_pool_manager import (
+    degrade_pools_with_unavailable_devices,
     delete_pools_with_insufficient_members,
     delete_stale_pool_memberships,
 )
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
 from app.core.model_activation import InsufficientHostRamError
+from app.core.pool_lifecycle import DeactivateReason, LivenessKind, RuntimeStateKind, log_pool_event
 from app.core.logging import configure_logging
 from app.core import token_usage as _token_usage
+from app.models.device import Device
 from app.models.model_config import ModelConfig
 from app.api import tasks
 settings = get_settings()
@@ -96,15 +99,38 @@ async def _wait_for_gpu_ready() -> None:
 async def _watchdog_tick() -> None:
     # 1. Detect and clear crashed model processes so they can be re-activated.
     for model_id in list(inference_manager._running.keys()):
-        alive = await inference_manager.is_model_process_alive(model_id)
-        if alive is False:
-            logger.warning("Model %s process is not alive; clearing for recovery", model_id)
-            inference_manager.deactivate_model(model_id)
+        liveness = await inference_manager.classify_model_liveness(model_id)
+        if liveness.kind == LivenessKind.PROCESS_DEAD:
+            logger.warning(
+                "Model %s process is not alive (%s); clearing for recovery",
+                model_id,
+                liveness.detail,
+            )
+            log_pool_event(
+                "watchdog.recovery",
+                model_id=model_id,
+                action="deactivate",
+                reason="process_dead",
+            )
+            await inference_manager.deactivate_model(model_id, reason=DeactivateReason.WATCHDOG_LIVENESS)
 
     db = SessionLocal()
     try:
         # 2. Re-sync devices (non-destructive); returning GPUs flip back to available.
         device_manager.sync_detected_devices(db, auto_enable_defaults=True, inference=inference_manager)
+        available_hardware_ids = {
+            device.hardware_id
+            for device in db.query(Device).filter(Device.available.is_(True)).all()
+        }
+        degraded_pools = degrade_pools_with_unavailable_devices(db, available_hardware_ids, inference_manager)
+        for degraded in degraded_pools:
+            log_pool_event(
+                "degrade",
+                pool_id=degraded.pool_id,
+                pool_name=degraded.pool_name,
+                reason=degraded.reason,
+                model_ids=",".join(str(model_id) for model_id in degraded.suspended_model_ids),
+            )
 
         # 3. (Re)activate any model that should be running but isn't.
         # Only one activation per tick to avoid retry storms and concurrent loads.
@@ -138,6 +164,7 @@ async def _watchdog_tick() -> None:
                 else:
                     await inference_manager.activate_model(model, resolution)
                 inference_manager.clear_recovery_state(model.id)
+                log_pool_event("watchdog.recovery", model_id=model.id, action="activate", alias=model.alias)
                 logger.info("Watchdog recovered model %s", model.alias)
             except InsufficientHostRamError as exc:
                 activations_this_tick += 1
@@ -153,11 +180,17 @@ async def _watchdog_tick() -> None:
                     settings.device_watchdog_interval_seconds * (2 ** (attempts - 1)),
                     3600,
                 )
+                failure_kind = (
+                    RuntimeStateKind.BACKOFF_LIMITED
+                    if attempts >= settings.model_recovery_max_attempts
+                    else None
+                )
                 inference_manager.record_recovery_failure(
                     model.id,
                     str(exc),
                     attempts=attempts,
                     next_attempt=now + backoff,
+                    failure_kind=failure_kind,
                 )
                 activations_this_tick += 1
                 if attempts >= settings.model_recovery_max_attempts:
@@ -283,7 +316,7 @@ async def lifespan(_: FastAPI):
         watchdog_task.cancel()
 
     for model_id in list(inference_manager._running.keys()):
-        await asyncio.to_thread(inference_manager.deactivate_model, model_id)
+        await inference_manager.deactivate_model(model_id, reason=DeactivateReason.SHUTDOWN)
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
