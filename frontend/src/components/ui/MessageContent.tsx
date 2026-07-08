@@ -1,4 +1,5 @@
-﻿import CodeBlock from "./CodeBlock";
+﻿import { memo, useMemo } from "react";
+import CodeBlock from "./CodeBlock";
 import { parseMessageSegments } from "../../lib/codeBlockParser";
 
 type MessageContentProps = {
@@ -6,8 +7,8 @@ type MessageContentProps = {
   showStreamingCursor?: boolean;
 };
 
-export default function MessageContent({ content, showStreamingCursor = false }: MessageContentProps) {
-  const segments = parseMessageSegments(content);
+function MessageContent({ content, showStreamingCursor = false }: MessageContentProps) {
+  const segments = useMemo(() => parseMessageSegments(content), [content]);
 
   return (
     <>
@@ -26,3 +27,5 @@ export default function MessageContent({ content, showStreamingCursor = false }:
     </>
   );
 }
+
+export default memo(MessageContent);
