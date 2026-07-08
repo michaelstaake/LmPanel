@@ -29,20 +29,20 @@ export default function SettingsHomePage() {
       <div className="surface-muted mb-4 px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-display text-xl">LmPanel</h2>
+            <a
+            href="https://lmpanel.co/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-display text-xl hover:text-sand/80"
+            >
+            LmPanel
+          </a>
             <p className="mt-1 text-sm text-sand/60">
               v{__APP_VERSION__}
               {__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}
             </p>
           </div>
-          <a
-            href="https://github.com/michaelstaake/LmPanel"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm font-semibold text-sand underline underline-offset-2 hover:text-sand/80"
-          >
-            GitHub
-          </a>
+          </div>
         </div>
       </div>
 
