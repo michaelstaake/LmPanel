@@ -30,12 +30,18 @@ from app.core.gguf_shards import (
 )
 from app.core.gpu_pool_manager import get_pooled_device_ids, is_pooled_device, ordered_pool_devices
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
+from app.core.model_activation import InsufficientVramError
 from app.core.model_device_resolution import (
     best_fitting_pool_member,
     pick_best_pool_candidate,
     resolve_fitting_gpu,
 )
 from app.core.pool_lifecycle import log_pool_event
+from app.core.vram_preflight import (
+    assert_device_vram_available,
+    assert_pool_members_vram_available,
+    estimate_model_vram_need_mb,
+)
 from app.models.device import Device
 from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
@@ -733,9 +739,9 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
         if value is not None:
             setattr(model, field, value)
 
-    for nullable_int_field in ("batch_size", "ubatch_size"):
-        if nullable_int_field in payload.model_fields_set:
-            setattr(model, nullable_int_field, getattr(payload, nullable_int_field))
+    for nullable_field in ("batch_size", "ubatch_size", "cache_type_k", "cache_type_v"):
+        if nullable_field in payload.model_fields_set:
+            setattr(model, nullable_field, getattr(payload, nullable_field))
 
     model.assignment_mode = next_assignment_mode
     model.pinned_device_id = next_pinned_device_id
@@ -867,6 +873,8 @@ def delete_model(model_id: int, _: User = Depends(get_admin_user), db: Session =
 async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: InferenceManager) -> Device | PoolActivationTarget | None:
     supported_vendors = [vendor for vendor in ["cpu", "vulkan"] if is_supported_vendor(vendor)]
     model_size_mb = _estimate_model_size_mb(model)
+    settings = get_settings()
+    vram_need_mb = estimate_model_vram_need_mb(model, settings)
     memory_metrics = await inference.get_device_memory_mb()
 
     # POOL mode — model is pinned to the GPU pool
@@ -881,7 +889,17 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
         if not inference.has_runtime_for_vendor(target.runtime_vendor):
             raise HTTPException(status_code=409, detail=f"No inference runtime configured for {pool.vendor} (required for GPU pool)")
 
-        if model_size_mb > 0:
+        if model.gpu_layers > 0 and vram_need_mb > 0:
+            try:
+                assert_pool_members_vram_available(
+                    model=model,
+                    target=target,
+                    memory_metrics=memory_metrics,
+                    settings=settings,
+                )
+            except InsufficientVramError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+        elif model_size_mb > 0:
             combined_total, combined_available, totals_verified = _pool_combined_memory_mb(target, memory_metrics)
             if not totals_verified:
                 raise HTTPException(
@@ -897,8 +915,8 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
                     ),
                 )
         # Prefer one GPU when the model fits to avoid unnecessary pool overhead.
-        if get_settings().pool_prefer_single_gpu_when_fit and model_size_mb > 0:
-            single_gpu = best_fitting_pool_member(target, model_size_mb, memory_metrics)
+        if get_settings().pool_prefer_single_gpu_when_fit and vram_need_mb > 0:
+            single_gpu = best_fitting_pool_member(target, vram_need_mb, memory_metrics)
             if single_gpu is not None:
                 log_pool_event(
                     "single_gpu_fallback",
@@ -926,7 +944,16 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
                 status_code=409,
                 detail=f"No inference runtime configured for pinned device vendor: {device.vendor}",
             )
-        if device and model_size_mb > 0:
+        if device and model.gpu_layers > 0 and vram_need_mb > 0:
+            try:
+                assert_device_vram_available(
+                    device=device,
+                    required_mb=vram_need_mb,
+                    memory_metrics=memory_metrics,
+                )
+            except InsufficientVramError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+        elif device and model_size_mb > 0:
             metrics = memory_metrics.get(device.hardware_id, {})
             total_mb = metrics.get("total_mb", 0)
             available_mb = metrics.get("available_mb", 0)
@@ -955,13 +982,13 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
     ]
     cpu_candidates = [c for c in candidates if c.vendor == "cpu" and inference.has_runtime_for_vendor(c.vendor)]
 
-    fitting_gpu = resolve_fitting_gpu(gpu_candidates, model_size_mb, memory_metrics)
+    fitting_gpu = resolve_fitting_gpu(gpu_candidates, vram_need_mb, memory_metrics)
     if fitting_gpu is not None:
         return fitting_gpu
 
     # Pool members are excluded from gpu_candidates, but layer-split decode is much
     # slower — use one pool GPU when the model fits on a single card.
-    if model_size_mb > 0:
+    if vram_need_mb > 0:
         best_pool_member: tuple[Device, int] | None = None
         for pool in db.query(GpuPool).order_by(GpuPool.id.asc()).all():
             if pool.split_mode != "layer":
@@ -969,7 +996,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
             target = _build_pool_target(db, pool, require_enabled=True)
             if len(target.devices) < 2:
                 continue
-            single_gpu = best_fitting_pool_member(target, model_size_mb, memory_metrics)
+            single_gpu = best_fitting_pool_member(target, vram_need_mb, memory_metrics)
             if single_gpu is None:
                 continue
             available_mb = memory_metrics.get(single_gpu.hardware_id, {}).get("available_mb", 0)
@@ -985,7 +1012,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
             continue
 
         _, combined_available, totals_verified = _pool_combined_memory_mb(target, memory_metrics)
-        pool_fits = model_size_mb == 0 or (totals_verified and combined_available >= model_size_mb)
+        pool_fits = vram_need_mb == 0 or (totals_verified and combined_available >= vram_need_mb)
         if pool_fits:
             pool_candidates.append((target, combined_available))
 
@@ -1035,7 +1062,7 @@ async def _resolve_device_for_model(db: Session, model: ModelConfig, inference: 
         raise HTTPException(
             status_code=409,
             detail=(
-                f"Model requires ~{model_size_mb} MB but no GPU has sufficient free VRAM "
+                f"Model requires ~{vram_need_mb} MB VRAM but no GPU has sufficient free memory "
                 f"(best available: {best_gpu_avail} MB) and no CPU device is enabled"
             ),
         )
@@ -1160,6 +1187,8 @@ def _serialize_model(model: ModelConfig) -> dict:
         "web_search_enabled": model.web_search_enabled,
         "rag_enabled": model.rag_enabled,
         "flash_attention_enabled": model.flash_attention_enabled,
+        "cache_type_k": model.cache_type_k,
+        "cache_type_v": model.cache_type_v,
         "memory_mapping_enabled": model.memory_mapping_enabled,
         "mmproj_file_name": model.mmproj_file_name,
         "shard_count": shard_validation.total_shards,

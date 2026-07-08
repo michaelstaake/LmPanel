@@ -20,6 +20,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
+from app.core.llama_failure import classify_llama_log, read_log_tail
+from app.core.pool_lifecycle import FailureKind
 from app.utils.schemas import sanitize_inference_messages
 from app.core.device_manager import (
     AMD_VENDOR_ID,
@@ -192,6 +194,8 @@ class ActivateModelRequest(BaseModel):
     threads: int
     gpu_layers: int
     flash_attention_enabled: bool = False
+    cache_type_k: str | None = None
+    cache_type_v: str | None = None
     batch_size: int | None = None
     ubatch_size: int | None = None
     memory_mapping_enabled: bool = True
@@ -226,6 +230,59 @@ class InferenceRuntime:
         self._tokens_processed = 0
         self._tokens_lock = threading.Lock()
         self._activation_lock = threading.Lock()
+        self._model_failures: dict[int, FailureKind] = {}
+
+    def get_failure_kind(self, model_id: int) -> FailureKind | None:
+        return self._model_failures.get(model_id)
+
+    def clear_failure_kind(self, model_id: int) -> None:
+        self._model_failures.pop(model_id, None)
+
+    def _llama_http_timeout(self, *, for_stream: bool = False) -> httpx.Timeout:
+        request_timeout = self.settings.llama_request_timeout_seconds
+        read_timeout = (
+            self.settings.llama_stream_stall_timeout_seconds
+            if for_stream
+            else request_timeout
+        )
+        connect_timeout = min(30, request_timeout)
+        return httpx.Timeout(
+            connect=connect_timeout,
+            write=request_timeout,
+            read=read_timeout,
+            pool=request_timeout,
+        )
+
+    def _resolve_flash_attn_flag(self, payload: ActivateModelRequest) -> str:
+        """Return llama-server --flash-attn value (on/off/auto)."""
+        model_wants = payload.flash_attention_enabled
+        default = self.settings.vulkan_flash_attention_default.strip().lower()
+        effective_vendor = payload.vendor.removesuffix("_pool")
+        is_tensor_pool = payload.vendor.endswith("_pool") and payload.split_mode == "tensor"
+
+        if is_tensor_pool and default != "off":
+            if not model_wants:
+                logger.info(
+                    "Tensor split mode requires flash attention; forcing --flash-attn on for model %d (%s)",
+                    payload.model_id,
+                    payload.alias,
+                )
+            return "on"
+
+        if effective_vendor != "vulkan":
+            return "on" if model_wants else "off"
+
+        if default == "on":
+            if not model_wants:
+                logger.info(
+                    "Enabling flash attention for Vulkan inference on model %d (%s)",
+                    payload.model_id,
+                    payload.alias,
+                )
+            return "on"
+        if default == "off":
+            return "off"
+        return "on" if model_wants else "auto"
 
     async def activate_model(self, payload: ActivateModelRequest) -> None:
         effective_vendor = payload.vendor.removesuffix("_pool")
@@ -286,14 +343,18 @@ class InferenceRuntime:
                 log_file=log_file,
             )
             if not await self.wait_until_healthy(payload.model_id):
+                self._record_failure_from_log(payload.model_id, str(log_path))
                 self.deactivate_model(payload.model_id)
                 raise RuntimeError(f"Model {payload.alias} failed health check")
 
             try:
                 _validate_gpu_offload_from_log(str(log_path), payload.vendor, gpu_layers)
             except RuntimeError:
+                self._record_failure_from_log(payload.model_id, str(log_path))
                 self.deactivate_model(payload.model_id)
                 raise
+
+            self.clear_failure_kind(payload.model_id)
 
     def deactivate_model(self, model_id: int) -> None:
         with self._activation_lock:
@@ -314,7 +375,14 @@ class InferenceRuntime:
             except Exception:
                 pass
 
-    def _mark_model_failed(self, model_id: int) -> None:
+    def _record_failure_from_log(self, model_id: int, log_path: str) -> FailureKind:
+        kind = classify_llama_log(read_log_tail(log_path))
+        self._model_failures[model_id] = kind
+        if kind == FailureKind.DEVICE_LOST:
+            logger.error("Model %d classified as device_lost from llama-server log", model_id)
+        return kind
+
+    def _mark_model_failed(self, model_id: int) -> FailureKind | None:
         """Drop a model whose llama-server connection failed.
 
         A connection error (refused/reset/no response) means the llama-server
@@ -327,13 +395,16 @@ class InferenceRuntime:
         with self._activation_lock:
             running = self._running.pop(model_id, None)
             if not running:
-                return
+                return self._model_failures.get(model_id)
+            failure_kind = self._record_failure_from_log(model_id, running.log_path)
             logger.error(
-                "Model %d (%s) connection failed; killing llama-server and clearing for auto-recovery",
+                "Model %d (%s) connection failed (%s); killing llama-server and clearing for auto-recovery",
                 model_id,
                 running.alias,
+                failure_kind,
             )
             self._terminate_running(running)
+            return failure_kind
 
     async def wait_until_healthy(self, model_id: int) -> bool:
         running = self._running.get(model_id)
@@ -392,9 +463,8 @@ class InferenceRuntime:
         if "messages" in request_payload:
             request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
-        timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False)) as client:
                 response = await client.post(url, json=request_payload)
         except httpx.HTTPError as exc:
             self._mark_model_failed(model_id)
@@ -416,8 +486,7 @@ class InferenceRuntime:
         url = f"http://{self.settings.llama_host}:{running.port}/v1/chat/completions"
         decoder = codecs.getincrementaldecoder("utf-8")("ignore")
         event_buffer = ""
-        timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True)) as client:
             try:
                 async with client.stream("POST", url, json=request_payload) as response:
                     if response.is_error:
@@ -545,22 +614,7 @@ class InferenceRuntime:
         return indices
 
     def _build_llama_command(self, payload: ActivateModelRequest, port: int, gpu_layers: int) -> list[str]:
-        effective_vendor = payload.vendor.removesuffix("_pool")
-        flash_attn_enabled = payload.flash_attention_enabled
-        if payload.vendor.endswith("_pool") and payload.split_mode == "tensor" and not flash_attn_enabled:
-            logger.info(
-                "Tensor split mode requires flash attention; forcing --flash-attn on for model %d (%s)",
-                payload.model_id,
-                payload.alias,
-            )
-            flash_attn_enabled = True
-        elif effective_vendor == "vulkan" and not flash_attn_enabled:
-            logger.info(
-                "Enabling flash attention for Vulkan inference on model %d (%s)",
-                payload.model_id,
-                payload.alias,
-            )
-            flash_attn_enabled = True
+        flash_attn_flag = self._resolve_flash_attn_flag(payload)
 
         batch_size = payload.batch_size
         ubatch_size = payload.ubatch_size
@@ -587,8 +641,12 @@ class InferenceRuntime:
             "--n-gpu-layers",
             _format_gpu_layers_for_cli(gpu_layers),
             "--flash-attn",
-            "on" if flash_attn_enabled else "off",
+            flash_attn_flag,
         ]
+        if payload.cache_type_k:
+            command.extend(["--cache-type-k", payload.cache_type_k])
+        if payload.cache_type_v:
+            command.extend(["--cache-type-v", payload.cache_type_v])
         if batch_size:
             command.extend(["--batch-size", str(batch_size)])
         if ubatch_size:
@@ -712,6 +770,9 @@ class InferenceRuntime:
                     "usage_percent": usage_percent,
                     "usage_source": usage_source,
                     "memory_source": hardware_metrics.get("memory_source", "processes"),
+                    "gtt_total_mb": hardware_metrics.get("gtt_total_mb"),
+                    "gtt_used_mb": hardware_metrics.get("gtt_used_mb"),
+                    "gtt_source": hardware_metrics.get("gtt_source"),
                     "models": device_models,
                 }
             )
@@ -1079,8 +1140,31 @@ class InferenceRuntime:
         return round(float(value), 1)
 
 
+def _log_toolchain_versions() -> None:
+    build_commit_path = Path("/opt/llama.cpp/BUILD_COMMIT")
+    if build_commit_path.is_file():
+        commit = build_commit_path.read_text(encoding="utf-8").strip()
+        if commit:
+            logger.info("llama.cpp build commit: %s", commit)
+
+    try:
+        result = subprocess.run(
+            ["vulkaninfo", "--summary"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=15,
+        )
+        driver_match = re.search(r"driverVersion\s*=\s*(\S+)", result.stdout)
+        if driver_match:
+            logger.info("Vulkan driver version: %s", driver_match.group(1))
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    _log_toolchain_versions()
     _log_gpu_passthrough_warning()
     yield
 
@@ -1155,7 +1239,14 @@ def model_alive(model_id: int) -> dict:
     running = runtime._running.get(model_id)
     alive = bool(running and running.process.poll() is None)
     pid = running.process.pid if running else None
-    return {"status": "ok", "alive": alive, "tracked": running is not None, "pid": pid}
+    failure_kind = runtime.get_failure_kind(model_id)
+    return {
+        "status": "ok",
+        "alive": alive,
+        "tracked": running is not None,
+        "pid": pid,
+        "failure_kind": failure_kind.value if failure_kind else None,
+    }
 
 
 @app.get("/runtime/models/{model_id}/health")

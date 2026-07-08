@@ -52,7 +52,8 @@ RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
         -DLLAMA_BUILD_SERVER=ON \
         -DGGML_VULKAN=ON \
         -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build /opt/llama.cpp/build --config Release --target llama-server -j2
+    && cmake --build /opt/llama.cpp/build --config Release --target llama-server llama-bench -j2 \
+    && git -C /opt/llama.cpp rev-parse HEAD > /opt/llama.cpp/BUILD_COMMIT
 
 COPY app ./app
 

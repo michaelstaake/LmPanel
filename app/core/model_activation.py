@@ -16,6 +16,14 @@ class InsufficientHostRamError(RuntimeError):
     """Raised when activating another model would risk host RAM exhaustion."""
 
 
+class InsufficientGttError(RuntimeError):
+    """Raised when a target GPU's GTT usage indicates prior VRAM spillover."""
+
+
+class InsufficientVramError(RuntimeError):
+    """Raised when estimated VRAM need exceeds available GPU memory."""
+
+
 def estimate_model_file_size_mb(model: ModelConfig) -> int:
     model_dir = Path(get_settings().models_dir) / model.model_dir_name
     shard_paths = collect_shard_files(model_dir, model.file_name)
@@ -81,3 +89,34 @@ def assert_host_ram_for_activation(
             f"Insufficient host RAM: {available_mb} MB available, need at least {required_mb} MB "
             f"before loading another model"
         )
+
+
+def assert_gtt_headroom_for_activation(
+    *,
+    stable_hardware_ids: list[str],
+    memory_metrics: dict[str, dict],
+    max_used_ratio: float,
+) -> None:
+    """Refuse activation when target GPUs show high GTT usage (VRAM spillover)."""
+    if not stable_hardware_ids or max_used_ratio <= 0:
+        return
+
+    for stable_id in stable_hardware_ids:
+        normalized = stable_id.strip()
+        if not normalized:
+            continue
+        for hardware_id, metrics in memory_metrics.items():
+            device_stable = metrics.get("stable_hardware_id", "")
+            if device_stable != normalized and hardware_id != normalized:
+                continue
+            gtt_total = int(metrics.get("gtt_total_mb") or 0)
+            gtt_used = int(metrics.get("gtt_used_mb") or 0)
+            if gtt_total <= 0:
+                continue
+            used_ratio = gtt_used / gtt_total
+            if used_ratio >= max_used_ratio:
+                raise InsufficientGttError(
+                    f"GPU {hardware_id} GTT usage {gtt_used}/{gtt_total} MB "
+                    f"({used_ratio:.0%}) exceeds limit {max_used_ratio:.0%}; "
+                    "unload other models before activating"
+                )

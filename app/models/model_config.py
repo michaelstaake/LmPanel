@@ -35,6 +35,8 @@ class ModelConfig(Base):
     web_search_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     rag_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     flash_attention_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    cache_type_k: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    cache_type_v: Mapped[str | None] = mapped_column(String(16), nullable=True)
     batch_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ubatch_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     memory_mapping_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

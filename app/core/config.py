@@ -38,8 +38,13 @@ class Settings(BaseSettings):
     llama_health_timeout_seconds: int = 5
     llama_startup_timeout_seconds: int = 120
     llama_request_timeout_seconds: int = 300
+    # Read timeout for streaming chat: kills wedged generations without waiting the full request timeout.
+    llama_stream_stall_timeout_seconds: int = 120
     # When true, llama-server may reduce GPU layers / context to fit VRAM (--fit on).
     llama_fit_to_vram: bool = False
+    # Vulkan flash-attention default: auto respects per-model setting; on/off force globally.
+    # Tensor-split pools still require FA unless explicitly set to off (for RADV A/B testing).
+    vulkan_flash_attention_default: str = "auto"
 
     default_context_length: int = 32768
     default_threads: int = 8
@@ -97,6 +102,16 @@ class Settings(BaseSettings):
     pool_default_ubatch_size: int = 512
     pool_startup_timeout_seconds: int = 300
     pool_prefer_single_gpu_when_fit: bool = True
+    # Retry tensor-split pool activation with layer split when the first attempt fails.
+    pool_tensor_split_fallback: bool = True
+    # VRAM preflight: model weights + KV cache + compute margin + per-GPU headroom.
+    vram_kv_mb_per_1k_tokens: float = 80.0
+    vram_compute_margin_mb: int = 512
+    vram_headroom_mb: int = 1024
+    # Refuse activation when a target GPU's GTT usage exceeds this ratio (spillover indicator).
+    model_activation_max_gtt_used_ratio: float = 0.85
+    # Consecutive healthy watchdog ticks required after device_lost before re-activation.
+    gpu_reset_cooldown_ticks: int = 2
 
     def supported_device_list(self) -> list[str]:
         return [item.strip().lower() for item in self.supported_devices.split(",") if item.strip()]

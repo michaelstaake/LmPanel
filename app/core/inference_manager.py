@@ -12,9 +12,14 @@ import httpx
 import psutil
 
 from app.core.config import get_settings
-from app.core.model_activation import assert_host_ram_for_activation, estimate_model_file_size_mb
+from app.core.model_activation import (
+    assert_gtt_headroom_for_activation,
+    assert_host_ram_for_activation,
+    estimate_model_file_size_mb,
+)
 from app.core.pool_lifecycle import (
     DeactivateReason,
+    FailureKind,
     LivenessKind,
     RuntimeStateKind,
     log_pool_event,
@@ -113,6 +118,7 @@ class ModelRecoveryState:
     next_attempt: float
     last_error: str | None = None
     failure_kind: str | None = None
+    device_failure_kind: str | None = None
 
 
 @dataclass
@@ -139,6 +145,45 @@ class InferenceManager:
         self._starting: set[int] = set()
         self._activation_lock = asyncio.Lock()
         self._recovery_state: dict[int, ModelRecoveryState] = {}
+        self._device_healthy_streak: dict[str, int] = {}
+        self._device_cooldown_required: set[str] = set()
+
+    def mark_devices_need_cooldown(self, stable_hardware_ids: list[str]) -> None:
+        for stable_id in stable_hardware_ids:
+            normalized = stable_id.strip()
+            if normalized:
+                self._device_cooldown_required.add(normalized)
+                self._device_healthy_streak[normalized] = 0
+
+    def tick_device_health(self, memory_metrics: dict[str, dict]) -> None:
+        """Increment healthy streak for GPUs with acceptable GTT; reset others."""
+        max_ratio = self.settings.model_activation_max_gtt_used_ratio
+        for metrics in memory_metrics.values():
+            stable_id = (metrics.get("stable_hardware_id") or "").strip()
+            if not stable_id:
+                continue
+            gtt_total = int(metrics.get("gtt_total_mb") or 0)
+            gtt_used = int(metrics.get("gtt_used_mb") or 0)
+            if gtt_total > 0 and (gtt_used / gtt_total) >= max_ratio:
+                self._device_healthy_streak[stable_id] = 0
+                continue
+            self._device_healthy_streak[stable_id] = self._device_healthy_streak.get(stable_id, 0) + 1
+
+    def device_cooldown_satisfied(self, stable_hardware_ids: list[str]) -> bool:
+        required_ticks = max(1, self.settings.gpu_reset_cooldown_ticks)
+        for stable_id in stable_hardware_ids:
+            normalized = stable_id.strip()
+            if not normalized or normalized not in self._device_cooldown_required:
+                continue
+            if self._device_healthy_streak.get(normalized, 0) < required_ticks:
+                return False
+        return True
+
+    def clear_device_cooldown(self, stable_hardware_ids: list[str]) -> None:
+        for stable_id in stable_hardware_ids:
+            normalized = stable_id.strip()
+            if normalized:
+                self._device_cooldown_required.discard(normalized)
 
     def clear_recovery_state(self, model_id: int) -> None:
         self._recovery_state.pop(model_id, None)
@@ -151,12 +196,14 @@ class InferenceManager:
         attempts: int,
         next_attempt: float,
         failure_kind: str | None = None,
+        device_failure_kind: str | None = None,
     ) -> None:
         self._recovery_state[model_id] = ModelRecoveryState(
             attempts=attempts,
             next_attempt=next_attempt,
             last_error=error,
             failure_kind=failure_kind,
+            device_failure_kind=device_failure_kind,
         )
 
     def note_recovery_error(self, model_id: int, error: str, *, failure_kind: str | None = None) -> None:
@@ -234,7 +281,11 @@ class InferenceManager:
 
         alive = await self.is_model_process_alive(model_id)
         if alive is False:
-            return LivenessResult(LivenessKind.PROCESS_DEAD, "Model process is not running")
+            failure_kind = await self._fetch_failure_kind(model_id)
+            detail = "Model process is not running"
+            if failure_kind == FailureKind.DEVICE_LOST:
+                detail = "Model process died with GPU device_lost"
+            return LivenessResult(LivenessKind.PROCESS_DEAD, detail)
         if alive is None:
             return LivenessResult(LivenessKind.RUNTIME_UNREACHABLE, "Inference runtime unreachable")
 
@@ -261,12 +312,46 @@ class InferenceManager:
             return False
         return bool(data.get("alive"))
 
+    async def _fetch_failure_kind(self, model_id: int) -> FailureKind | None:
+        running = self._running.get(model_id)
+        if not running:
+            return None
+        url = f"{running.base_url}/runtime/models/{model_id}/alive"
+        try:
+            async with httpx.AsyncClient(timeout=self.settings.inference_service_timeout_seconds) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                raw = response.json().get("failure_kind")
+        except Exception:
+            return None
+        if not raw:
+            return None
+        try:
+            return FailureKind(raw)
+        except ValueError:
+            return FailureKind.GENERIC
+
     def runtime_url_for_vendor(self, vendor: str) -> str | None:
         effective_vendor = vendor.removesuffix("_pool")
         return self.settings.inference_runtime_url_for_vendor(effective_vendor)
 
     def has_runtime_for_vendor(self, vendor: str) -> bool:
         return self.runtime_url_for_vendor(vendor) is not None
+
+    def _llama_http_timeout(self, *, for_stream: bool = False) -> httpx.Timeout:
+        request_timeout = self.settings.llama_request_timeout_seconds
+        read_timeout = (
+            self.settings.llama_stream_stall_timeout_seconds
+            if for_stream
+            else request_timeout
+        )
+        connect_timeout = min(30, request_timeout)
+        return httpx.Timeout(
+            connect=connect_timeout,
+            write=request_timeout,
+            read=read_timeout,
+            pool=request_timeout,
+        )
 
     async def get_device_memory_mb(self) -> dict[str, dict]:
         """Fetch current memory metrics from all configured runtimes.
@@ -302,9 +387,34 @@ class InferenceManager:
                     "total_mb": total,
                     "used_mb": used,
                     "available_mb": max(0, total - used),
+                    "stable_hardware_id": device.get("stable_hardware_id") or "",
+                    "gtt_total_mb": int(device.get("gtt_total_mb") or 0),
+                    "gtt_used_mb": int(device.get("gtt_used_mb") or 0),
                 }
 
         return result
+
+    async def _fetch_memory_metrics_with_gtt(self) -> dict[str, dict]:
+        return await self.get_device_memory_mb()
+
+    def _assert_activation_guards(
+        self,
+        model: ModelConfig,
+        *,
+        stable_hardware_ids: list[str],
+        memory_metrics: dict[str, dict] | None = None,
+    ) -> None:
+        self._assert_host_ram_for_model(model)
+        if not stable_hardware_ids:
+            return
+        metrics = memory_metrics
+        if metrics is None:
+            return
+        assert_gtt_headroom_for_activation(
+            stable_hardware_ids=stable_hardware_ids,
+            memory_metrics=metrics,
+            max_used_ratio=self.settings.model_activation_max_gtt_used_ratio,
+        )
 
     @staticmethod
     def _stable_hardware_ids_for_device(device: Device) -> list[str]:
@@ -375,7 +485,12 @@ class InferenceManager:
                 if not runtime_url:
                     raise RuntimeError(f"No inference runtime configured for device vendor: {device.vendor}")
 
-                self._assert_host_ram_for_model(model)
+                memory_metrics = await self._fetch_memory_metrics_with_gtt()
+                self._assert_activation_guards(
+                    model,
+                    stable_hardware_ids=stable_ids,
+                    memory_metrics=memory_metrics,
+                )
 
                 payload = {
                     "model_id": model.id,
@@ -386,6 +501,8 @@ class InferenceManager:
                     "threads": model.threads,
                     "gpu_layers": model.gpu_layers,
                     "flash_attention_enabled": model.flash_attention_enabled,
+                    "cache_type_k": model.cache_type_k,
+                    "cache_type_v": model.cache_type_v,
                     "batch_size": model.batch_size,
                     "ubatch_size": model.ubatch_size,
                     "memory_mapping_enabled": model.memory_mapping_enabled,
@@ -429,6 +546,36 @@ class InferenceManager:
                 self.clear_recovery_state(model.id)
 
     async def activate_model_on_pool(self, model: ModelConfig, target: PoolActivationTarget) -> None:
+        try:
+            await self._activate_model_on_pool_once(model, target)
+        except Exception as exc:
+            if (
+                self.settings.pool_tensor_split_fallback
+                and target.split_mode == "tensor"
+            ):
+                layer_target = PoolActivationTarget(
+                    pool_id=target.pool_id,
+                    pool_name=target.pool_name,
+                    vendor=target.vendor,
+                    devices=target.devices,
+                    split_mode="layer",
+                )
+                log_pool_event(
+                    "tensor_fallback",
+                    model_id=model.id,
+                    pool_id=target.pool_id,
+                    original_error=str(exc),
+                )
+                logger.warning(
+                    "Tensor split activation failed for model %s; retrying with layer split: %s",
+                    model.alias,
+                    exc,
+                )
+                await self._activate_model_on_pool_once(model, layer_target)
+                return
+            raise
+
+    async def _activate_model_on_pool_once(self, model: ModelConfig, target: PoolActivationTarget) -> None:
         stable_ids = self._stable_hardware_ids_for_pool(target)
         lock_keys = (_lock_key_for_pool(target.pool_id), _lock_key_for_device(stable_ids))
 
@@ -444,7 +591,12 @@ class InferenceManager:
                 if not runtime_url:
                     raise RuntimeError(f"No inference runtime configured for {target.vendor} (required for GPU pool)")
 
-                self._assert_host_ram_for_model(model)
+                memory_metrics = await self._fetch_memory_metrics_with_gtt()
+                self._assert_activation_guards(
+                    model,
+                    stable_hardware_ids=stable_ids,
+                    memory_metrics=memory_metrics,
+                )
 
                 aligned_stable_ids = [(device.stable_hardware_id or "").strip() for device in target.devices]
 
@@ -457,6 +609,8 @@ class InferenceManager:
                     "threads": model.threads,
                     "gpu_layers": model.gpu_layers,
                     "flash_attention_enabled": model.flash_attention_enabled,
+                    "cache_type_k": model.cache_type_k,
+                    "cache_type_v": model.cache_type_v,
                     "batch_size": model.batch_size,
                     "ubatch_size": model.ubatch_size,
                     "memory_mapping_enabled": model.memory_mapping_enabled,
@@ -619,7 +773,7 @@ class InferenceManager:
                 self.settings.pool_startup_timeout_seconds,
             )
         timeout = request_timeout if request_timeout is not None else self.settings.inference_service_timeout_seconds
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False)) as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
         return response.json()
@@ -637,7 +791,7 @@ class InferenceManager:
             )
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True)) as client:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.is_error:
                         await response.aread()

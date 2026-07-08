@@ -24,7 +24,7 @@ from app.core.gpu_pool_manager import (
 )
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
 from app.core.model_activation import InsufficientHostRamError
-from app.core.pool_lifecycle import DeactivateReason, LivenessKind, RuntimeStateKind, log_pool_event
+from app.core.pool_lifecycle import DeactivateReason, FailureKind, LivenessKind, RuntimeStateKind, log_pool_event
 from app.core.logging import configure_logging
 from app.core import token_usage as _token_usage
 from app.models.device import Device
@@ -100,6 +100,18 @@ async def _watchdog_tick() -> None:
     for model_id in list(inference_manager._running.keys()):
         liveness = await inference_manager.classify_model_liveness(model_id)
         if liveness.kind == LivenessKind.PROCESS_DEAD:
+            running = inference_manager._running.get(model_id)
+            failure_kind = await inference_manager._fetch_failure_kind(model_id)
+            if failure_kind == FailureKind.DEVICE_LOST and running:
+                inference_manager.mark_devices_need_cooldown(running.stable_hardware_ids)
+                state = inference_manager.get_recovery_state(model_id)
+                inference_manager.record_recovery_failure(
+                    model_id,
+                    liveness.detail or "GPU device_lost",
+                    attempts=state.attempts if state else 0,
+                    next_attempt=time.monotonic() + settings.device_watchdog_interval_seconds,
+                    device_failure_kind=FailureKind.DEVICE_LOST,
+                )
             logger.warning(
                 "Model %s process is not alive (%s); clearing for recovery",
                 model_id,
@@ -131,6 +143,9 @@ async def _watchdog_tick() -> None:
                 model_ids=",".join(str(model_id) for model_id in degraded.suspended_model_ids),
             )
 
+        memory_metrics = await inference_manager.get_device_memory_mb()
+        inference_manager.tick_device_health(memory_metrics)
+
         # 3. (Re)activate any model that should be running but isn't.
         # Only one activation per tick to avoid retry storms and concurrent loads.
         now = time.monotonic()
@@ -158,11 +173,24 @@ async def _watchdog_tick() -> None:
                 resolution = await models._resolve_device_for_model(db, model, inference_manager)
                 if resolution is None:
                     raise RuntimeError("No available device for model")
+                stable_ids = _stable_hardware_ids_from_resolution(resolution)
+                recovery = inference_manager.get_recovery_state(model.id)
+                if (
+                    recovery is not None
+                    and recovery.device_failure_kind == FailureKind.DEVICE_LOST
+                    and not inference_manager.device_cooldown_satisfied(stable_ids)
+                ):
+                    logger.warning(
+                        "Watchdog deferring activation of %s until GPU reset cooldown completes",
+                        model.alias,
+                    )
+                    continue
                 if isinstance(resolution, PoolActivationTarget):
                     await inference_manager.activate_model_on_pool(model, resolution)
                 else:
                     await inference_manager.activate_model(model, resolution)
                 inference_manager.clear_recovery_state(model.id)
+                inference_manager.clear_device_cooldown(stable_ids)
                 log_pool_event("watchdog.recovery", model_id=model.id, action="activate", alias=model.alias)
                 logger.info("Watchdog recovered model %s", model.alias)
             except InsufficientHostRamError as exc:
@@ -179,7 +207,18 @@ async def _watchdog_tick() -> None:
                     settings.device_watchdog_interval_seconds * (2 ** (attempts - 1)),
                     3600,
                 )
-                failure_kind = (
+                device_failure_kind = None
+                if "device_lost" in str(exc).lower():
+                    device_failure_kind = FailureKind.DEVICE_LOST
+                    stable_ids = []
+                    try:
+                        resolution = await models._resolve_device_for_model(db, model, inference_manager)
+                        stable_ids = _stable_hardware_ids_from_resolution(resolution)
+                    except Exception:
+                        pass
+                    if stable_ids:
+                        inference_manager.mark_devices_need_cooldown(stable_ids)
+                runtime_failure_kind = (
                     RuntimeStateKind.BACKOFF_LIMITED
                     if attempts >= settings.model_recovery_max_attempts
                     else None
@@ -189,7 +228,8 @@ async def _watchdog_tick() -> None:
                     str(exc),
                     attempts=attempts,
                     next_attempt=now + backoff,
-                    failure_kind=failure_kind,
+                    failure_kind=runtime_failure_kind,
+                    device_failure_kind=device_failure_kind,
                 )
                 activations_this_tick += 1
                 if attempts >= settings.model_recovery_max_attempts:
@@ -225,6 +265,20 @@ async def schedule_device_watchdog() -> None:
             await _watchdog_tick()
         except Exception:
             logger.exception("Device watchdog tick failed")
+
+
+def _stable_hardware_ids_from_resolution(
+    resolution: PoolActivationTarget | Device,
+) -> list[str]:
+    if isinstance(resolution, PoolActivationTarget):
+        return [
+            device.stable_hardware_id.strip()
+            for device in resolution.devices
+            if device.stable_hardware_id and device.stable_hardware_id.strip()
+        ]
+    if resolution.stable_hardware_id and resolution.stable_hardware_id.strip():
+        return [resolution.stable_hardware_id.strip()]
+    return []
 
 
 @asynccontextmanager

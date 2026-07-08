@@ -579,6 +579,8 @@ class ModelUpdateRequest(BaseModel):
     web_search_enabled: bool | None = None
     rag_enabled: bool | None = None
     flash_attention_enabled: bool | None = None
+    cache_type_k: str | None = Field(default=None, max_length=16)
+    cache_type_v: str | None = Field(default=None, max_length=16)
     batch_size: int | None = Field(default=None, ge=32, le=65536)
     ubatch_size: int | None = Field(default=None, ge=32, le=65536)
     memory_mapping_enabled: bool | None = None

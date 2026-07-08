@@ -43,6 +43,20 @@ def should_include_gtt(
     return vram_mb <= APU_VRAM_THRESHOLD_MB and gtt_mb >= vram_mb
 
 
+def read_amdgpu_gtt_metrics(device_path: Path) -> dict:
+    """Read GTT counters separately (used for spillover detection on discrete GPUs)."""
+    gtt_total = _read_sysfs_int(device_path / "mem_info_gtt_total")
+    gtt_used = _read_sysfs_int(device_path / "mem_info_gtt_used")
+    result: dict = {}
+    if gtt_total is not None and gtt_total > 0:
+        result["gtt_total_mb"] = int(gtt_total / (1024 * 1024))
+    if gtt_used is not None:
+        result["gtt_used_mb"] = int(gtt_used / (1024 * 1024))
+    if result:
+        result["gtt_source"] = "sysfs"
+    return result
+
+
 def read_amdgpu_memory_metrics(device_path: Path, *, integrated: bool = False) -> dict:
     """Read amdgpu VRAM/GTT sysfs counters and return memory totals in MiB."""
     vram_total = _read_sysfs_int(device_path / "mem_info_vram_total")
@@ -168,6 +182,14 @@ def apply_amdgpu_live_metrics(
     if usage is not None:
         metric["usage_percent"] = usage
         metric["usage_source"] = "sysfs"
+
+    gtt = read_amdgpu_gtt_metrics(device_path)
+    if gtt.get("gtt_total_mb") is not None:
+        metric["gtt_total_mb"] = gtt["gtt_total_mb"]
+    if gtt.get("gtt_used_mb") is not None:
+        metric["gtt_used_mb"] = gtt["gtt_used_mb"]
+    if gtt.get("gtt_source"):
+        metric["gtt_source"] = gtt["gtt_source"]
 
     sysfs = read_amdgpu_memory_metrics(device_path, integrated=integrated)
     if sysfs.get("memory_total_mb"):

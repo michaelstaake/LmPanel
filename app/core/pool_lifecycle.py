@@ -41,6 +41,11 @@ class RuntimeStateKind(StrEnum):
     ERROR = "error"
 
 
+class FailureKind(StrEnum):
+    GENERIC = "generic"
+    DEVICE_LOST = "device_lost"
+
+
 def log_pool_event(event: str, **fields: Any) -> None:
     """Emit a structured pool lifecycle log line."""
     parts = [f"{key}={value}" for key, value in sorted(fields.items()) if value is not None]

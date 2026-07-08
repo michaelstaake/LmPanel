@@ -65,7 +65,7 @@ class BuildLlamaCommandTests(unittest.TestCase):
         flash_idx = command.index("--flash-attn")
         self.assertEqual(command[flash_idx + 1], "on")
 
-    def test_layer_mode_still_enables_flash_attention_on_vulkan_pool(self) -> None:
+    def test_layer_mode_uses_auto_flash_attention_on_vulkan_pool(self) -> None:
         command = self.runtime._build_llama_command(
             _base_payload(
                 vendor="vulkan_pool",
@@ -77,7 +77,7 @@ class BuildLlamaCommandTests(unittest.TestCase):
             99,
         )
         flash_idx = command.index("--flash-attn")
-        self.assertEqual(command[flash_idx + 1], "on")
+        self.assertEqual(command[flash_idx + 1], "auto")
         split_idx = command.index("--split-mode")
         self.assertEqual(command[split_idx + 1], "layer")
 
@@ -184,7 +184,7 @@ class InferenceManagerPayloadTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             mock.patch.object(manager, "runtime_url_for_vendor", return_value="http://inference"),
-            mock.patch.object(manager, "_assert_host_ram_for_model"),
+            mock.patch.object(manager, "_fetch_memory_metrics_with_gtt", return_value={}),
             mock.patch.object(manager, "wait_until_healthy", return_value=True),
             mock.patch("app.core.inference_manager.httpx.AsyncClient", return_value=client),
         ):
@@ -222,7 +222,7 @@ class InferenceManagerPayloadTests(unittest.IsolatedAsyncioTestCase):
 
         with (
             mock.patch.object(manager, "runtime_url_for_vendor", return_value="http://inference"),
-            mock.patch.object(manager, "_assert_host_ram_for_model"),
+            mock.patch.object(manager, "_fetch_memory_metrics_with_gtt", return_value={}),
             mock.patch.object(manager, "wait_until_healthy", return_value=True),
             mock.patch("app.core.inference_manager.httpx.AsyncClient", return_value=client),
         ):
