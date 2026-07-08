@@ -295,11 +295,15 @@ async def list_models(_: User = Depends(get_admin_user), db: Session = Depends(g
     rows = db.query(ModelConfig).order_by(ModelConfig.priority.asc(), ModelConfig.id.asc()).all()
     result: list[dict] = []
     for model in rows:
-        serialized = _serialize_model(model)
-        runtime = await inference.resolve_runtime_state(model.id, activated=model.activated)
-        serialized.update(runtime)
-        result.append(serialized)
+        result.append(await _serialize_model_with_runtime(model, inference))
     return result
+
+
+async def _serialize_model_with_runtime(model: ModelConfig, inference: InferenceManager) -> dict:
+    serialized = _serialize_model(model)
+    runtime = await inference.resolve_runtime_state(model.id, activated=model.activated)
+    serialized.update(runtime)
+    return serialized
 
 
 @router.post("/reorder")
@@ -780,7 +784,7 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
         invalidate_v1_models_cache()
 
     log_event(db, "model.updated", details={"alias": model.alias, "model_id": model_id})
-    return {"status": "ok", "model": _serialize_model(model)}
+    return {"status": "ok", "model": await _serialize_model_with_runtime(model, inference)}
 
 
 @router.post("/{model_id}/activate")

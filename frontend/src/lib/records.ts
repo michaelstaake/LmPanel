@@ -77,7 +77,7 @@ export type ModelDirectoryFile = {
   size: number;
 };
 
-export type ModelRuntimeState = "disabled" | "running" | "recovering" | "error";
+export type ModelRuntimeState = "disabled" | "running" | "recovering" | "error" | "starting";
 
 export type ModelRecord = {
   id: number;
@@ -121,7 +121,7 @@ export type ModelRecord = {
   pinned_device_id: number | null;
   pinned_pool_id: number | null;
   activated: boolean;
-  runtime_state?: ModelRuntimeState;
+  runtime_state?: ModelRuntimeState | "degraded" | "wedged" | "unavailable" | "backoff_limited";
   runtime_error?: string | null;
 };
 

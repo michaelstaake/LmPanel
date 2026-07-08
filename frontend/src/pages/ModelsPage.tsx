@@ -16,7 +16,20 @@ const MODEL_RUNTIME_POLL_INTERVAL_MS = 5000;
 const MODEL_ASSET_ACCEPT = ".gguf,.mmproj,.json,.txt,.yaml,.yml,.bin,.safetensors";
 
 function getModelRuntimeState(model: ModelRecord): ModelRuntimeState {
-  return model.runtime_state ?? (model.activated ? "recovering" : "disabled");
+  const raw = model.runtime_state;
+  if (raw === "running") {
+    return "running";
+  }
+  if (raw === "error" || raw === "degraded" || raw === "wedged") {
+    return "error";
+  }
+  if (raw === "starting") {
+    return "starting";
+  }
+  if (model.activated) {
+    return "recovering";
+  }
+  return "disabled";
 }
 
 function getActivationButtonPresentation(model: ModelRecord, isActivationLoading: boolean) {
@@ -31,21 +44,22 @@ function getActivationButtonPresentation(model: ModelRecord, isActivationLoading
   switch (getModelRuntimeState(model)) {
     case "running":
       return {
-        label: "Enabled",
+        label: "Running",
         className: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
-        title: undefined,
+        title: "Model is loaded and serving requests.",
       };
+    case "starting":
     case "recovering":
       return {
-        label: "Recovering...",
+        label: "Starting...",
         className: "border-amber-500/40 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25",
-        title: model.runtime_error ?? "Model is restarting in the background.",
+        title: model.runtime_error ?? "Model is loading or waiting to start.",
       };
     case "error":
       return {
         label: "Error",
         className: "border-rose-500/40 bg-rose-500/15 text-rose-200 hover:bg-rose-500/25",
-        title: model.runtime_error ?? "Model is enabled but not running. Click to disable and troubleshoot.",
+        title: model.runtime_error ?? "Model failed to start. Click to disable and troubleshoot.",
       };
     default:
       return {
@@ -700,7 +714,18 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       if (activationChanged) {
         await apiPost<Record<string, never>, { status: string }>(`/api/models/${model.id}/${model.activated ? "activate" : "deactivate"}`, {}, token);
         savedActivationRef.current[model.id] = model.activated;
-        setModels((current) => current.map((item) => (item.id === model.id ? { ...item, activated: model.activated } : item)));
+        setModels((current) =>
+          current.map((item) =>
+            item.id === model.id
+              ? {
+                  ...item,
+                  activated: model.activated,
+                  runtime_state: model.activated ? "running" : "disabled",
+                  runtime_error: null,
+                }
+              : item
+          )
+        );
         invalidateModelsCatalog();
       }
 

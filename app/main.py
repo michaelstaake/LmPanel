@@ -260,11 +260,11 @@ async def schedule_device_watchdog() -> None:
     """Periodically reconcile GPUs and auto-restart crashed models."""
     interval = max(5, settings.device_watchdog_interval_seconds)
     while True:
-        await asyncio.sleep(interval)
         try:
             await _watchdog_tick()
         except Exception:
             logger.exception("Device watchdog tick failed")
+        await asyncio.sleep(interval)
 
 
 def _stable_hardware_ids_from_resolution(
@@ -327,31 +327,15 @@ async def lifespan(_: FastAPI):
         get_or_create_app_settings(db)
         web_search_api.seed_providers(db)
         models.scan_models_dir(db)
-        if settings.auto_load_activated_models_on_startup:
-            activated_models = (
-                db.query(ModelConfig)
-                .filter(ModelConfig.activated.is_(True))
-                .order_by(ModelConfig.priority.asc(), ModelConfig.id.asc())
-                .all()
-            )
-            for model in activated_models:
-                try:
-                    resolution = await models._resolve_device_for_model(db, model, inference_manager)
-                    if resolution is None:
-                        raise RuntimeError("No enabled device available for model")
-                    if isinstance(resolution, PoolActivationTarget):
-                        await inference_manager.activate_model_on_pool(model, resolution)
-                    else:
-                        await inference_manager.activate_model(model, resolution)
-                except Exception:
-                    # Keep activated=True so the watchdog keeps retrying (e.g. the GPU
-                    # is still initializing). Do not flip it off on a transient failure.
-                    logger.exception(
-                        "Failed to auto-load model %s during startup; watchdog will retry", model.alias
-                    )
-            db.commit()
+        db.commit()
     finally:
         db.close()
+
+    if settings.device_watchdog_enabled:
+        try:
+            await _watchdog_tick()
+        except Exception:
+            logger.exception("Initial model recovery tick failed during startup")
 
     pruning_task = asyncio.create_task(schedule_daily_pruning())
     ssl_renewal_task = asyncio.create_task(schedule_daily_ssl_renewal())

@@ -89,7 +89,8 @@ class Settings(BaseSettings):
     model_activation_gpu_no_mmap_headroom_ratio: float = 0.50
     # Max model (re)activation attempts per watchdog tick (1 avoids retry storms).
     watchdog_max_activations_per_tick: int = 1
-    # When true, models marked activated in the database are loaded during app startup.
+    # When true, activated models are also loaded during app startup (in addition to the
+    # watchdog's initial recovery tick, which runs whenever the watchdog is enabled).
     auto_load_activated_models_on_startup: bool = False
     # On startup, wait up to this long for the inference runtime to report a GPU
     # before reconciling devices, so we don't reconcile against a not-yet-ready GPU.
