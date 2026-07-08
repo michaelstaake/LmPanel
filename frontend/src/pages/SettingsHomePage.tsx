@@ -42,7 +42,6 @@ export default function SettingsHomePage() {
               {__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}
             </p>
           </div>
-          </div>
         </div>
       </div>
 
