@@ -1,7 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
 
 
 RUNTIME_VENDOR_KEYS = {"cpu", "vulkan", "default"}
@@ -12,15 +11,9 @@ def _default_llama_server_path() -> str:
 
 
 class Settings(BaseSettings):
+    # Load host .env when present (bare-metal / local). In Docker, compose injects
+    # env vars via env_file/environment — no /app/.env file is required.
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    @model_validator(mode="after")
-    def _check_env_file(self) -> "Settings":
-        if not Path(".env").exists():
-            raise RuntimeError(
-                ".env file not found. Copy .env.example to .env and configure your settings."
-            )
-        return self
 
     app_name: str = "LmPanel"
     app_env: str = "development"

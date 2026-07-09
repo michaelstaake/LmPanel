@@ -7,6 +7,11 @@ if [[ "${LMPANEL_DEBUG:-}" == "1" ]]; then
   set -x
 fi
 
+if [[ ! -f "$ROOT/.env" && -f "$ROOT/.env.example" ]]; then
+  cp "$ROOT/.env.example" "$ROOT/.env"
+  echo "lmpanel: created .env from .env.example (edit as needed)." >&2
+fi
+
 bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet
 rc=$?
 if [[ "$rc" -ne 0 ]]; then

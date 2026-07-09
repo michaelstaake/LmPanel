@@ -4,6 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: lmpanel-backend
+    env_file:
+      - path: .env
+        required: false
     environment:
       # Listen on 8000 inside the container; host port is mapped in `ports` below.
       APP_PORT: "8000"
@@ -64,6 +67,9 @@ services:
     container_name: lmpanel-inference
     mem_limit: ${INFERENCE_MEM_LIMIT:-52g}
     memswap_limit: ${INFERENCE_MEMSWAP_LIMIT:-52g}
+    env_file:
+      - path: .env
+        required: false
     environment:
       SUPPORTED_DEVICES: cpu,vulkan
       LLAMA_SERVER_PATH: /opt/llama.cpp/build/bin/llama-server
