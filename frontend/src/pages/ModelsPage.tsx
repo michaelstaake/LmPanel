@@ -201,6 +201,10 @@ function buildModelPayload(model: ModelRecord) {
     web_search_enabled: model.web_search_enabled,
     rag_enabled: model.rag_enabled,
     flash_attention_enabled: model.flash_attention_enabled,
+    mtp_enabled: model.mtp_enabled,
+    mtp_draft_n: model.mtp_draft_n,
+    cache_type_k: model.cache_type_k,
+    cache_type_v: model.cache_type_v,
     batch_size: model.batch_size,
     ubatch_size: model.ubatch_size,
     memory_mapping_enabled: model.memory_mapping_enabled,
@@ -1290,7 +1294,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Mode</span>
-                    <span className="text-xs text-sand/45">Auto uses the model default limit.</span>
+                    <span className="text-xs text-sand/45">Auto uses the model&apos;s GGUF maximum (can be 256k+). That reserves a huge KV cache and slows decode — prefer Custom at 32k–64k for everyday use.</span>
                     <select
                       className=" field px-3 py-2 text-sm"
                       value={modalContextLengthMode}
@@ -1305,7 +1309,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Context Length</span>
-                    <span className="text-xs text-sand/45">Larger context lengths may increase memory usage.</span>
+                    <span className="text-xs text-sand/45">Larger values reserve more KV cache VRAM and slow decode on Vulkan. Use 32k–64k for chat; reserve 256k only when you need the full window.</span>
                     <input
                       className=" field px-3 py-2 text-sm disabled:bg-white/10 disabled:text-sand/45"
                       type="number"
@@ -1447,6 +1451,52 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                       <span className="text-sm text-sand/70">Flash Attention</span>
                       <span className="text-xs text-sand/45">Use flash attention to speed up inference.</span>
                     </span>
+                  </label>
+                  {modalDraft.mtp_supported ? (
+                    <>
+                      <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
+                        <input className="mt-1" type="checkbox" checked={modalDraft.mtp_enabled} onChange={(event) => updateModalDraft({ mtp_enabled: event.target.checked })} />
+                        <span className="grid gap-0.5">
+                          <span className="text-sm text-sand/70">Multi-Token Prediction (MTP)</span>
+                          <span className="text-xs text-sand/45">Uses this GGUF&apos;s MTP heads for speculative decode. Needs a current llama.cpp build and an MTP-converted model. Parallel slots are forced to 1.</span>
+                        </span>
+                      </label>
+                      {modalDraft.mtp_enabled ? (
+                        <label className="grid gap-1 text-sm text-sand/70">
+                          <span>MTP Draft Tokens</span>
+                          <span className="text-xs text-sand/45">How many tokens to draft ahead (llama.cpp default is 3). Try 2 if acceptance rate drops.</span>
+                          <input
+                            className=" field px-3 py-2 text-sm"
+                            type="number"
+                            min={1}
+                            max={8}
+                            value={modalNumericDrafts.mtp_draft_n ?? String(modalDraft.mtp_draft_n)}
+                            onChange={(event) => setModalNumericDraft("mtp_draft_n", event.target.value)}
+                            onBlur={(event) => commitModalNumericDraft("mtp_draft_n", event.target.value, (n) => Math.min(8, Math.max(1, Math.round(n))))}
+                          />
+                        </label>
+                      ) : null}
+                    </>
+                  ) : null}
+                  <label className="grid gap-1 text-sm text-sand/70">
+                    <span>KV Cache Type</span>
+                    <span className="text-xs text-sand/45">Vulkan defaults to q8_0 at 8k+ context (halves KV VRAM). Use f16 if you need maximum quality, or q4_0 to save more VRAM.</span>
+                    <select
+                      className=" field px-3 py-2 text-sm"
+                      value={modalDraft.cache_type_k ?? ""}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        updateModalDraft({
+                          cache_type_k: value || null,
+                          cache_type_v: value || null,
+                        });
+                      }}
+                    >
+                      <option value="">Auto (q8_0 on Vulkan)</option>
+                      <option value="q8_0">q8_0</option>
+                      <option value="f16">f16</option>
+                      <option value="q4_0">q4_0</option>
+                    </select>
                   </label>
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Batch Size</span>

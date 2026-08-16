@@ -100,9 +100,9 @@ class Settings(BaseSettings):
     # Once the runtime is reachable but reports no GPU, wait this long before
     # accepting a CPU-only result (covers slow amdgpu/driver init).
     gpu_ready_grace_seconds: int = 20
-    # Conservative defaults for multi-GPU pooled AMD/Vulkan launches.
-    pool_default_batch_size: int = 4096
-    pool_default_ubatch_size: int = 512
+    # Prefill-oriented defaults for multi-GPU pooled AMD/Vulkan launches.
+    pool_default_batch_size: int = 16384
+    pool_default_ubatch_size: int = 2048
     pool_startup_timeout_seconds: int = 300
     pool_prefer_single_gpu_when_fit: bool = True
     # Retry tensor-split pool activation with layer split when the first attempt fails.

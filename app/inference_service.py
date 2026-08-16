@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
+from app.core.gguf import gguf_supports_mtp
 from app.core.llama_failure import classify_llama_log, read_log_tail
 from app.core.pool_lifecycle import FailureKind
 from app.utils.schemas import sanitize_inference_messages
@@ -128,6 +129,8 @@ def _runtime_error_detail(response: httpx.Response) -> str:
 
 _GPU_OFFLOAD_VENDORS = frozenset({"vulkan"})
 _VULKAN_RADV_PERFTEST = "nogttspill"
+_VULKAN_KV_QUANT_CONTEXT_THRESHOLD = 8192
+_VULKAN_HIGH_CONTEXT_WARN_THRESHOLD = 65536
 
 
 def _format_gpu_layers_for_cli(gpu_layers: int) -> str:
@@ -146,6 +149,28 @@ def _llama_offload_extra_args(vendor: str, gpu_layers: int, *, fit_to_vram: bool
         args.extend(["--fit", "off"])
     args.extend(["--main-gpu", "0"])
     return args
+
+
+def _kv_cache_extra_args(vendor: str, split_mode: str, context_length: int) -> list[str]:
+    """Quantized KV cache on Vulkan frees VRAM and bandwidth at long context.
+
+    Tensor split requires an unquantized (f16) KV cache in current llama.cpp builds.
+    """
+    effective_vendor = vendor.removesuffix("_pool")
+    if effective_vendor != "vulkan":
+        return []
+    if vendor.endswith("_pool") and split_mode == "tensor":
+        return []
+    if context_length < _VULKAN_KV_QUANT_CONTEXT_THRESHOLD:
+        return []
+    return ["--cache-type-k", "q8_0", "--cache-type-v", "q8_0"]
+
+
+def _mtp_extra_args(*, enabled: bool, file_path: str, draft_n: int) -> list[str]:
+    if not enabled or not gguf_supports_mtp(file_path):
+        return []
+    n_max = max(1, min(8, draft_n))
+    return ["--spec-type", "draft-mtp", "--spec-draft-n-max", str(n_max), "--parallel", "1"]
 
 
 def _validate_gpu_offload_from_log(log_path: str, vendor: str, gpu_layers: int) -> None:
@@ -194,6 +219,8 @@ class ActivateModelRequest(BaseModel):
     threads: int
     gpu_layers: int
     flash_attention_enabled: bool = False
+    mtp_enabled: bool = True
+    mtp_draft_n: int = 3
     cache_type_k: str | None = None
     cache_type_v: str | None = None
     batch_size: int | None = None
@@ -643,10 +670,29 @@ class InferenceRuntime:
             "--flash-attn",
             flash_attn_flag,
         ]
-        if payload.cache_type_k:
-            command.extend(["--cache-type-k", payload.cache_type_k])
-        if payload.cache_type_v:
-            command.extend(["--cache-type-v", payload.cache_type_v])
+        if payload.cache_type_k or payload.cache_type_v:
+            if payload.cache_type_k:
+                command.extend(["--cache-type-k", payload.cache_type_k])
+            if payload.cache_type_v:
+                command.extend(["--cache-type-v", payload.cache_type_v])
+        else:
+            kv_args = _kv_cache_extra_args(payload.vendor, payload.split_mode, payload.context_length)
+            if kv_args:
+                logger.info(
+                    "Using q8_0 KV cache for Vulkan model %d (%s) with context %d",
+                    payload.model_id,
+                    payload.alias,
+                    payload.context_length,
+                )
+                command.extend(kv_args)
+        if payload.vendor.removesuffix("_pool") == "vulkan" and payload.context_length > _VULKAN_HIGH_CONTEXT_WARN_THRESHOLD:
+            logger.warning(
+                "Model %d (%s) is activating with context length %d on Vulkan; "
+                "decode is often much faster at 32k–64k unless the full window is required",
+                payload.model_id,
+                payload.alias,
+                payload.context_length,
+            )
         if batch_size:
             command.extend(["--batch-size", str(batch_size)])
         if ubatch_size:
@@ -670,6 +716,13 @@ class InferenceRuntime:
             )
         )
         command.append("--jinja")
+        command.extend(
+            _mtp_extra_args(
+                enabled=payload.mtp_enabled,
+                file_path=payload.file_path,
+                draft_n=payload.mtp_draft_n,
+            )
+        )
         if payload.discourage_thinking:
             command.extend(["--reasoning", "off", "--reasoning-budget", "0"])
         return command

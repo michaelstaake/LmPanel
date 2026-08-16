@@ -110,6 +110,11 @@ export type ModelRecord = {
   web_search_enabled: boolean;
   rag_enabled: boolean;
   flash_attention_enabled: boolean;
+  mtp_enabled: boolean;
+  mtp_draft_n: number;
+  mtp_supported: boolean;
+  cache_type_k: string | null;
+  cache_type_v: string | null;
   batch_size: number | null;
   ubatch_size: number | null;
   memory_mapping_enabled: boolean;

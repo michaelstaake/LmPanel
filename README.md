@@ -252,7 +252,9 @@ You can try different types of model distribution when using GPU Pools — **lay
 
 With **layer** split (the default), each GPU takes turns during token generation. Alternating ~50% utilization per GPU in tools like `nvtop` is normal — GPUs do not run concurrently for single-stream decode. Pools primarily add **VRAM capacity** and **prompt-processing (prefill) throughput**; decode can be slightly slower than a single GPU on the Vulkan backend ([llama.cpp #16767](https://github.com/ggml-org/llama.cpp/issues/16767)).
 
-For faster prompt processing on pooled models, open the model's **Advanced** settings and try **uBatch 2048** with **batch 16384** (increases VRAM use). LmPanel applies those defaults automatically when activating on a pool.
+For faster prompt processing on pooled models, open the model's **Advanced** settings and try **uBatch 2048** with **batch 16384** (increases VRAM use). LmPanel applies those defaults automatically when activating on a pool if the model does not set batch sizes.
+
+**Large models + long context:** A 256k context window reserves a very large KV cache and is often the reason decode is slow. For everyday chat, set **Custom context 32768 or 65536**. When context is ≥ 8k, LmPanel auto-applies `--cache-type-k q8_0 --cache-type-v q8_0` on Vulkan (except tensor split) unless the model overrides cache types.
 
 **Decode speed:** If your model fits on one GPU, pin it to that GPU (or use **Auto** assignment) instead of the pool. Layer-split pools trade decode speed for combined VRAM — ~15 tok/s on dual R9700s is typical for large models that genuinely need both cards. For models that fit on a single 32 GB card, LmPanel now prefers one GPU automatically.
 

@@ -18,7 +18,7 @@ from app.core.activity_logger import log_event
 from app.core.config import get_settings
 from app.core.db import SessionLocal, get_db
 from app.core.device_manager import is_supported_vendor
-from app.core.gguf import read_gguf_max_context_length
+from app.core.gguf import gguf_supports_mtp, read_gguf_max_context_length
 from app.core.gguf_shards import (
     collect_shard_files,
     iter_model_gguf_files,
@@ -736,6 +736,8 @@ async def update_model(model_id: int, payload: ModelUpdateRequest, _: User = Dep
         "web_search_enabled",
         "rag_enabled",
         "flash_attention_enabled",
+        "mtp_enabled",
+        "mtp_draft_n",
         "memory_mapping_enabled",
     ]:
         value = normalized_alias if field == "alias" else getattr(payload, field)
@@ -1181,6 +1183,9 @@ def _serialize_model(model: ModelConfig) -> dict:
         "web_search_enabled": model.web_search_enabled,
         "rag_enabled": model.rag_enabled,
         "flash_attention_enabled": model.flash_attention_enabled,
+        "mtp_enabled": model.mtp_enabled,
+        "mtp_draft_n": model.mtp_draft_n,
+        "mtp_supported": gguf_supports_mtp(model.file_path),
         "cache_type_k": model.cache_type_k,
         "cache_type_v": model.cache_type_v,
         "memory_mapping_enabled": model.memory_mapping_enabled,

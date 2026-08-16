@@ -88,9 +88,73 @@ class BuildLlamaCommandTests(unittest.TestCase):
             99,
         )
         batch_idx = command.index("--batch-size")
-        self.assertEqual(command[batch_idx + 1], "4096")
+        self.assertEqual(command[batch_idx + 1], "16384")
         ubatch_idx = command.index("--ubatch-size")
-        self.assertEqual(command[ubatch_idx + 1], "512")
+        self.assertEqual(command[ubatch_idx + 1], "2048")
+
+    def test_vulkan_applies_q8_kv_cache_at_long_context(self) -> None:
+        command = self.runtime._build_llama_command(_base_payload(context_length=32768), 8101, 99)
+        k_idx = command.index("--cache-type-k")
+        v_idx = command.index("--cache-type-v")
+        self.assertEqual(command[k_idx + 1], "q8_0")
+        self.assertEqual(command[v_idx + 1], "q8_0")
+
+    def test_explicit_cache_types_override_vulkan_default(self) -> None:
+        command = self.runtime._build_llama_command(
+            _base_payload(context_length=32768, cache_type_k="f16", cache_type_v="f16"),
+            8101,
+            99,
+        )
+        k_idx = command.index("--cache-type-k")
+        v_idx = command.index("--cache-type-v")
+        self.assertEqual(command[k_idx + 1], "f16")
+        self.assertEqual(command[v_idx + 1], "f16")
+
+    def test_tensor_pool_skips_quantized_kv_cache(self) -> None:
+        command = self.runtime._build_llama_command(
+            _base_payload(
+                vendor="vulkan_pool",
+                split_mode="tensor",
+                context_length=32768,
+                vram_ratios=[32000, 32000],
+            ),
+            8101,
+            99,
+        )
+        self.assertNotIn("--cache-type-k", command)
+        self.assertNotIn("--cache-type-v", command)
+
+    def test_mtp_flags_when_supported_and_enabled(self) -> None:
+        with mock.patch("app.inference_service.gguf_supports_mtp", return_value=True):
+            command = self.runtime._build_llama_command(
+                _base_payload(mtp_enabled=True, mtp_draft_n=2),
+                8101,
+                99,
+            )
+        spec_idx = command.index("--spec-type")
+        self.assertEqual(command[spec_idx + 1], "draft-mtp")
+        draft_idx = command.index("--spec-draft-n-max")
+        self.assertEqual(command[draft_idx + 1], "2")
+        parallel_idx = command.index("--parallel")
+        self.assertEqual(command[parallel_idx + 1], "1")
+
+    def test_mtp_flags_omitted_when_gguf_unsupported(self) -> None:
+        with mock.patch("app.inference_service.gguf_supports_mtp", return_value=False):
+            command = self.runtime._build_llama_command(
+                _base_payload(mtp_enabled=True, mtp_draft_n=3),
+                8101,
+                99,
+            )
+        self.assertNotIn("--spec-type", command)
+
+    def test_mtp_flags_omitted_when_disabled(self) -> None:
+        with mock.patch("app.inference_service.gguf_supports_mtp", return_value=True):
+            command = self.runtime._build_llama_command(
+                _base_payload(mtp_enabled=False),
+                8101,
+                99,
+            )
+        self.assertNotIn("draft-mtp", command)
 
     def test_vulkan_env_sets_radv_perftest(self) -> None:
         env = self.runtime._build_env("vulkan", "vulkan:0", 8)

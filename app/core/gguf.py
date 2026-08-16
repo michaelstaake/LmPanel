@@ -1,9 +1,11 @@
+import re
 import struct
 from pathlib import Path
 from typing import BinaryIO
 
 
 GGUF_MAGIC = b"GGUF"
+_MTP_FILENAME_RE = re.compile(r"(?:^|[-_.])mtp(?:$|[-_.])", re.IGNORECASE)
 
 TYPE_UINT8 = 0
 TYPE_INT8 = 1
@@ -18,6 +20,26 @@ TYPE_ARRAY = 9
 TYPE_UINT64 = 10
 TYPE_INT64 = 11
 TYPE_FLOAT64 = 12
+
+
+def read_gguf_mtp_layer_count(file_path: str) -> int:
+    path = Path(file_path)
+    if not path.exists() or not path.is_file():
+        return 0
+
+    try:
+        with path.open("rb") as handle:
+            version = _read_header(handle)
+            metadata_count = _read_metadata_count(handle, version)
+            return _read_mtp_layers_from_metadata(handle, metadata_count, version)
+    except (OSError, UnicodeDecodeError, ValueError, struct.error):
+        return 0
+
+
+def gguf_supports_mtp(file_path: str) -> bool:
+    if read_gguf_mtp_layer_count(file_path) > 0:
+        return True
+    return bool(_MTP_FILENAME_RE.search(Path(file_path).name))
 
 
 def read_gguf_max_context_length(file_path: str) -> int | None:
@@ -85,6 +107,33 @@ def _read_context_length_from_metadata(handle: BinaryIO, metadata_count: int, ve
         return max(context_values.values())
 
     return None
+
+
+def _read_mtp_layers_from_metadata(handle: BinaryIO, metadata_count: int, version: int) -> int:
+    architecture: str | None = None
+    nextn_values: dict[str, int] = {}
+
+    for _ in range(metadata_count):
+        key = _read_string(handle, version)
+        value_type = _unpack("<I", _read_exact(handle, 4))
+        value = _read_value(handle, value_type, version)
+
+        if key == "general.architecture" and isinstance(value, str):
+            architecture = value
+            continue
+
+        if key.endswith(".nextn_predict_layers") and isinstance(value, int) and not isinstance(value, bool):
+            nextn_values[key] = value
+
+    if architecture:
+        architecture_key = f"{architecture}.nextn_predict_layers"
+        if architecture_key in nextn_values:
+            return max(0, nextn_values[architecture_key])
+
+    if nextn_values:
+        return max(0, max(nextn_values.values()))
+
+    return 0
 
 
 def _read_value(handle: BinaryIO, value_type: int, version: int):
