@@ -1,4 +1,8 @@
-﻿import { NavLink } from "react-router-dom";
+﻿import { useEffect, useState } from "react";
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { apiGet } from "../lib/api";
+import { StatusResponse } from "../lib/records";
 import SettingsLayout from "./SettingsLayout";
 
 type SettingsNavItem = {
@@ -24,6 +28,30 @@ const settingsNavItems: SettingsNavItem[] = [
 ];
 
 export default function SettingsHomePage() {
+  const { token } = useAuth();
+  const [llamaCppRelease, setLlamaCppRelease] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<StatusResponse>("/api/status", token || undefined)
+      .then((response) => {
+        if (!cancelled) {
+          setLlamaCppRelease(response.llama_cpp_release?.trim() || null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLlamaCppRelease(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const versionLabel = `v${__APP_VERSION__}${__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}`;
+  const llamaCppTooltip = llamaCppRelease ? `llama.cpp ${llamaCppRelease}` : undefined;
+
   return (
     <SettingsLayout>
       <div className="surface-muted mb-4 px-4 py-4">
@@ -37,9 +65,11 @@ export default function SettingsHomePage() {
             >
             LmPanel
           </a>
-            <p className="mt-1 text-sm text-sand/60">
-              v{__APP_VERSION__}
-              {__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}
+            <p
+              className={`mt-1 text-sm text-sand/60 ${llamaCppTooltip ? "cursor-help" : ""}`}
+              title={llamaCppTooltip}
+            >
+              {versionLabel}
             </p>
           </div>
         </div>

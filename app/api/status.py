@@ -144,7 +144,26 @@ async def get_status(
         "devices": serialized_devices,
         "runtime_errors": runtime_errors,
         "package_name": package_name,
+        "llama_cpp_release": await _fetch_llama_cpp_release(settings),
     }
+
+
+async def _fetch_llama_cpp_release(settings) -> str | None:
+    runtime_map = settings.inference_runtime_url_map()
+    timeout = min(5.0, float(settings.inference_service_timeout_seconds))
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        for _, base_url in runtime_map.items():
+            try:
+                response = await client.get(f"{base_url}/runtime/info")
+                response.raise_for_status()
+            except Exception:
+                continue
+
+            payload = response.json()
+            release = payload.get("llama_cpp_release") if isinstance(payload, dict) else None
+            if isinstance(release, str) and release.strip():
+                return release.strip()
+    return None
 
 
 async def _fetch_runtime_devices(settings) -> tuple[dict[str, dict], dict[str, dict], list[dict]]:

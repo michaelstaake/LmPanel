@@ -259,6 +259,7 @@ export type StatusResponse = {
     detail: string;
   }[];
   package_name?: string | null;
+  llama_cpp_release?: string | null;
 };
 
 export type ScanResponse = {

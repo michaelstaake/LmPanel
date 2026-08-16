@@ -20,6 +20,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
+from app.core.llama_cpp_version import get_llama_cpp_version
 from app.core.gguf import gguf_supports_mtp
 from app.core.llama_failure import classify_llama_log, read_log_tail
 from app.core.pool_lifecycle import FailureKind
@@ -1194,11 +1195,13 @@ class InferenceRuntime:
 
 
 def _log_toolchain_versions() -> None:
-    build_commit_path = Path("/opt/llama.cpp/BUILD_COMMIT")
-    if build_commit_path.is_file():
-        commit = build_commit_path.read_text(encoding="utf-8").strip()
-        if commit:
-            logger.info("llama.cpp build commit: %s", commit)
+    version = get_llama_cpp_version()
+    release = version.get("llama_cpp_release")
+    if release:
+        logger.info("llama.cpp release: %s", release)
+    commit = version.get("llama_cpp_commit")
+    if commit and commit != release:
+        logger.info("llama.cpp build commit: %s", commit)
 
     try:
         result = subprocess.run(
@@ -1234,10 +1237,14 @@ def health() -> dict:
 
 @app.get("/runtime/info")
 def runtime_info() -> dict:
+    version = get_llama_cpp_version()
     return {
         "status": "ok",
         "supported_vendors": sorted(get_supported_vendors()),
         "active_models": sorted(runtime._running.keys()),
+        "llama_cpp_release": version.get("llama_cpp_release"),
+        "llama_cpp_tag": version.get("llama_cpp_tag"),
+        "llama_cpp_commit": version.get("llama_cpp_commit"),
     }
 
 

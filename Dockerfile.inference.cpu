@@ -53,7 +53,12 @@ RUN if [ -n "$LLAMA_CPP_TAG" ]; then \
         -DGGML_VULKAN=ON \
         -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /opt/llama.cpp/build --config Release --target llama-server llama-bench -j2 \
-    && git -C /opt/llama.cpp rev-parse HEAD > /opt/llama.cpp/BUILD_COMMIT
+    && git -C /opt/llama.cpp rev-parse HEAD > /opt/llama.cpp/BUILD_COMMIT \
+    && if [ -n "$LLAMA_CPP_TAG" ]; then \
+         printf '%s\n' "$LLAMA_CPP_TAG" > /opt/llama.cpp/BUILD_TAG; \
+       else \
+         git -C /opt/llama.cpp describe --tags --always > /opt/llama.cpp/BUILD_TAG; \
+       fi
 
 COPY app ./app
 
