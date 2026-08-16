@@ -16,3 +16,6 @@ docker-compose.override.yml
 .idea/
 .DS_Store
 Thumbs.db
+
+#Test server credentials
+test-server.md
