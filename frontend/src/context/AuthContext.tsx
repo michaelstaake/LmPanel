@@ -17,6 +17,7 @@ type AuthContextValue = {
   isAuthenticating: boolean;
   usersCanRegister: boolean;
   sitename: string;
+  hideFooterInfo: boolean;
   faviconPath: string | null;
   logoPath: string | null;
   knowledgeBaseEnabled: boolean;
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [usersCanRegister, setUsersCanRegister] = useState(false);
   const [sitename, setSitename] = useState("LmPanel");
+  const [hideFooterInfo, setHideFooterInfo] = useState(false);
   const [faviconPath, setFaviconPath] = useState<string | null>(null);
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [knowledgeBaseEnabled, setKnowledgeBaseEnabled] = useState(false);
@@ -76,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSetupStatus(bootstrap);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
+      setHideFooterInfo(Boolean(bootstrap.hide_footer_info));
       setFaviconPath(bootstrap.favicon_path || null);
       setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
@@ -95,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(bootstrap.requires_setup);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
+      setHideFooterInfo(Boolean(bootstrap.hide_footer_info));
       setFaviconPath(bootstrap.favicon_path || null);
       setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
@@ -121,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(false);
       setUsersCanRegister(false);
       setSitename("LmPanel");
+      setHideFooterInfo(false);
       setFaviconPath(null);
       setLogoPath(null);
       setKnowledgeBaseEnabled(false);
@@ -167,6 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRequiresSetup(bootstrap.requires_setup);
       setUsersCanRegister(bootstrap.users_can_register);
       setSitename(bootstrap.sitename || "LmPanel");
+      setHideFooterInfo(Boolean(bootstrap.hide_footer_info));
       setFaviconPath(bootstrap.favicon_path || null);
       setLogoPath(bootstrap.logo_path || null);
       setKnowledgeBaseEnabled(bootstrap.knowledge_base_enabled);
@@ -253,6 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticating,
         usersCanRegister,
         sitename,
+        hideFooterInfo,
         faviconPath,
         logoPath,
         knowledgeBaseEnabled,

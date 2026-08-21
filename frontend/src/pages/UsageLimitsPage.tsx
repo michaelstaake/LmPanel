@@ -37,6 +37,7 @@ const DEFAULT_SETTINGS: AppSettingsRecord = {
   usage_limit_tools_24_hours: 0,
   usage_limit_tools_7_days: 0,
   usage_limit_tools_30_days: 0,
+  hide_footer_info: false,
 };
 
 function parseLimitValue(rawValue: string): number | null {

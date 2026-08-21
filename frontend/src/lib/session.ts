@@ -14,6 +14,7 @@ export type BootstrapStatus = {
   cloudflare_turnstile_site_key: string | null;
   public_url: string;
   api_base_url: string;
+  hide_footer_info: boolean;
 };
 
 export type CurrentUser = {

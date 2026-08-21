@@ -104,6 +104,8 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.mail_email_password = payload.mail_email_password
     if payload.request_timeout_seconds is not None:
         app_settings.request_timeout_seconds = payload.request_timeout_seconds
+    if payload.hide_footer_info is not None:
+        app_settings.hide_footer_info = payload.hide_footer_info
 
     usage_limit_updates = {
         "usage_limit_tokens_60_minutes": payload.usage_limit_tokens_60_minutes,
@@ -666,6 +668,7 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         mail_email_security=app_settings.mail_email_security,
         mail_email_from_name=app_settings.mail_email_from_name,
         request_timeout_seconds=app_settings.request_timeout_seconds,
+        hide_footer_info=app_settings.hide_footer_info,
     )
 
 

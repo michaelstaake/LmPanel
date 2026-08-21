@@ -31,7 +31,7 @@ import {
 import { type CurrentUser } from "./lib/session";
 import { createFaviconSvg, getSystemStatus } from "./lib/favicon";
 
-const appVersionLabel = `v${__APP_VERSION__}`;
+const appVersionLabel = `v${__APP_VERSION__}${__APP_GIT_COMMIT__ ? `.${__APP_GIT_COMMIT__}` : ""}`;
 const BACKEND_STATUS_POLL_INTERVAL_MS = 5000;
 const MOBILE_BREAKPOINT_PX = 768;
 
@@ -185,7 +185,7 @@ function SetupRoute() {
 }
 
 export default function App() {
-  const { bootstrapError, faviconPath, logoPath, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { bootstrapError, faviconPath, logoPath, hideFooterInfo, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
@@ -342,7 +342,7 @@ export default function App() {
       <div className="min-h-screen bg-canvas text-sand font-body">
         <ToastViewport />
         <MobileNavProvider value={mobileNavValue}>
-          <div className="mx-auto max-w-7xl px-4 md:px-8">
+          <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 md:px-8">
             <header className="relative z-50 flex items-center justify-between gap-4 overflow-visible py-4 isolate">
               <NavLink to="/" className="inline-flex items-baseline gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sand/30">
                 {logoPath ? (
@@ -377,27 +377,43 @@ export default function App() {
               ) : null}
             </header>
 
-            <Routes>
-              <Route path="/" element={<HomeRoute />} />
-              <Route path="/new-chat" element={<HomeRoute />} />
-              <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
-              <Route path="/settings/*" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
-              <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />
-              <Route path="/models" element={<RequireAdmin><ModelsPage /></RequireAdmin>} />
-              <Route path="/login" element={<AuthPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/auth" element={<Navigate to="/login" replace />} />
-              <Route path="/status" element={<RequireUser><StatusPage /></RequireUser>} />
-              <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
-              <Route path="/api" element={<Navigate to="/apikeys" replace />} />
-              <Route path="/apikeys" element={<RequireUser><ApiPage /></RequireUser>} />
-              <Route path="/kb" element={<RequireAdmin><KnowledgeBasePage /></RequireAdmin>} />
-              <Route path="/terms" element={<TermsAcceptancePage />} />
-              <Route path="/setup" element={<SetupRoute />} />
-              <Route path="/403" element={<ForbiddenPage />} />
-              <Route path="/404" element={<NotFoundPage />} />
-              <Route path="*" element={requiresSetup ? <Navigate to="/setup" replace /> : <NotFoundPage />} />
-            </Routes>
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<HomeRoute />} />
+                <Route path="/new-chat" element={<HomeRoute />} />
+                <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+                <Route path="/settings/*" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
+                <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />
+                <Route path="/models" element={<RequireAdmin><ModelsPage /></RequireAdmin>} />
+                <Route path="/login" element={<AuthPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/auth" element={<Navigate to="/login" replace />} />
+                <Route path="/status" element={<RequireUser><StatusPage /></RequireUser>} />
+                <Route path="/profile" element={<RequireUser><ProfilePage /></RequireUser>} />
+                <Route path="/api" element={<Navigate to="/apikeys" replace />} />
+                <Route path="/apikeys" element={<RequireUser><ApiPage /></RequireUser>} />
+                <Route path="/kb" element={<RequireAdmin><KnowledgeBasePage /></RequireAdmin>} />
+                <Route path="/terms" element={<TermsAcceptancePage />} />
+                <Route path="/setup" element={<SetupRoute />} />
+                <Route path="/403" element={<ForbiddenPage />} />
+                <Route path="/404" element={<NotFoundPage />} />
+                <Route path="*" element={requiresSetup ? <Navigate to="/setup" replace /> : <NotFoundPage />} />
+              </Routes>
+            </div>
+
+            {!hideFooterInfo ? (
+              <footer className="py-6 text-center text-sm text-sand/45">
+                <a
+                  href="https://lmpanel.co/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-sand/60 transition hover:text-sand"
+                >
+                  LmPanel
+                </a>
+                <span> {appVersionLabel}</span>
+              </footer>
+            ) : null}
 
             <MobileNavDrawer
               open={showMainNav && isMobileNavOpen}

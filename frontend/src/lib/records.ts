@@ -362,6 +362,7 @@ export type AppSettingsRecord = {
   mail_email_security: string;
   mail_email_from_name: string | null;
   request_timeout_seconds: number;
+  hide_footer_info: boolean;
 };
 
 export type SslCertificateStatus = {

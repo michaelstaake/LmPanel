@@ -68,6 +68,7 @@ export default function ConfigurationPage() {
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
     request_timeout_seconds: 300,
+    hide_footer_info: false,
   });
   const [localSitename, setLocalSitename] = useState(DEFAULT_SITENAME);
   const [localPublicUrl, setLocalPublicUrl] = useState("");
@@ -416,6 +417,20 @@ export default function ConfigurationPage() {
               <p className="text-sm text-sand/65">No logo uploaded. Using site name in the header.</p>
             )}
           </div>
+          <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
+            <div>
+              <div className="text-sm font-semibold text-sand">Hide footer info</div>
+              <p className="mt-1 text-sm text-sand/65">
+                Hide the LmPanel name and version in the page footer. Version information remains visible on the Settings page.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.hide_footer_info}
+              disabled={isLoading || isSaving === "hide_footer_info"}
+              onChange={(event) => void updateSetting("hide_footer_info", event.target.checked)}
+            />
+          </label>
           <label className="surface-muted flex items-start justify-between gap-4 px-4 py-4">
             <div>
               <div className="text-sm font-semibold text-sand">Users can register</div>

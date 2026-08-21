@@ -291,6 +291,7 @@ class BootstrapStatusResponse(BaseModel):
     cloudflare_turnstile_site_key: str | None = None
     public_url: str = ""
     api_base_url: str = ""
+    hide_footer_info: bool = False
 
 
 class BootstrapAdminRequest(BaseModel):
@@ -355,6 +356,7 @@ class AppSettingsResponse(BaseModel):
     mail_email_security: str = "starttls"
     mail_email_from_name: str | None = None
     request_timeout_seconds: int = 300
+    hide_footer_info: bool = False
 
     @field_validator("public_url", mode="before")
     @classmethod
@@ -398,6 +400,7 @@ class AppSettingsUpdateRequest(BaseModel):
     mail_email_security: str | None = None
     mail_email_from_name: str | None = None
     request_timeout_seconds: int | None = None
+    hide_footer_info: bool | None = None
 
     @field_validator("public_url", mode="before")
     @classmethod
