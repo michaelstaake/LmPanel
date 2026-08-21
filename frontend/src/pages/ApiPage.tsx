@@ -86,6 +86,7 @@ export default function ApiPage() {
   const DEFAULT_API_BASE_URL = "https://localhost:8444";
 
   const BASE_URL = setupStatus?.api_base_url || import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
+  const API_V1_BASE_URL = `${BASE_URL.replace(/\/$/, "")}/v1`;
 
   async function refreshV1Models(activeToken: string) {
     setIsLoadingV1Models(true);
@@ -119,7 +120,7 @@ export default function ApiPage() {
           name: "lmpanel",
           npm: "@ai-sdk/openai-compatible",
           options: {
-            baseURL: `${BASE_URL}/v1`,
+            baseURL: API_V1_BASE_URL,
             apiKey: "API_KEY",
             timeout: 7200000,
           },
@@ -133,7 +134,7 @@ export default function ApiPage() {
 
   useEffect(() => {
     setOpencodeConfig(buildOpencodeConfig());
-  }, [v1Models, BASE_URL]);
+  }, [v1Models, API_V1_BASE_URL]);
 
   async function handleCreateApiKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -302,19 +303,19 @@ export default function ApiPage() {
           <div>
             <h3 className="font-display text-lg text-sand">Base URL</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-sand">Chat completions</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/chat/completions</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/chat/completions</code>
             </div>
           </div>
           <div>
             <h3 className="font-display text-lg text-sand">List models</h3>
             <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{BASE_URL}/v1/models</code>
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/models</code>
             </div>
           </div>
           <div>
