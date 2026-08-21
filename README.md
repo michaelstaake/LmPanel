@@ -12,6 +12,8 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 
 ### Supported Devices
 
+**VERSION 2.X DROPS SUPPORT FOR NVIDIA GPUS AS WELL AS INTEGRATED AMD/INTEL GPUS. DO NOT UPDATE PAST 1.X IF YOU ARE USING NVIDIA GPUS OR INTEGRATED GRAPHICS.**
+
 - **CPU**
 - **AMD discrete GPU**
 - **Intel Arc discrete GPU**
