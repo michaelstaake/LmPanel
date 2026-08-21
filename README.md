@@ -2,9 +2,9 @@
 
 A panel for self-hosting LLMs but with one less L in the name because that's easier to say. 
 
-LmPanel turns your GPUs (or CPU) into a flexible, intuitive AI server. Built around llama-cpp, LmPanel features a clean web interface and a fully OpenAI-compatible API that's ready to integrate with your workflow - all running via Docker on Ubuntu 26.04. Pretty much any GGUF AI model will work - whether you want to run a small model on your gaming laptop or want to run a large model on a high end workstation with multiple video cards, LmPanel makes it simple to get started self-hosting LLMs.
+LmPanel turns your GPUs (or CPU) into a flexible, intuitive AI server. Built around llama-cpp, LmPanel features a clean web interface and a fully OpenAI-compatible API that's ready to integrate with your workflow - all running via Docker on Ubuntu 26.04. Pretty much any GGUF AI model will work - whether you want to run a small model on CPU or a large model on a high-end workstation with multiple discrete video cards, LmPanel makes it simple to get started self-hosting LLMs.
 
-It supports x86_64 CPUs, NVIDIA GPUs, AMD GPUs, and Intel Arc GPUs. You can have multiple cards and even mix multiple devices in the same setup. You can also pool multiple GPUs (within the same vendor) to run larger models.
+It supports x86_64 CPUs, discrete AMD GPUs, and discrete Intel Arc GPUs. You can have multiple cards and even mix multiple devices in the same setup. You can also pool multiple GPUs (within the same vendor) to run larger models. NVIDIA GPUs and integrated/shared-RAM iGPUs (AMD APUs, Intel laptop graphics) are not supported.
 
 LmPanel is easy, private, and free. Say goodbye to token costs and usage limitations! The only limitation with LmPanel is your hardware, but that's something you can control.
 
@@ -13,9 +13,10 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 ### Supported Devices
 
 - **CPU**
-- **NVIDIA GPU**
-- **AMD GPU**
-- **INTEL ARC GPU**
+- **AMD discrete GPU**
+- **Intel Arc discrete GPU**
+
+NVIDIA GPUs and integrated GPUs (laptop iGPUs / APUs that share system RAM) are ignored if present.
 
 ### Ubuntu 26.04
 
@@ -25,7 +26,7 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 ### Docker
 
-Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default stack. **NVIDIA hosts** also need the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) and Docker to be configured to use that runtime.
+Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default Compose stack.
 
 
 ### Quick Start
@@ -52,13 +53,17 @@ cp .env.example .env
 **3. Run it.**
 
 ```bash
+docker compose up -d --build
+```
+
+Or use the optional convenience wrapper (creates `.env` if missing; `up` defaults to detached):
+
+```bash
 chmod +x lmpanel
 ./lmpanel up --build
 ```
 
-Use `./lmpanel` instead of `docker compose` directly — it auto-configures GPUs then runs compose. `./lmpanel up` starts containers in detached mode by default; pass `-nd` to run in the foreground. Flags need hyphens: `--build` (not `up build`).
-
-The `lmpanel` script detects NVIDIA, AMD, Intel, and CPU-only hosts automatically and writes `docker-compose.override.yml` when needed before starting Docker. After adding or removing an NVIDIA GPU, run `./lmpanel up` again to refresh the configuration.
+`docker compose` alone is enough for GPU passthrough. `./lmpanel up` starts containers in detached mode by default; pass `-nd` to run in the foreground. Flags need hyphens: `--build` (not `up build`).
 
 #### Notes
 
@@ -89,8 +94,10 @@ By default, models are in Auto mode for device selection. In this case, LmPanel 
 To stop LmPanel:
 
 ```bash
-./lmpanel down
+docker compose down
 ```
+
+(or `./lmpanel down`)
 
 ## Interacting with the AI Models
 
@@ -197,14 +204,14 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 - **`./lmpanel` appears to do nothing**:
   - Use hyphens: `./lmpanel up --build` (not `up build`).
-  - Run `bash scripts/configure-gpu-compose.sh` to see GPU configure output and errors.
   - Run `LMPANEL_DEBUG=1 ./lmpanel up --build` to trace the wrapper.
-  - Bypass the wrapper to test Docker alone: `docker compose up -d --build`.
+  - Or use Docker directly: `docker compose up -d --build`.
 - **Device not detected**:
   - Ensure host GPU drivers are installed and restart the system after driver changes.
-  - Check that `vulkaninfo` works on the host and lists your GPU(s).
-  - On mixed AMD/Intel/NVIDIA hosts, run `./lmpanel up --build --force-recreate inference` and `./lmpanel restart backend`. The NVIDIA Container Toolkit injects Vulkan libraries when `NVIDIA_DRIVER_CAPABILITIES` includes graphics; AMD and Intel GPUs use `/dev/dri` alongside NVIDIA.
-  - If `nvidia-smi` works inside the container but `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, run `./lmpanel up --build --force-recreate inference` again after fixing the host driver. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report. You can also run `bash scripts/configure-gpu-compose.sh` manually to inspect GPU configuration.
+  - Check that `vulkaninfo` works on the host and lists your discrete AMD or Intel Arc GPU(s).
+  - NVIDIA GPUs and integrated/shared-RAM iGPUs are intentionally ignored.
+  - After driver changes, recreate inference: `docker compose up -d --build --force-recreate inference` and `docker compose restart backend`.
+  - If `vulkaninfo --summary` only lists `llvmpipe` or `lavapipe`, fix host Mesa/Vulkan drivers, then recreate inference. Run `bash scripts/verify-gpu-passthrough.sh` for a full diagnostic report.
 
 
 ### Performance Issues

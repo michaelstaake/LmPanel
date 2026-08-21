@@ -12,13 +12,6 @@ if [[ ! -f "$ROOT/.env" && -f "$ROOT/.env.example" ]]; then
   echo "lmpanel: created .env from .env.example (edit as needed)." >&2
 fi
 
-bash "$ROOT/scripts/configure-gpu-compose.sh" --quiet
-rc=$?
-if [[ "$rc" -ne 0 ]]; then
-  echo "lmpanel: GPU configure failed (exit $rc). See warnings above." >&2
-  exit "$rc"
-fi
-
 if [[ "${1:-}" == "up" ]]; then
   shift
   detached=true

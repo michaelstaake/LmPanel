@@ -11,7 +11,6 @@ import psutil
 from sqlalchemy.orm import Session
 
 from app.core.amdgpu_memory import (
-    is_vulkan_integrated_gpu,
     list_amdgpu_cards_by_bdf,
     list_amdgpu_device_paths,
     read_amdgpu_memory_metrics,
@@ -326,7 +325,6 @@ class DeviceManager:
         devices: list[DetectedDevice] = []
         amd_vulkan_indices: list[int] = []
         amd_vulkan_by_idx: dict[int, str] = {}
-        amd_integrated_by_idx: dict[int, bool] = {}
         # Parse the PCI BDF per index from the whole output: vulkaninfo may print a
         # GPU's identity (deviceName/vendorID) and its PCI properties in separate
         # "GPUn:" blocks, so per-block parsing can miss the address.
@@ -349,12 +347,15 @@ class DeviceManager:
             pci_bdf = bdf_by_idx.get(idx)
             if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
                 continue
+            if "integrated" in device_type_str:
+                continue
+            if vendor_id == NVIDIA_VENDOR_ID:
+                continue
 
             if vendor_id == AMD_VENDOR_ID:
                 amd_vulkan_indices.append(idx)
                 if pci_bdf:
                     amd_vulkan_by_idx[idx] = pci_bdf
-                amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(device_type_str)
 
             devices.append(
                 DetectedDevice(
@@ -372,7 +373,7 @@ class DeviceManager:
         if devices:
             memory_by_idx = _parse_vulkaninfo_device_local_heap_mb(output)
             memory_by_idx.update(
-                self._read_amdgpu_memory_totals(amd_vulkan_indices, amd_vulkan_by_idx, amd_integrated_by_idx)
+                self._read_amdgpu_memory_totals(amd_vulkan_indices, amd_vulkan_by_idx)
             )
             for device in devices:
                 idx = int(device.hardware_id.split(":")[1])
@@ -384,7 +385,6 @@ class DeviceManager:
         self,
         amd_vulkan_indices: list[int],
         amd_vulkan_by_idx: dict[int, str],
-        integrated_by_idx: dict[int, bool] | None = None,
     ) -> dict[int, int]:
         memory_by_idx: dict[int, int] = {}
         if not amd_vulkan_indices:
@@ -407,8 +407,7 @@ class DeviceManager:
             )
             if device_path is None:
                 continue
-            integrated = (integrated_by_idx or {}).get(vulkan_idx, False)
-            metrics = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+            metrics = read_amdgpu_memory_metrics(device_path)
             total_mb = metrics.get("memory_total_mb", 0)
             if total_mb > 0:
                 memory_by_idx[vulkan_idx] = total_mb

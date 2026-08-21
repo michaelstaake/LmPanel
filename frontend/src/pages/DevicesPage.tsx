@@ -10,13 +10,12 @@ import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/record
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
 const RUNTIME_POOL_VENDOR = "vulkan";
-const POOL_CHIP_VENDORS = ["amd", "intel", "nvidia"] as const;
+const POOL_CHIP_VENDORS = ["amd", "intel"] as const;
 const SPLIT_MODES = ["layer", "tensor"] as const;
 
 function chipVendorLabel(chipVendor: string | null | undefined) {
   if (chipVendor === "amd") return "AMD";
   if (chipVendor === "intel") return "Intel";
-  if (chipVendor === "nvidia") return "NVIDIA";
   return chipVendor ?? "GPU";
 }
 

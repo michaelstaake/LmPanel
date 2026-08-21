@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Emit a colon-separated VK_ICD_FILENAMES value for physical GPU drivers.
-# Excludes Mesa software renderers (llvmpipe/lavapipe) so NVIDIA hosts do not
-# silently hide AMD/Intel GPUs when mixed cards are present.
+# Excludes Mesa software renderers (llvmpipe/lavapipe) so they do not hide
+# discrete AMD/Intel GPUs.
 set -euo pipefail
 
 declare -A seen=()
@@ -21,13 +21,6 @@ is_software_icd() {
   esac
   return 1
 }
-
-# NVIDIA proprietary ICD (injected by the NVIDIA Container Toolkit).
-if [[ -e /dev/nvidia0 ]]; then
-  for icd in /usr/share/vulkan/icd.d/nvidia_icd.json /etc/vulkan/icd.d/nvidia_icd.json; do
-    add_icd "$icd"
-  done
-fi
 
 # Mesa ICDs for AMD (RADV) and Intel (ANV/HasVK), etc.
 for dir in /usr/share/vulkan/icd.d /etc/vulkan/icd.d; do

@@ -1,4 +1,4 @@
-"""AMD GPU memory metrics via amdgpu sysfs (VRAM + GTT for integrated/APU GPUs)."""
+"""AMD GPU memory metrics via amdgpu sysfs (VRAM + GTT spillover counters)."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ from pathlib import Path
 
 from app.core.pci_bdf import normalize_pci_bdf
 from app.core.drm_fdinfo import fdinfo_vram_mb_by_pid
-
-APU_VRAM_THRESHOLD_MB = 4096
 
 
 def _read_sysfs_int(path: Path) -> int | None:
@@ -21,26 +19,6 @@ def _read_sysfs_int(path: Path) -> int | None:
 def parse_vulkan_device_type(block: str) -> str:
     match = re.search(r"deviceType\s*=\s*(.+)", block)
     return match.group(1).strip().lower() if match else ""
-
-
-def is_vulkan_integrated_gpu(device_type: str) -> bool:
-    return "integrated" in device_type
-
-
-def should_include_gtt(
-    vram_total_bytes: int,
-    gtt_total_bytes: int | None,
-    *,
-    integrated: bool,
-) -> bool:
-    if gtt_total_bytes is None or gtt_total_bytes <= 0:
-        return False
-    if integrated:
-        return True
-
-    vram_mb = vram_total_bytes / (1024 * 1024)
-    gtt_mb = gtt_total_bytes / (1024 * 1024)
-    return vram_mb <= APU_VRAM_THRESHOLD_MB and gtt_mb >= vram_mb
 
 
 def read_amdgpu_gtt_metrics(device_path: Path) -> dict:
@@ -57,28 +35,18 @@ def read_amdgpu_gtt_metrics(device_path: Path) -> dict:
     return result
 
 
-def read_amdgpu_memory_metrics(device_path: Path, *, integrated: bool = False) -> dict:
-    """Read amdgpu VRAM/GTT sysfs counters and return memory totals in MiB."""
+def read_amdgpu_memory_metrics(device_path: Path) -> dict:
+    """Read amdgpu VRAM sysfs counters and return memory totals in MiB."""
     vram_total = _read_sysfs_int(device_path / "mem_info_vram_total")
     vram_used = _read_sysfs_int(device_path / "mem_info_vram_used")
-    gtt_total = _read_sysfs_int(device_path / "mem_info_gtt_total")
-    gtt_used = _read_sysfs_int(device_path / "mem_info_gtt_used")
-
-    include_gtt = should_include_gtt(vram_total or 0, gtt_total, integrated=integrated)
-
-    total_bytes = vram_total or 0
-    used_bytes = vram_used or 0
-    if include_gtt:
-        total_bytes += gtt_total or 0
-        used_bytes += gtt_used or 0
 
     result: dict = {}
-    if total_bytes > 0:
-        result["memory_total_mb"] = int(total_bytes / (1024 * 1024))
-    if vram_used is not None or (include_gtt and gtt_used is not None):
-        result["memory_used_mb"] = int(used_bytes / (1024 * 1024))
-    if total_bytes > 0 or vram_used is not None or gtt_used is not None:
-        result["memory_source"] = "sysfs-gtt" if include_gtt else "sysfs"
+    if vram_total is not None and vram_total > 0:
+        result["memory_total_mb"] = int(vram_total / (1024 * 1024))
+    if vram_used is not None:
+        result["memory_used_mb"] = int(vram_used / (1024 * 1024))
+    if result:
+        result["memory_source"] = "sysfs"
     return result
 
 
@@ -175,7 +143,6 @@ def apply_amdgpu_live_metrics(
     device_path: Path,
     *,
     pci_bdf: str | None = None,
-    integrated: bool = False,
 ) -> None:
     """Merge amdgpu sysfs (and optional fdinfo) counters into a runtime metric dict."""
     usage = read_amdgpu_gpu_usage(device_path)
@@ -191,7 +158,7 @@ def apply_amdgpu_live_metrics(
     if gtt.get("gtt_source"):
         metric["gtt_source"] = gtt["gtt_source"]
 
-    sysfs = read_amdgpu_memory_metrics(device_path, integrated=integrated)
+    sysfs = read_amdgpu_memory_metrics(device_path)
     if sysfs.get("memory_total_mb"):
         metric["memory_total_mb"] = sysfs["memory_total_mb"]
     sysfs_used = int(sysfs.get("memory_used_mb") or 0)

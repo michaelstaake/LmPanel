@@ -31,7 +31,7 @@ class AmdBdfMappingTests(unittest.TestCase):
                 return ordered_paths[position]
             return None
 
-        def fake_read(device_path: Path, *, integrated: bool = False) -> dict:
+        def fake_read(device_path: Path) -> dict:
             if device_path == Path("/sys/card-high"):
                 return {"memory_total_mb": 24576}
             if device_path == Path("/sys/card-low"):
@@ -47,7 +47,6 @@ class AmdBdfMappingTests(unittest.TestCase):
             totals = manager._read_amdgpu_memory_totals(
                 [0, 1],
                 {0: "0000:0c:00.0", 1: "0000:03:00.0"},
-                {0: False, 1: False},
             )
 
         self.assertEqual(totals[0], 8192)
@@ -71,7 +70,7 @@ class AmdBdfMappingTests(unittest.TestCase):
         }
         ordered_paths = [Path("/sys/card-low"), Path("/sys/card-high")]
 
-        def fake_apply(metric: dict, device_path: Path, *, pci_bdf=None, integrated: bool = False) -> None:
+        def fake_apply(metric: dict, device_path: Path, *, pci_bdf=None) -> None:
             if device_path == Path("/sys/card-high"):
                 metric.update(
                     {

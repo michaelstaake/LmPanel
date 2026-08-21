@@ -122,7 +122,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
                 hardware_id="vulkan:1",
                 stable_hardware_id="0000:02:00.0",
                 stable_hardware_id_source="pci_bdf",
-                name="NVIDIA GeForce RTX 5060 Ti",
+                name="AMD Radeon RX 7600",
                 vendor="vulkan",
                 device_type="gpu",
                 memory_mb=16000,
@@ -157,7 +157,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
                 hardware_id="vulkan:1",
                 stable_hardware_id=None,
                 stable_hardware_id_source=None,
-                name="NVIDIA GeForce RTX 4090",
+                name="AMD Radeon RX 7900 XTX",
                 vendor="vulkan",
                 device_type="gpu",
                 memory_mb=32000,
@@ -312,7 +312,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
                 hardware_id="vulkan:0",
                 stable_hardware_id=None,
                 stable_hardware_id_source=None,
-                name="NVIDIA GeForce RTX 4090",
+                name="AMD Radeon RX 7900 XTX",
                 vendor="vulkan",
                 device_type="gpu",
                 memory_mb=32000,
@@ -324,7 +324,7 @@ class SyncDetectedDevicesTests(unittest.TestCase):
 
         device = rows[0]
         device.name = "Custom GPU Label"
-        self.assertEqual(manager.default_name_for_device(device), "NVIDIA GeForce RTX 4090")
+        self.assertEqual(manager.default_name_for_device(device), "AMD Radeon RX 7900 XTX")
 
     def test_sync_preserves_device_when_vulkan_index_changes_but_stable_id_matches(self) -> None:
         db = _make_session()

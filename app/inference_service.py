@@ -39,7 +39,6 @@ from app.core.device_manager import (
 )
 from app.core.amdgpu_memory import (
     apply_amdgpu_live_metrics,
-    is_vulkan_integrated_gpu,
     list_amdgpu_cards_by_bdf,
     list_amdgpu_device_paths,
     parse_vulkan_device_type,
@@ -47,12 +46,6 @@ from app.core.amdgpu_memory import (
 )
 from app.core.pci_bdf import normalize_pci_bdf
 from app.core.intel_drm_memory import read_intel_vram_metrics
-from app.core.nvidia_memory import (
-    map_vulkan_index_to_nvidia_index,
-    nvidia_smi_bdf_by_index,
-    read_nvidia_gpu_usage,
-    read_nvidia_memory_metrics,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -87,27 +80,21 @@ def _log_gpu_passthrough_warning() -> None:
         if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
             has_software_renderer = True
             continue
+        if "integrated" in device_type_str:
+            continue
+        vendor_id = _parse_vulkan_vendor_id(block)
+        if vendor_id == NVIDIA_VENDOR_ID:
+            continue
         if re.search(r"deviceName\s*=\s*(.+)", block):
             physical_gpus += 1
 
     if physical_gpus == 0 and has_software_renderer:
-        caps = os.environ.get("NVIDIA_DRIVER_CAPABILITIES", "")
-        nvidia_icd = any(
-            Path(path).is_file()
-            for path in (
-                "/usr/share/vulkan/icd.d/nvidia_icd.json",
-                "/etc/vulkan/icd.d/nvidia_icd.json",
-            )
-        )
         logger.warning(
-            "No physical Vulkan GPU detected in inference container. "
-            "On mixed-vendor hosts, recreate inference after driver changes: "
-            "./lmpanel up --build --force-recreate inference. "
-            "NVIDIA_DRIVER_CAPABILITIES must include graphics (current: %r). "
-            "nvidia_icd.json present: %s. "
-            "Run bash scripts/verify-gpu-passthrough.sh for diagnostics.",
-            caps or "unset",
-            nvidia_icd,
+            "No supported discrete Vulkan GPU detected in inference container "
+            "(AMD/Intel Arc only; NVIDIA and integrated GPUs are ignored). "
+            "Recreate inference after driver changes: "
+            "docker compose up -d --build --force-recreate inference. "
+            "Run bash scripts/verify-gpu-passthrough.sh for diagnostics."
         )
 
 
@@ -932,9 +919,7 @@ class InferenceRuntime:
         metrics: dict[str, dict] = {}
         amd_vulkan_indices: list[int] = []
         amd_vulkan_by_idx: dict[int, str] = {}
-        amd_integrated_by_idx: dict[int, bool] = {}
         intel_vulkan_by_idx: dict[int, str] = {}
-        nvidia_vulkan_by_idx: dict[int, str] = {}
         memory_by_idx = _parse_vulkaninfo_gpu_memory_metrics(output) if output else {}
         bdf_by_idx = parse_vulkaninfo_bdf_by_index(output) if output else {}
         if output:
@@ -949,21 +934,24 @@ class InferenceRuntime:
                 block = blocks[i + 1]
                 i += 2
 
+                device_type_str = parse_vulkan_device_type(block)
+                if "cpu" in device_type_str or "virtual_gpu" in device_type_str:
+                    continue
+                if "integrated" in device_type_str:
+                    continue
                 vendor_id = _parse_vulkan_vendor_id(block)
+                if vendor_id == NVIDIA_VENDOR_ID:
+                    continue
+
                 pci_bdf = bdf_by_idx.get(idx)
                 if vendor_id == AMD_VENDOR_ID:
                     amd_vulkan_indices.append(idx)
                     if pci_bdf:
                         amd_vulkan_by_idx[idx] = pci_bdf
-                    amd_integrated_by_idx[idx] = is_vulkan_integrated_gpu(parse_vulkan_device_type(block))
 
                 if vendor_id == INTEL_VENDOR_ID:
                     if pci_bdf:
                         intel_vulkan_by_idx[idx] = pci_bdf
-
-                if vendor_id == NVIDIA_VENDOR_ID:
-                    if pci_bdf:
-                        nvidia_vulkan_by_idx[idx] = pci_bdf
 
                 heap_metrics = memory_by_idx.get(idx)
                 if not heap_metrics or heap_metrics["total_mb"] <= 0:
@@ -979,7 +967,7 @@ class InferenceRuntime:
                     "process_memory_by_pid": {},
                 }
 
-        # Prefer amdgpu sysfs counters when available. For integrated/APU GPUs include GTT.
+        # Prefer amdgpu sysfs counters when available (VRAM only; GTT tracked separately for spill).
         try:
             amd_cards_by_bdf = list_amdgpu_cards_by_bdf()
             amd_ordered_paths = list_amdgpu_device_paths()
@@ -1009,12 +997,10 @@ class InferenceRuntime:
                     },
                 )
 
-                integrated = amd_integrated_by_idx.get(vulkan_idx, False)
                 apply_amdgpu_live_metrics(
                     metric,
                     device_path,
                     pci_bdf=pci_bdf,
-                    integrated=integrated,
                 )
         except Exception:
             pass
@@ -1039,31 +1025,6 @@ class InferenceRuntime:
             process_memory = intel_metrics.get("process_memory_by_pid")
             if isinstance(process_memory, dict) and process_memory:
                 metric["process_memory_by_pid"] = process_memory
-
-        # Prefer nvidia-smi counters for NVIDIA GPUs (vulkaninfo usage is inaccurate).
-        try:
-            nvidia_bdf_map = nvidia_smi_bdf_by_index()
-            for vulkan_idx, pci_bdf in nvidia_vulkan_by_idx.items():
-                hardware_id = f"vulkan:{vulkan_idx}"
-                metric = metrics.get(hardware_id)
-                if metric is None:
-                    continue
-                nvidia_idx = map_vulkan_index_to_nvidia_index(pci_bdf, nvidia_bdf_map)
-                if nvidia_idx is None:
-                    continue
-                nvidia_metrics = read_nvidia_memory_metrics(nvidia_idx)
-                if nvidia_metrics.get("memory_total_mb"):
-                    metric["memory_total_mb"] = nvidia_metrics["memory_total_mb"]
-                if nvidia_metrics.get("memory_used_mb") is not None:
-                    metric["memory_used_mb"] = nvidia_metrics["memory_used_mb"]
-                if nvidia_metrics.get("memory_source"):
-                    metric["memory_source"] = nvidia_metrics["memory_source"]
-                gpu_usage = read_nvidia_gpu_usage(nvidia_idx)
-                if gpu_usage is not None:
-                    metric["usage_percent"] = gpu_usage
-                    metric["usage_source"] = "nvidia-smi"
-        except Exception:
-            pass
 
         return metrics
 
