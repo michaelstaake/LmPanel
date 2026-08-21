@@ -75,6 +75,7 @@ export default function ApiPage() {
   const [newKeyName, setNewKeyName] = useState("");
   const [latestApiKey, setLatestApiKey] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isApiInfoModalOpen, setIsApiInfoModalOpen] = useState(false);
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [revokingKeyId, setRevokingKeyId] = useState<number | null>(null);
@@ -123,6 +124,11 @@ export default function ApiPage() {
 
   function toggleInfo(id: ApiUrlInfoId) {
     setOpenInfoId((current) => (current === id ? null : id));
+  }
+
+  function closeApiInfoModal() {
+    setIsApiInfoModalOpen(false);
+    setOpenInfoId(null);
   }
 
   async function handleCreateApiKey(event: FormEvent<HTMLFormElement>) {
@@ -205,9 +211,14 @@ export default function ApiPage() {
           <div className="max-w-2xl">
             <h2 className="font-display text-2xl">API Keys</h2>
           </div>
-          <button className="btn-secondary px-4 py-3 text-sm font-semibold" type="button" onClick={() => setIsCreateModalOpen(true)}>
-            Add API key
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button className="btn-secondary px-4 py-3 text-sm font-semibold" type="button" onClick={() => setIsApiInfoModalOpen(true)}>
+              API info
+            </button>
+            <button className="btn-secondary px-4 py-3 text-sm font-semibold" type="button" onClick={() => setIsCreateModalOpen(true)}>
+              Add API key
+            </button>
+          </div>
         </div>
 
         <div className="mt-5 space-y-4">
@@ -286,93 +297,101 @@ export default function ApiPage() {
         </article>
       </Modal>
 
-      <article className="surface p-5">
-        <h2 className="font-display text-2xl">API URLs</h2>
-        <div className="mt-5 space-y-6">
-          <div>
-            <h3 className="font-display text-lg text-sand">Base URL</h3>
-            <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}</code>
-            </div>
+      <Modal open={isApiInfoModalOpen} onClose={closeApiInfoModal} labelledBy="api-info-title" panelClassName="max-w-2xl">
+        <article className="p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="api-info-title" className="font-display text-2xl">API info</h2>
+            <button className="btn-secondary px-4 py-2 text-sm font-semibold text-sand" type="button" onClick={closeApiInfoModal}>
+              Close
+            </button>
           </div>
-          <div>
-            <h3 className="font-display text-lg text-sand">Chat completions</h3>
-            <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/chat/completions</code>
+
+          <div className="mt-5 space-y-6">
+            <div>
+              <h3 className="font-display text-lg text-sand">Base URL</h3>
+              <div className="mt-2 flex items-center gap-3">
+                <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}</code>
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-display text-lg text-sand">Token usage</h3>
-              <ApiUrlInfoButton
-                label="Token usage endpoint details"
-                open={openInfoId === "usage"}
-                onToggle={() => toggleInfo("usage")}
-              />
+            <div>
+              <h3 className="font-display text-lg text-sand">Chat completions</h3>
+              <div className="mt-2 flex items-center gap-3">
+                <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/chat/completions</code>
+              </div>
             </div>
-            <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{`${API_V1_BASE_URL}/usage/{60m|24h|7d|30d}`}</code>
-            </div>
-            {openInfoId === "usage" ? (
-              <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
-                <p>
-                  Returns the total tokens used by the API key in the Authorization header for the selected
-                  timeframe. Replace the path segment with <code className="font-mono text-sand">60m</code>,{" "}
-                  <code className="font-mono text-sand">24h</code>, <code className="font-mono text-sand">7d</code>, or{" "}
-                  <code className="font-mono text-sand">30d</code>.
-                </p>
-                <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/usage/24h \\
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg text-sand">Token usage</h3>
+                <ApiUrlInfoButton
+                  label="Token usage endpoint details"
+                  open={openInfoId === "usage"}
+                  onToggle={() => toggleInfo("usage")}
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{`${API_V1_BASE_URL}/usage/{60m|24h|7d|30d}`}</code>
+              </div>
+              {openInfoId === "usage" ? (
+                <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
+                  <p>
+                    Returns the total tokens used by the API key in the Authorization header for the selected
+                    timeframe. Replace the path segment with <code className="font-mono text-sand">60m</code>,{" "}
+                    <code className="font-mono text-sand">24h</code>, <code className="font-mono text-sand">7d</code>, or{" "}
+                    <code className="font-mono text-sand">30d</code>.
+                  </p>
+                  <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/usage/24h \\
   -H "Authorization: Bearer API_KEY"`}</pre>
-                <div>
-                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
-                  <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{JSON.stringify(
-                      {
-                        object: "usage",
-                        timeframe: "24h",
-                        total_tokens: 12345,
-                      },
-                      null,
-                      2,
-                    )}</pre>
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
+                    <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{JSON.stringify(
+                        {
+                          object: "usage",
+                          timeframe: "24h",
+                          total_tokens: 12345,
+                        },
+                        null,
+                        2,
+                      )}</pre>
+                  </div>
                 </div>
+              ) : null}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-display text-lg text-sand">List models</h3>
+                <ApiUrlInfoButton
+                  label="List models endpoint details"
+                  open={openInfoId === "models"}
+                  onToggle={() => toggleInfo("models")}
+                />
               </div>
-            ) : null}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-display text-lg text-sand">List models</h3>
-              <ApiUrlInfoButton
-                label="List models endpoint details"
-                open={openInfoId === "models"}
-                onToggle={() => toggleInfo("models")}
-              />
-            </div>
-            <div className="mt-2 flex items-center gap-3">
-              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/models</code>
-            </div>
-            {openInfoId === "models" ? (
-              <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
-                <p>
-                  Returns currently enabled models in OpenAI-compatible format. Use a model{" "}
-                  <code className="font-mono text-sand">id</code> from this list as the{" "}
-                  <code className="font-mono text-sand">model</code> field in chat completions.
-                </p>
-                <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/models`}</pre>
-                <div>
-                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
-                  {isLoadingV1Models ? (
-                    <p className="text-sm text-sand/60">Loading models...</p>
-                  ) : (
-                    <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">
-                      {JSON.stringify(buildModelsExampleResponse(v1Models), null, 2)}
-                    </pre>
-                  )}
+              <div className="mt-2 flex items-center gap-3">
+                <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/models</code>
+              </div>
+              {openInfoId === "models" ? (
+                <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
+                  <p>
+                    Returns currently enabled models in OpenAI-compatible format. Use a model{" "}
+                    <code className="font-mono text-sand">id</code> from this list as the{" "}
+                    <code className="font-mono text-sand">model</code> field in chat completions.
+                  </p>
+                  <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/models`}</pre>
+                  <div>
+                    <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
+                    {isLoadingV1Models ? (
+                      <p className="text-sm text-sand/60">Loading models...</p>
+                    ) : (
+                      <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">
+                        {JSON.stringify(buildModelsExampleResponse(v1Models), null, 2)}
+                      </pre>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
-        </div>
-      </article>
+        </article>
+      </Modal>
     </section>
   );
 }
