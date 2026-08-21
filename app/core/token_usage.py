@@ -44,6 +44,7 @@ def record_token_usage(
     input_tokens: int | None = None,
     output_tokens: int | None = None,
     tool_calls: int = 0,
+    api_key_id: int | None = None,
 ) -> bool:
     normalized_usage = normalize_token_usage(
         total_tokens,
@@ -60,6 +61,7 @@ def record_token_usage(
     db.add(
         TokenUsage(
             user_id=user_id if user_id and user_id > 0 else None,
+            api_key_id=api_key_id if api_key_id and api_key_id > 0 else None,
             total_tokens=normalized_total_tokens,
             input_tokens=normalized_input_tokens,
             output_tokens=normalized_output_tokens,
@@ -68,6 +70,28 @@ def record_token_usage(
     )
     db.commit()
     return True
+
+
+USAGE_TIMEFRAMES: dict[str, timedelta] = {
+    "60m": timedelta(hours=1),
+    "24h": timedelta(hours=24),
+    "7d": timedelta(days=7),
+    "30d": timedelta(days=30),
+}
+
+
+def get_api_key_token_total(db: Session, *, api_key_id: int, timeframe: str) -> int:
+    since_delta = USAGE_TIMEFRAMES.get(timeframe)
+    if since_delta is None:
+        raise ValueError(f"Unsupported timeframe: {timeframe}")
+
+    since = datetime.now(timezone.utc) - since_delta
+    total_tokens = (
+        db.query(func.coalesce(func.sum(TokenUsage.total_tokens), 0))
+        .filter(TokenUsage.api_key_id == api_key_id, TokenUsage.created_at >= since)
+        .scalar()
+    )
+    return int(total_tokens or 0)
 
 
 def build_token_usage_summary(db: Session) -> dict:

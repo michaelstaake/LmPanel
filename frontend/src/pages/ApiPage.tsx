@@ -260,6 +260,12 @@ export default function ApiPage() {
             </div>
           </div>
           <div>
+            <h3 className="font-display text-lg text-sand">Token usage</h3>
+            <div className="mt-2 flex items-center gap-3">
+              <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{`${API_V1_BASE_URL}/usage/{60m|24h|7d|30d}`}</code>
+            </div>
+          </div>
+          <div>
             <h3 className="font-display text-lg text-sand">List models</h3>
             <div className="mt-2 flex items-center gap-3">
               <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/models</code>

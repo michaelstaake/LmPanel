@@ -9,14 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_api_access, require_models_api_access
+from app.api.deps import get_auth_api_key_id, require_api_access, require_api_key_access, require_models_api_access
 from app.core.activity_logger import log_event
 from app.core.db import SessionLocal, get_db
 from app.core.v1_models_cache import get_cached_v1_models
 from app.core.inference_manager import InferenceManager
 from app.core.knowledge_base import build_rag_context, retrieve_relevant_documents
 from app.core.app_settings import get_or_create_app_settings
-from app.core.token_usage import record_token_usage
+from app.core.token_usage import USAGE_TIMEFRAMES, get_api_key_token_total, record_token_usage
 from app.core.usage_limits import check_tool_usage_limit_for_request, check_usage_limit_for_request
 from app.core.task_manager import task_manager
 from app.core.web_search import WEB_SEARCH_TOOL_DEFINITION, get_search_provider, parse_sse_chunks
@@ -65,7 +65,13 @@ def _coerce_usage_count(value: Any) -> int | None:
     return None
 
 
-def _record_usage(usage: Any, *, user_id: int | None, tool_calls: int = 0) -> bool:
+def _record_usage(
+    usage: Any,
+    *,
+    user_id: int | None,
+    tool_calls: int = 0,
+    api_key_id: int | None = None,
+) -> bool:
     if not isinstance(usage, dict):
         return False
 
@@ -87,6 +93,7 @@ def _record_usage(usage: Any, *, user_id: int | None, tool_calls: int = 0) -> bo
         return record_token_usage(
             db,
             user_id=user_id,
+            api_key_id=api_key_id,
             total_tokens=total_tokens,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -160,12 +167,18 @@ def _extract_usage_from_sse_chunk(chunk: bytes | str) -> dict[str, int] | None:
     return accumulated
 
 
-def _record_usage_from_sse_chunk(chunk: bytes | str, *, user_id: int | None, tool_calls: int = 0) -> bool:
+def _record_usage_from_sse_chunk(
+    chunk: bytes | str,
+    *,
+    user_id: int | None,
+    tool_calls: int = 0,
+    api_key_id: int | None = None,
+) -> bool:
     usage_counts = _extract_usage_from_sse_chunk(chunk)
     if usage_counts is None:
         return False
 
-    return _record_usage(usage_counts, user_id=user_id, tool_calls=tool_calls)
+    return _record_usage(usage_counts, user_id=user_id, tool_calls=tool_calls, api_key_id=api_key_id)
 
 
 def _prepend_rag_context(messages: list[dict], rag_context: str) -> list[dict]:
@@ -372,10 +385,32 @@ def v1_models(_: User = Depends(require_models_api_access), db: Session = Depend
     return get_cached_v1_models(lambda: _build_v1_models_payload(db))
 
 
+@router.get("/usage/{timeframe}")
+def v1_usage(
+    timeframe: str,
+    auth: tuple[User, int] = Depends(require_api_key_access),
+    db: Session = Depends(get_db),
+) -> dict:
+    if timeframe not in USAGE_TIMEFRAMES:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid timeframe. Use one of: 60m, 24h, 7d, 30d.",
+        )
+
+    _, api_key_id = auth
+    total_tokens = get_api_key_token_total(db, api_key_id=api_key_id, timeframe=timeframe)
+    return {
+        "object": "usage",
+        "timeframe": timeframe,
+        "total_tokens": total_tokens,
+    }
+
+
 @router.post("/chat/completions")
 async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = Depends(require_api_access)):
     inference: InferenceManager = router.inference_manager  # type: ignore[attr-defined]
     current_user_id = current_user.id if getattr(current_user, "id", None) else None
+    current_api_key_id = get_auth_api_key_id(current_user)
 
     db = SessionLocal()
     try:
@@ -556,6 +591,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                         _record_usage(
                             accumulated_usage or {},
                             user_id=current_user_id,
+                            api_key_id=current_api_key_id,
                             tool_calls=total_web_search_calls,
                         )
                     task_manager.complete_task(task_id)
@@ -580,7 +616,12 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
             task_manager.fail_task(task_id, str(exc))
             raise
         task_manager.complete_task(task_id)
-        _record_usage(result.get("usage"), user_id=current_user_id, tool_calls=total_tool_calls)
+        _record_usage(
+            result.get("usage"),
+            user_id=current_user_id,
+            api_key_id=current_api_key_id,
+            tool_calls=total_tool_calls,
+        )
         return {
             "id": f"chatcmpl-{uuid.uuid4().hex}",
             "object": "chat.completion",
@@ -605,6 +646,7 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
                         usage_recorded = _record_usage_from_sse_chunk(
                             chunk,
                             user_id=current_user_id,
+                            api_key_id=current_api_key_id,
                             tool_calls=0,
                         )
                     yield filter_thinking_from_sse_chunk(chunk, thinking_enabled)
@@ -630,7 +672,12 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
         task_manager.fail_task(task_id, str(exc))
         raise
     task_manager.complete_task(task_id)
-    _record_usage(result.get("usage"), user_id=current_user_id, tool_calls=0)
+    _record_usage(
+        result.get("usage"),
+        user_id=current_user_id,
+        api_key_id=current_api_key_id,
+        tool_calls=0,
+    )
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",

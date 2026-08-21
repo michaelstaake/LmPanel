@@ -109,7 +109,7 @@ By default, an API key is required for chat completions. Model listing is public
 
 Set `OPENAI_API_AUTH_REQUIRED=false` to allow anonymous chat completions (not recommended). Set `OPENAI_MODELS_AUTH_REQUIRED=true` if you want model listing to require authentication.
 
-LmPanel currently supports `/v1/models` and `/v1/chat/completions`.
+LmPanel currently supports `/v1/models`, `/v1/chat/completions`, and `/v1/usage/{timeframe}`.
 
 ## Example API Call
 
@@ -123,6 +123,17 @@ curl -k https://localhost:8444/v1/chat/completions \
     "stream": false
   }'
 ```
+
+### Token usage
+
+Token usage is tracked per API key for requests authenticated with that key. Query totals for a timeframe with:
+
+```bash
+curl -k https://localhost:8444/v1/usage/24h \
+  -H "Authorization: Bearer API_KEY"
+```
+
+Allowed timeframes: `60m`, `24h`, `7d`, `30d`. The response includes `total_tokens` for that API key in the selected window.
 
 ## Custom SSL (Let's Encrypt + Cloudflare)
 

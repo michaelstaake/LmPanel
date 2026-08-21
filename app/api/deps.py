@@ -13,6 +13,8 @@ from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+AUTH_API_KEY_ID_ATTR = "auth_api_key_id"
+
 
 def _build_anonymous_api_user() -> User:
     return User(
@@ -24,7 +26,15 @@ def _build_anonymous_api_user() -> User:
     )
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme), db: Session = Depends(get_db)) -> User:
+def get_auth_api_key_id(user: User) -> int | None:
+    value = getattr(user, AUTH_API_KEY_ID_ATTR, None)
+    return value if isinstance(value, int) and value > 0 else None
+
+
+def _authenticate_bearer(
+    credentials: HTTPAuthorizationCredentials | None,
+    db: Session,
+) -> tuple[User, int | None]:
     settings = get_settings()
     credentials_exception = HTTPException(status_code=401, detail="Invalid credentials")
     if not credentials:
@@ -48,11 +58,17 @@ def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(
         api_key.last_used_at = datetime.now(UTC)
         db.add(api_key)
         db.commit()
-        return user
+        setattr(user, AUTH_API_KEY_ID_ATTR, api_key.id)
+        return user, api_key.id
 
     user = db.query(User).filter(User.username == username, User.is_active.is_(True)).first()
     if not user:
         raise credentials_exception
+    return user, None
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme), db: Session = Depends(get_db)) -> User:
+    user, _ = _authenticate_bearer(credentials, db)
     return user
 
 
@@ -86,6 +102,21 @@ def require_api_access(credentials: HTTPAuthorizationCredentials | None = Depend
             return _build_anonymous_api_user()
 
     return get_current_user(credentials, db)
+
+
+def require_api_key_access(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> tuple[User, int]:
+    """Authenticate with an API key specifically (JWT session tokens are rejected)."""
+    credentials_exception = HTTPException(status_code=401, detail="API key required")
+    if not credentials:
+        raise credentials_exception
+
+    user, api_key_id = _authenticate_bearer(credentials, db)
+    if api_key_id is None:
+        raise HTTPException(status_code=401, detail="API key required")
+    return user, api_key_id
 
 
 def require_models_api_access(
