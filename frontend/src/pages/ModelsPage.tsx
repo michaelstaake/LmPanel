@@ -196,6 +196,7 @@ function buildModelPayload(model: ModelRecord) {
     tool_calling_enabled: model.tool_calling_enabled,
     discourage_thinking: model.discourage_thinking,
     default_thinking_enabled: model.default_thinking_enabled,
+    default_thinking_level: model.default_thinking_level ?? "medium",
     thinking_capability: model.thinking_capability,
     vision_enabled: model.vision_enabled,
     web_search_enabled: model.web_search_enabled,
@@ -1328,7 +1329,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                 <div className="grid gap-3">
                   <label className="grid gap-1 text-sm text-sand/70">
                     <span>Thinking capability</span>
-                    <span className="text-xs text-sand/45">Auto detects hybrid models (Qwen, Gemma). Override if detection is wrong.</span>
+                    <span className="text-xs text-sand/45">Auto detects hybrid models (Qwen, Gemma), Qwen 3.5+ effort levels, and gpt-oss. Override if detection is wrong.</span>
                     <select
                       className=" field px-3 py-2 text-sm"
                       value={modalDraft.thinking_capability}
@@ -1336,11 +1337,13 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                     >
                       <option value="auto">Auto</option>
                       <option value="hybrid">Hybrid (toggle in chat)</option>
+                      <option value="hybrid_levels">Hybrid + levels (Off / Low / Medium / High)</option>
+                      <option value="levels">Variable levels (Low / Medium / High)</option>
                       <option value="always">Always thinks</option>
                       <option value="none">No thinking support</option>
                     </select>
                   </label>
-                  {!modalDraft.discourage_thinking && (modalDraft.thinking_capability === "auto" || modalDraft.thinking_capability === "hybrid") ? (
+                  {!modalDraft.discourage_thinking && (modalDraft.thinking_capability === "auto" || modalDraft.thinking_capability === "hybrid" || modalDraft.thinking_capability === "hybrid_levels") ? (
                     <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">
                       <input
                         className="mt-1"
@@ -1352,6 +1355,21 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
                         <span className="text-sm text-sand/70">Default thinking on</span>
                         <span className="text-xs text-sand/45">Initial state of the chat Thinking toggle for this model.</span>
                       </span>
+                    </label>
+                  ) : null}
+                  {!modalDraft.discourage_thinking && (modalDraft.thinking_capability === "auto" || modalDraft.thinking_capability === "levels" || modalDraft.thinking_capability === "hybrid_levels") ? (
+                    <label className="grid gap-1 text-sm text-sand/70">
+                      <span>Default thinking level</span>
+                      <span className="text-xs text-sand/45">Used for gpt-oss and Qwen 3.5+ (High is sent as xhigh for Qwen 3.8).</span>
+                      <select
+                        className=" field px-3 py-2 text-sm"
+                        value={modalDraft.default_thinking_level ?? "medium"}
+                        onChange={(event) => updateModalDraft({ default_thinking_level: event.target.value })}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
                     </label>
                   ) : null}
                   <label className="flex gap-3  border border-white/10 bg-white/10 px-3 py-2 text-sand text-sm text-sand/70">

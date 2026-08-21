@@ -349,6 +349,9 @@ function getModelThinkingTagLabel(discourageThinking: boolean, capability: strin
   if (capability === "always") {
     return "Always Thinks";
   }
+  if (capability === "levels" || capability === "hybrid_levels") {
+    return "Thinking Levels";
+  }
   if (capability === "hybrid") {
     return "Can Think";
   }
@@ -387,6 +390,9 @@ export default function ChatPage() {
     modelThinkingDefaults,
     modelThinkingControllable,
     modelThinkingCapabilities,
+    modelThinkingLevels,
+    modelThinkingCanDisable,
+    modelThinkingLevelDefaults,
     isLoadingModels,
   } = useModelsCatalog();
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -410,13 +416,25 @@ export default function ChatPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [useThinking, setUseThinking] = useState(true);
+  const [thinkingLevel, setThinkingLevel] = useState<"off" | "low" | "medium" | "high">("medium");
   const selectedModelSupportsVision = selectedModel ? (modelVisionDefaults[selectedModel] ?? false) : false;
   const selectedModelSupportsWebSearch = selectedModel ? (modelSearchAvailability[selectedModel] ?? false) : false;
   const selectedModelDiscouragesThinking = selectedModel ? (modelThinkingDisabledDefaults[selectedModel] ?? false) : false;
   const selectedModelThinkingCapability = selectedModel ? (modelThinkingCapabilities[selectedModel] ?? "none") : "none";
+  const selectedModelHasThinkingLevels =
+    selectedModel !== "" &&
+    !selectedModelDiscouragesThinking &&
+    (modelThinkingLevels[selectedModel] ??
+      (selectedModelThinkingCapability === "levels" || selectedModelThinkingCapability === "hybrid_levels"));
+  const selectedModelCanDisableThinking =
+    selectedModelHasThinkingLevels && (modelThinkingCanDisable[selectedModel] ?? selectedModelThinkingCapability === "hybrid_levels");
   const selectedModelAllowsThinkingPreference = selectedModel !== "" && (modelThinkingControllable[selectedModel] ?? false);
-  const selectedModelAlwaysThinks = selectedModelThinkingCapability === "always";
-  const effectiveUseThinking = selectedModelAllowsThinkingPreference ? useThinking : selectedModelAlwaysThinks;
+  const selectedModelAlwaysThinks = selectedModelThinkingCapability === "always" || (selectedModelHasThinkingLevels && !selectedModelCanDisableThinking);
+  const effectiveUseThinking = selectedModelHasThinkingLevels
+    ? thinkingLevel !== "off"
+    : selectedModelAllowsThinkingPreference
+      ? useThinking
+      : selectedModelAlwaysThinks;
   const shouldShowTranscript = activeChatId !== null || messages.length > 0;
   const isNewChatEmptyState = activeChatId === null && messages.length === 0;
   const shouldShowNoModelsEmptyState = isNewChatEmptyState && !isLoadingModels && models.length === 0;
@@ -498,7 +516,12 @@ export default function ChatPage() {
       return;
     }
     setUseThinking(modelThinkingDefaults[selectedModel] ?? true);
-  }, [selectedModel, modelThinkingDefaults]);
+    const defaultLevel = modelThinkingLevelDefaults[selectedModel] ?? "medium";
+    const resolvedLevel = defaultLevel === "low" || defaultLevel === "high" || defaultLevel === "off" ? defaultLevel : "medium";
+    const canDisable = modelThinkingCanDisable[selectedModel] ?? false;
+    const thinkingOn = modelThinkingDefaults[selectedModel] ?? true;
+    setThinkingLevel(!thinkingOn && canDisable ? "off" : resolvedLevel);
+  }, [selectedModel, modelThinkingDefaults, modelThinkingLevelDefaults, modelThinkingCanDisable]);
 
   useEffect(() => {
     if (!isLoadingModels && models.length > 0 && !isSending) {
@@ -829,6 +852,7 @@ export default function ChatPage() {
         nextMessages.filter(shouldIncludeMessageInApiRequest).map(buildApiMessage),
         useWebSearch && selectedModelSupportsWebSearch,
         effectiveUseThinking,
+        selectedModelHasThinkingLevels && thinkingLevel !== "off" ? thinkingLevel : null,
         abortController.signal,
         (phase) => {
           if (phase === "thinking" && thinkingStartedAt === null) {
@@ -1355,23 +1379,39 @@ export default function ChatPage() {
               >
                 <i className="bi bi-globe text-[18px] leading-none" aria-hidden="true" />
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks) return;
-                  if (selectedModelAllowsThinkingPreference) {
-                    setUseThinking((current) => !current);
-                  }
-                }}
-                disabled={isSending || isModelsUnavailable || (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks)}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-white/15 bg-white/10" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/15 bg-white/10 hover:bg-white/15"}`}
-                title={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
-                aria-label={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
-                aria-pressed={useThinking || selectedModelAlwaysThinks}
-                aria-disabled={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks}
-              >
-                <i className="bi bi-stars text-[18px] leading-none" aria-hidden="true" />
-              </button>
+              {selectedModelHasThinkingLevels ? (
+                <select
+                  value={thinkingLevel}
+                  onChange={(event) => setThinkingLevel(event.target.value as "off" | "low" | "medium" | "high")}
+                  disabled={isSending || isModelsUnavailable}
+                  className={`h-12 min-w-[8.5rem] shrink-0 border px-2 text-sm text-sand disabled:opacity-50 ${thinkingLevel === "off" ? "border-white/15 bg-white/10" : "border-purple-700/70 bg-purple-700/15"}`}
+                  title="Thinking effort"
+                  aria-label="Thinking effort"
+                >
+                  {selectedModelCanDisableThinking ? <option value="off">Think: Off</option> : null}
+                  <option value="low">Think: Low</option>
+                  <option value="medium">Think: Medium</option>
+                  <option value="high">Think: High</option>
+                </select>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks) return;
+                    if (selectedModelAllowsThinkingPreference) {
+                      setUseThinking((current) => !current);
+                    }
+                  }}
+                  disabled={isSending || isModelsUnavailable || (!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks)}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center  border text-sand transition disabled:opacity-50 ${!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "border-white/15 bg-white/10" : useThinking ? "border-purple-700/70 bg-purple-700/15 text-sand" : "border-white/15 bg-white/10 hover:bg-white/15"}`}
+                  title={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
+                  aria-label={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks ? "Thinking not available for this model" : selectedModelAlwaysThinks ? "Thinking enabled by default" : (useThinking ? "Disable Thinking" : "Enable Thinking")}
+                  aria-pressed={useThinking || selectedModelAlwaysThinks}
+                  aria-disabled={!selectedModelAllowsThinkingPreference && !selectedModelAlwaysThinks}
+                >
+                  <i className="bi bi-stars text-[18px] leading-none" aria-hidden="true" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -1517,6 +1557,7 @@ async function streamCompletion(
   messages: { role: ChatRole; content: ChatMessageContent }[],
   useWebSearch: boolean,
   enableThinking: boolean,
+  thinkingLevel: "low" | "medium" | "high" | null,
   signal: AbortSignal,
   onStageChange: (phase: "thinking") => void,
   onDelta: (delta: string, type: "thinking" | "content") => void
@@ -1543,7 +1584,14 @@ async function streamCompletion(
       method: "POST",
       headers,
       signal,
-      body: JSON.stringify({ model, messages, stream: true, use_web_search: useWebSearch, enable_thinking: enableThinking })
+      body: JSON.stringify({
+        model,
+        messages,
+        stream: true,
+        use_web_search: useWebSearch,
+        enable_thinking: enableThinking,
+        ...(thinkingLevel ? { thinking_level: thinkingLevel } : {}),
+      })
     });
   } catch (error) {
     handleBackendUnavailableError(error);

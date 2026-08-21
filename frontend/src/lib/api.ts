@@ -421,8 +421,11 @@ export type V1ModelEntry = {
   tool_calling_enabled?: boolean;
   discourage_thinking?: boolean;
   default_thinking_enabled?: boolean;
+  default_thinking_level?: string;
   thinking_capability?: string;
   thinking_controllable?: boolean;
+  thinking_levels?: boolean;
+  thinking_can_disable?: boolean;
   vision_enabled?: boolean;
   web_search_enabled?: boolean;
   web_search_available?: boolean;

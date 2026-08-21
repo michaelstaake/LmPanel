@@ -10,15 +10,26 @@ from app.models.model_config import ModelConfig
 
 THINKING_CAPABILITY_AUTO = "auto"
 THINKING_CAPABILITY_HYBRID = "hybrid"
+THINKING_CAPABILITY_HYBRID_LEVELS = "hybrid_levels"
+THINKING_CAPABILITY_LEVELS = "levels"
 THINKING_CAPABILITY_ALWAYS = "always"
 THINKING_CAPABILITY_NONE = "none"
 
 THINKING_CAPABILITIES = {
     THINKING_CAPABILITY_AUTO,
     THINKING_CAPABILITY_HYBRID,
+    THINKING_CAPABILITY_HYBRID_LEVELS,
+    THINKING_CAPABILITY_LEVELS,
     THINKING_CAPABILITY_ALWAYS,
     THINKING_CAPABILITY_NONE,
 }
+
+THINKING_LEVEL_LOW = "low"
+THINKING_LEVEL_MEDIUM = "medium"
+THINKING_LEVEL_HIGH = "high"
+THINKING_LEVEL_XHIGH = "xhigh"
+THINKING_LEVELS = (THINKING_LEVEL_LOW, THINKING_LEVEL_MEDIUM, THINKING_LEVEL_HIGH, THINKING_LEVEL_XHIGH)
+DEFAULT_THINKING_LEVEL = THINKING_LEVEL_MEDIUM
 
 # Legacy system-prompt lines injected by older LmPanel versions (strip on reuse).
 THINKING_DISABLED_PROMPT = (
@@ -37,6 +48,25 @@ KNOWN_THINKING_CONTROL_LINES = {
 
 QWEN_THINK_SUFFIXES = ("/no_think", "/think")
 REASONING_DELTA_KEYS = ("reasoning_content", "reasoning", "thought")
+
+_LEVELS_PATTERNS = (
+    re.compile(r"gpt[-_]?oss", re.I),
+    re.compile(r"gptoss", re.I),
+    re.compile(r"seed[-_]?oss", re.I),
+    re.compile(r"solar[-_]?open", re.I),
+)
+
+# Qwen 3.5+ decimal line (Qwen3.8, Qwen3.5, …) — not Qwen3-8B.
+_HYBRID_LEVELS_PATTERNS = (
+    re.compile(r"qwen[-_]?3\.[5-9]", re.I),
+    re.compile(r"qwen[-_]?3_[5-9](?:\D|$)", re.I),
+)
+
+# Qwen 3.8+ templates accept low/medium/xhigh and reject "high".
+_QWEN_XHIGH_PATTERNS = (
+    re.compile(r"qwen[-_]?3\.[89]", re.I),
+    re.compile(r"qwen[-_]?3_[89](?:\D|$)", re.I),
+)
 
 _HYBRID_PATTERNS = (
     re.compile(r"qwen[-_]?\d", re.I),
@@ -87,6 +117,10 @@ def detect_thinking_capability(model: ModelConfig) -> str:
         return override
 
     identity = _model_identity(model)
+    if _matches_patterns(identity, _LEVELS_PATTERNS):
+        return THINKING_CAPABILITY_LEVELS
+    if _matches_patterns(identity, _HYBRID_LEVELS_PATTERNS):
+        return THINKING_CAPABILITY_HYBRID_LEVELS
     if _matches_patterns(identity, _ALWAYS_PATTERNS):
         return THINKING_CAPABILITY_ALWAYS
     if _matches_patterns(identity, _HYBRID_PATTERNS):
@@ -97,21 +131,87 @@ def detect_thinking_capability(model: ModelConfig) -> str:
 def is_thinking_controllable(model: ModelConfig) -> bool:
     if model.discourage_thinking:
         return False
-    return detect_thinking_capability(model) == THINKING_CAPABILITY_HYBRID
+    return detect_thinking_capability(model) in {
+        THINKING_CAPABILITY_HYBRID,
+        THINKING_CAPABILITY_HYBRID_LEVELS,
+        THINKING_CAPABILITY_LEVELS,
+    }
 
 
-def resolve_thinking_enabled(model: ModelConfig, payload_enable_thinking: bool | None) -> bool:
+def has_thinking_levels(model: ModelConfig) -> bool:
+    return detect_thinking_capability(model) in {THINKING_CAPABILITY_LEVELS, THINKING_CAPABILITY_HYBRID_LEVELS}
+
+
+def thinking_can_disable(model: ModelConfig) -> bool:
+    if model.discourage_thinking:
+        return False
+    return detect_thinking_capability(model) in {THINKING_CAPABILITY_HYBRID, THINKING_CAPABILITY_HYBRID_LEVELS}
+
+
+def uses_qwen_xhigh_effort(model: ModelConfig) -> bool:
+    return _matches_patterns(_model_identity(model), _QWEN_XHIGH_PATTERNS)
+
+
+def template_reasoning_effort(model: ModelConfig, level: str) -> str:
+    if level == THINKING_LEVEL_HIGH and uses_qwen_xhigh_effort(model):
+        return THINKING_LEVEL_XHIGH
+    return level
+
+
+def normalize_thinking_level(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    if normalized == "off":
+        return None
+    if normalized == THINKING_LEVEL_XHIGH:
+        return THINKING_LEVEL_HIGH
+    if normalized in (THINKING_LEVEL_LOW, THINKING_LEVEL_MEDIUM, THINKING_LEVEL_HIGH):
+        return normalized
+    return None
+
+
+def resolve_thinking_enabled(
+    model: ModelConfig,
+    payload_enable_thinking: bool | None,
+    payload_thinking_level: str | None = None,
+) -> bool:
     if model.discourage_thinking:
         return False
 
     capability = detect_thinking_capability(model)
     if capability == THINKING_CAPABILITY_ALWAYS:
         return True
+    if capability == THINKING_CAPABILITY_LEVELS:
+        return True
     if capability == THINKING_CAPABILITY_NONE:
+        return False
+    if payload_thinking_level is not None and payload_thinking_level.strip().lower() == "off":
         return False
     if payload_enable_thinking is not None:
         return payload_enable_thinking
     return bool(getattr(model, "default_thinking_enabled", True))
+
+
+def resolve_thinking_level(
+    model: ModelConfig,
+    payload_thinking_level: str | None,
+    enabled: bool,
+) -> str | None:
+    if not enabled:
+        return None
+
+    requested = normalize_thinking_level(payload_thinking_level)
+    if requested:
+        return requested
+
+    if detect_thinking_capability(model) not in {THINKING_CAPABILITY_LEVELS, THINKING_CAPABILITY_HYBRID_LEVELS}:
+        return None
+
+    return (
+        normalize_thinking_level(getattr(model, "default_thinking_level", None))
+        or DEFAULT_THINKING_LEVEL
+    )
 
 
 def get_thinking_family(model: ModelConfig) -> str:
@@ -223,20 +323,40 @@ def _apply_qwen_user_suffix(messages: list[dict[str, Any]], enabled: bool) -> li
     return updated
 
 
-def apply_thinking_to_request(request_payload: dict[str, Any], model: ModelConfig, enabled: bool) -> dict[str, Any]:
+def apply_thinking_to_request(
+    request_payload: dict[str, Any],
+    model: ModelConfig,
+    enabled: bool,
+    thinking_level: str | None = None,
+) -> dict[str, Any]:
     messages = list(request_payload.get("messages") or [])
     messages = _strip_legacy_from_messages(messages)
 
-    if get_thinking_family(model) == "qwen" and detect_thinking_capability(model) == THINKING_CAPABILITY_HYBRID:
+    capability = detect_thinking_capability(model)
+    if get_thinking_family(model) == "qwen" and capability in {
+        THINKING_CAPABILITY_HYBRID,
+        THINKING_CAPABILITY_HYBRID_LEVELS,
+    }:
         messages = _apply_qwen_user_suffix(messages, enabled)
 
     request_payload = dict(request_payload)
     request_payload["messages"] = messages
     request_payload["enable_thinking"] = enabled
+    request_payload.pop("thinking_level", None)
 
     existing_kwargs = request_payload.get("chat_template_kwargs")
     merged_kwargs: dict[str, Any] = dict(existing_kwargs) if isinstance(existing_kwargs, dict) else {}
     merged_kwargs["enable_thinking"] = enabled
+
+    resolved_level = normalize_thinking_level(thinking_level)
+    if enabled and resolved_level:
+        effort = template_reasoning_effort(model, resolved_level)
+        merged_kwargs["reasoning_effort"] = effort
+        request_payload["reasoning_effort"] = effort
+    else:
+        merged_kwargs.pop("reasoning_effort", None)
+        request_payload.pop("reasoning_effort", None)
+
     request_payload["chat_template_kwargs"] = merged_kwargs
 
     if enabled:
@@ -252,7 +372,12 @@ def model_thinking_metadata(model: ModelConfig) -> dict[str, Any]:
     return {
         "thinking_capability": capability,
         "thinking_controllable": is_thinking_controllable(model),
+        "thinking_levels": has_thinking_levels(model) and not model.discourage_thinking,
+        "thinking_can_disable": thinking_can_disable(model),
         "default_thinking_enabled": bool(getattr(model, "default_thinking_enabled", True)),
+        "default_thinking_level": (
+            normalize_thinking_level(getattr(model, "default_thinking_level", None)) or DEFAULT_THINKING_LEVEL
+        ),
         "discourage_thinking": model.discourage_thinking,
     }
 

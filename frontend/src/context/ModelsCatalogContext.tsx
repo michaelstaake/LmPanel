@@ -29,6 +29,9 @@ const emptyCatalog: ModelsCatalogData = {
   modelThinkingDefaults: {},
   modelThinkingControllable: {},
   modelThinkingCapabilities: {},
+  modelThinkingLevels: {},
+  modelThinkingCanDisable: {},
+  modelThinkingLevelDefaults: {},
 };
 
 type ModelsCatalogContextValue = ModelsCatalogData & {

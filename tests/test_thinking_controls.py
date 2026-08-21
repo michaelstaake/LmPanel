@@ -7,12 +7,14 @@ from types import SimpleNamespace
 from app.core.thinking_controls import (
     THINKING_CAPABILITY_ALWAYS,
     THINKING_CAPABILITY_HYBRID,
+    THINKING_CAPABILITY_LEVELS,
     THINKING_CAPABILITY_NONE,
     apply_thinking_to_request,
     detect_thinking_capability,
     filter_thinking_from_sse_chunk,
     is_thinking_controllable,
     resolve_thinking_enabled,
+    resolve_thinking_level,
 )
 
 
@@ -23,6 +25,7 @@ def _model(
     model_dir_name: str = "test",
     discourage_thinking: bool = False,
     default_thinking_enabled: bool = True,
+    default_thinking_level: str = "medium",
     thinking_capability: str = "auto",
 ) -> SimpleNamespace:
     return SimpleNamespace(
@@ -31,6 +34,7 @@ def _model(
         model_dir_name=model_dir_name,
         discourage_thinking=discourage_thinking,
         default_thinking_enabled=default_thinking_enabled,
+        default_thinking_level=default_thinking_level,
         thinking_capability=thinking_capability,
     )
 
@@ -38,6 +42,30 @@ def _model(
 def test_detect_hybrid_qwen() -> None:
     model = _model(alias="qwen3-8b", file_name="Qwen3-8B-Q4_K_M.gguf", model_dir_name="Qwen3-8B")
     assert detect_thinking_capability(model) == THINKING_CAPABILITY_HYBRID
+
+
+def test_detect_hybrid_levels_qwen38() -> None:
+    from app.core.thinking_controls import THINKING_CAPABILITY_HYBRID_LEVELS
+
+    model = _model(alias="qwen3.8-27b", file_name="Qwen3.8-27B-Q4_K_M.gguf", model_dir_name="Qwen3.8-27B")
+    assert detect_thinking_capability(model) == THINKING_CAPABILITY_HYBRID_LEVELS
+    updated = apply_thinking_to_request({"messages": [{"role": "user", "content": "Hi"}]}, model, True, "high")
+    assert updated["reasoning_effort"] == "xhigh"
+    assert updated["chat_template_kwargs"]["reasoning_effort"] == "xhigh"
+    assert updated["enable_thinking"] is True
+    assert updated["messages"][-1]["content"] == "Hi /think"
+
+
+def test_qwen38_can_disable_thinking() -> None:
+    from app.core.thinking_controls import THINKING_CAPABILITY_HYBRID_LEVELS
+
+    model = _model(alias="qwen3.8-27b", file_name="Qwen3.8-27B.gguf", model_dir_name="Qwen3.8-27B")
+    assert detect_thinking_capability(model) == THINKING_CAPABILITY_HYBRID_LEVELS
+    assert resolve_thinking_enabled(model, True, "off") is False
+    updated = apply_thinking_to_request({"messages": [{"role": "user", "content": "Hi"}]}, model, False, None)
+    assert updated["enable_thinking"] is False
+    assert "reasoning_effort" not in updated
+    assert updated["messages"][-1]["content"] == "Hi /no_think"
 
 
 def test_detect_hybrid_gemma() -> None:
@@ -53,6 +81,11 @@ def test_detect_always_qwq() -> None:
 def test_detect_none_llama() -> None:
     model = _model(alias="llama-3", file_name="llama-3-8b.gguf", model_dir_name="llama-3")
     assert detect_thinking_capability(model) == THINKING_CAPABILITY_NONE
+
+
+def test_detect_levels_gpt_oss() -> None:
+    model = _model(alias="gpt-oss-20b", file_name="gpt-oss-20b.gguf", model_dir_name="gpt-oss-20b")
+    assert detect_thinking_capability(model) == THINKING_CAPABILITY_LEVELS
 
 
 def test_manual_capability_override() -> None:
@@ -81,10 +114,31 @@ def test_resolve_hybrid_uses_payload_then_default() -> None:
     assert resolve_thinking_enabled(model, True) is True
 
 
+def test_resolve_levels_always_enabled() -> None:
+    model = _model(alias="gpt-oss-20b", file_name="gpt-oss-20b.gguf", model_dir_name="gpt-oss-20b")
+    assert resolve_thinking_enabled(model, False) is True
+    assert resolve_thinking_level(model, None, True) == "medium"
+    assert resolve_thinking_level(model, "high", True) == "high"
+
+
+def test_resolve_levels_uses_model_default() -> None:
+    model = _model(
+        alias="gpt-oss-20b",
+        file_name="gpt-oss-20b.gguf",
+        model_dir_name="gpt-oss-20b",
+        default_thinking_level="low",
+    )
+    assert resolve_thinking_level(model, None, True) == "low"
+
+
 def test_is_thinking_controllable() -> None:
     hybrid = _model(alias="qwen3", file_name="qwen3.gguf", model_dir_name="qwen3")
+    levels = _model(alias="gpt-oss-20b", file_name="gpt-oss-20b.gguf", model_dir_name="gpt-oss-20b")
+    hybrid_levels = _model(alias="qwen3.8-27b", file_name="Qwen3.8-27B.gguf", model_dir_name="Qwen3.8-27B")
     locked = _model(alias="qwen3", file_name="qwen3.gguf", model_dir_name="qwen3", discourage_thinking=True)
     assert is_thinking_controllable(hybrid) is True
+    assert is_thinking_controllable(levels) is True
+    assert is_thinking_controllable(hybrid_levels) is True
     assert is_thinking_controllable(locked) is False
 
 
@@ -104,6 +158,17 @@ def test_apply_thinking_enabled_omits_budget() -> None:
     assert updated["enable_thinking"] is True
     assert updated["chat_template_kwargs"] == {"enable_thinking": True}
     assert "thinking_budget_tokens" not in updated
+    assert "reasoning_effort" not in updated
+
+
+def test_apply_thinking_levels_sets_reasoning_effort() -> None:
+    model = _model(alias="gpt-oss-20b", file_name="gpt-oss-20b.gguf", model_dir_name="gpt-oss-20b")
+    payload = {"messages": [{"role": "user", "content": "Hello"}], "thinking_level": "high"}
+    updated = apply_thinking_to_request(payload, model, True, "high")
+    assert updated["enable_thinking"] is True
+    assert updated["reasoning_effort"] == "high"
+    assert updated["chat_template_kwargs"] == {"enable_thinking": True, "reasoning_effort": "high"}
+    assert "thinking_level" not in updated
 
 
 def test_qwen_appends_no_think_to_last_user_message() -> None:

@@ -18,6 +18,9 @@ export type ModelsCatalogData = {
   modelThinkingDefaults: Record<string, boolean>;
   modelThinkingControllable: Record<string, boolean>;
   modelThinkingCapabilities: Record<string, string>;
+  modelThinkingLevels: Record<string, boolean>;
+  modelThinkingCanDisable: Record<string, boolean>;
+  modelThinkingLevelDefaults: Record<string, string>;
 };
 
 const CACHE_KEY_PREFIX = "lmpanel.v1models.";
@@ -38,6 +41,9 @@ export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCa
   const modelThinkingDefaults: Record<string, boolean> = {};
   const modelThinkingControllable: Record<string, boolean> = {};
   const modelThinkingCapabilities: Record<string, string> = {};
+  const modelThinkingLevels: Record<string, boolean> = {};
+  const modelThinkingCanDisable: Record<string, boolean> = {};
+  const modelThinkingLevelDefaults: Record<string, string> = {};
 
   for (const entry of response.data) {
     models.push(entry.id);
@@ -55,6 +61,11 @@ export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCa
     modelThinkingDefaults[entry.id] = entry.default_thinking_enabled ?? true;
     modelThinkingControllable[entry.id] = entry.thinking_controllable ?? false;
     modelThinkingCapabilities[entry.id] = entry.thinking_capability ?? "none";
+    modelThinkingLevels[entry.id] =
+      entry.thinking_levels ?? (entry.thinking_capability === "levels" || entry.thinking_capability === "hybrid_levels");
+    modelThinkingCanDisable[entry.id] =
+      entry.thinking_can_disable ?? (entry.thinking_capability === "hybrid" || entry.thinking_capability === "hybrid_levels");
+    modelThinkingLevelDefaults[entry.id] = entry.default_thinking_level ?? "medium";
   }
 
   return {
@@ -66,6 +77,9 @@ export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCa
     modelThinkingDefaults,
     modelThinkingControllable,
     modelThinkingCapabilities,
+    modelThinkingLevels,
+    modelThinkingCanDisable,
+    modelThinkingLevelDefaults,
   };
 }
 
@@ -78,11 +92,23 @@ export function readModelsCatalogCache(): ModelsCatalogData | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as ModelsCatalogData;
+    const parsed = JSON.parse(raw) as Partial<ModelsCatalogData>;
     if (!Array.isArray(parsed.models)) {
       return null;
     }
-    return parsed;
+    return {
+      models: parsed.models,
+      modelCardDetails: parsed.modelCardDetails ?? {},
+      modelVisionDefaults: parsed.modelVisionDefaults ?? {},
+      modelSearchAvailability: parsed.modelSearchAvailability ?? {},
+      modelThinkingDisabledDefaults: parsed.modelThinkingDisabledDefaults ?? {},
+      modelThinkingDefaults: parsed.modelThinkingDefaults ?? {},
+      modelThinkingControllable: parsed.modelThinkingControllable ?? {},
+      modelThinkingCapabilities: parsed.modelThinkingCapabilities ?? {},
+      modelThinkingLevels: parsed.modelThinkingLevels ?? {},
+      modelThinkingCanDisable: parsed.modelThinkingCanDisable ?? {},
+      modelThinkingLevelDefaults: parsed.modelThinkingLevelDefaults ?? {},
+    };
   } catch {
     return null;
   }

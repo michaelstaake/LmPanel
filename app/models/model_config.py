@@ -30,6 +30,7 @@ class ModelConfig(Base):
     tool_calling_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     discourage_thinking: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     default_thinking_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    default_thinking_level: Mapped[str] = mapped_column(String(16), default="medium", nullable=False)
     thinking_capability: Mapped[str] = mapped_column(String(16), default="auto", nullable=False)
     vision_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     web_search_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

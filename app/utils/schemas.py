@@ -564,6 +564,7 @@ class ModelUpdateRequest(BaseModel):
     tool_calling_enabled: bool | None = None
     discourage_thinking: bool | None = None
     default_thinking_enabled: bool | None = None
+    default_thinking_level: str | None = None
     thinking_capability: str | None = None
 
     @field_validator("thinking_capability")
@@ -571,10 +572,21 @@ class ModelUpdateRequest(BaseModel):
     def _validate_thinking_capability(cls, value: str | None) -> str | None:
         if value is None:
             return value
-        allowed = {"auto", "hybrid", "always", "none"}
+        allowed = {"auto", "hybrid", "hybrid_levels", "levels", "always", "none"}
         if value not in allowed:
             raise ValueError(f"thinking_capability must be one of: {', '.join(sorted(allowed))}")
         return value
+
+    @field_validator("default_thinking_level")
+    @classmethod
+    def _validate_default_thinking_level(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        allowed = {"low", "medium", "high"}
+        normalized = value.strip().lower()
+        if normalized not in allowed:
+            raise ValueError(f"default_thinking_level must be one of: {', '.join(sorted(allowed))}")
+        return normalized
     vision_enabled: bool | None = None
     web_search_enabled: bool | None = None
     rag_enabled: bool | None = None
@@ -682,6 +694,19 @@ class OpenAIChatRequest(BaseModel):
     messages: list[ChatMessageRequest]
     stream: bool = False
     enable_thinking: bool | None = None
+    thinking_level: str | None = None
+    reasoning_effort: str | None = None
+
+    @field_validator("thinking_level", "reasoning_effort")
+    @classmethod
+    def _validate_thinking_level(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        allowed = {"off", "low", "medium", "high", "xhigh"}
+        normalized = value.strip().lower()
+        if normalized not in allowed:
+            raise ValueError(f"thinking level must be one of: {', '.join(sorted(allowed))}")
+        return normalized
     temperature: float | None = None
     top_p: float | None = None
     min_p: float | None = Field(default=None, ge=0.0, le=1.0)

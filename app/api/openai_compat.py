@@ -30,6 +30,7 @@ from app.core.thinking_controls import (
     filter_thinking_from_sse_chunk,
     model_thinking_metadata,
     resolve_thinking_enabled,
+    resolve_thinking_level,
 )
 from app.utils.schemas import OpenAIChatRequest, sanitize_inference_messages
 
@@ -454,13 +455,27 @@ async def v1_chat_completions(payload: OpenAIChatRequest, current_user: User = D
             request_payload["presence_penalty"] = model.presence_penalty
         if "repetition_penalty" not in request_payload:
             request_payload["repetition_penalty"] = model.repetition_penalty
-        request_payload["enable_thinking"] = resolve_thinking_enabled(model, payload.enable_thinking)
+        request_payload["enable_thinking"] = resolve_thinking_enabled(
+            model,
+            payload.enable_thinking,
+            payload.thinking_level or payload.reasoning_effort,
+        )
         thinking_enabled = bool(request_payload["enable_thinking"])
+        thinking_level = resolve_thinking_level(
+            model,
+            payload.thinking_level or payload.reasoning_effort,
+            thinking_enabled,
+        )
         request_payload["messages"] = sanitize_inference_messages(
             [message.model_dump(exclude_none=True) for message in payload.messages]
         )
 
-        request_payload = apply_thinking_to_request(request_payload, model, thinking_enabled)
+        request_payload = apply_thinking_to_request(
+            request_payload,
+            model,
+            thinking_enabled,
+            thinking_level,
+        )
         request_payload["messages"] = sanitize_inference_messages(request_payload.get("messages") or [])
 
         rag_context = ""
