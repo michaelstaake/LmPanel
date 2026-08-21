@@ -58,15 +58,6 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Or use the optional convenience wrapper (creates `.env` if missing; `up` defaults to detached):
-
-```bash
-chmod +x lmpanel
-./lmpanel up --build
-```
-
-`docker compose` alone is enough for GPU passthrough. `./lmpanel up` starts containers in detached mode by default; pass `-nd` to run in the foreground. Flags need hyphens: `--build` (not `up build`).
-
 #### Notes
 
 At every startup, LmPanel will auto-detect all applicable devices. If you remove or replace a GPU, any old ones will be removed from the database automatically. Models that were assigned to a specific device will revert to Auto mode.
@@ -98,8 +89,6 @@ To stop LmPanel:
 ```bash
 docker compose down
 ```
-
-(or `./lmpanel down`)
 
 ## Interacting with the AI Models
 
@@ -204,10 +193,6 @@ Certificates are stored in `./certs` and renewed automatically when they are wit
 
 ### Device Issues
 
-- **`./lmpanel` appears to do nothing**:
-  - Use hyphens: `./lmpanel up --build` (not `up build`).
-  - Run `LMPANEL_DEBUG=1 ./lmpanel up --build` to trace the wrapper.
-  - Or use Docker directly: `docker compose up -d --build`.
 - **Device not detected**:
   - Ensure host GPU drivers are installed and restart the system after driver changes.
   - Check that `vulkaninfo` works on the host and lists your discrete AMD or Intel Arc GPU(s).
