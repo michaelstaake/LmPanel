@@ -18,6 +18,7 @@ const settingsNavItems: SettingsNavItem[] = [
   { id: "users", label: "Users", iconClassName: "bi bi-people", description: "Manage user accounts and permissions" },
   { id: "packages", label: "Packages", iconClassName: "bi bi-box", description: "Token and tool usage limits" },
   { id: "running_tasks", label: "Running Tasks", iconClassName: "bi bi-activity", description: "Monitor active tasks and processes" },
+  { id: "devices", label: "Devices", iconClassName: "bi bi-gpu-card", description: "Manage GPUs, CPU, and device pools" },
   { id: "web_search", label: "Web Search", iconClassName: "bi bi-globe", description: "Configure web search settings" },
   { id: "kb_settings", label: "Knowledge Base", iconClassName: "bi bi-book-half", description: "Knowledge base and RAG settings" },
   { id: "ssl", label: "SSL", iconClassName: "bi bi-lock", description: "SSL/TLS certificate management" },

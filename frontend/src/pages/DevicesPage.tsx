@@ -6,6 +6,7 @@ import Modal from "../components/ui/Modal";
 import ReorderButtons from "../components/ui/ReorderButtons";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
 import { DeviceRecord, DeviceUpdateResponse, GpuPoolRecord } from "../lib/records";
+import SettingsLayout from "./SettingsLayout";
 
 const AUTO_SAVE_DELAY_MS = 700;
 const REORDER_AUTO_SAVE_DELAY_MS = 1000;
@@ -603,7 +604,7 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
   const showDeviceReorder = devices.length > 1;
   const showPoolReorder = pools.length > 0;
 
-  return (
+  const content = (
     <section className="grid gap-4">
       <article className="surface p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -956,4 +957,10 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
       ) : null}
     </section>
   );
+
+  if (setupMode) {
+    return content;
+  }
+
+  return <SettingsLayout title="Devices">{content}</SettingsLayout>;
 }

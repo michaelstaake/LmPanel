@@ -12,6 +12,7 @@ import LogsPage from "./LogsPage";
 import SettingsHomePage from "./SettingsHomePage";
 import NotificationSettingsPage from "./NotificationSettingsPage";
 import MailSettingsPage from "./MailSettingsPage";
+import DevicesPage from "./DevicesPage";
 
 export default function SettingsPage() {
   return (
@@ -21,6 +22,7 @@ export default function SettingsPage() {
       <Route path="security" element={<SecurityPage />} />
       <Route path="packages" element={<PackagesPage />} />
       <Route path="running_tasks" element={<RunningTasksPage />} />
+      <Route path="devices" element={<DevicesPage />} />
       <Route path="users" element={<UsersPage />} />
       <Route path="web_search" element={<WebSearchPage />} />
       <Route path="kb_settings" element={<KnowledgeBaseSettings />} />

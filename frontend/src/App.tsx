@@ -8,7 +8,6 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import SetupPage from "./pages/SetupPage";
 import StatusPage from "./pages/StatusPage";
-import DevicesPage from "./pages/DevicesPage";
 import ModelsPage from "./pages/ModelsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ForbiddenPage from "./pages/ForbiddenPage";
@@ -47,7 +46,6 @@ function getMainNavItems(user: CurrentUser | null, knowledgeBaseEnabled: boolean
   }
 
   if (user?.is_admin) {
-    items.push({ to: "/devices", iconClassName: "bi bi-gpu-card", label: "Devices" });
     items.push({ to: "/models", iconClassName: "bi bi-file-earmark", label: "Models" });
     items.push({ to: "/settings", iconClassName: "bi bi-gear", label: "Settings" });
   }
@@ -221,10 +219,10 @@ export default function App() {
         updates: "Updates",
         notifications: "Notifications",
         mail: "Mail",
+        devices: "Devices",
       };
       return labels[subPath] || "Settings";
     }
-    if (path === "/devices") return "Devices";
     if (path === "/models") return "Models";
     if (path === "/profile") return "Profile";
     if (path === "/login" || path === "/auth") return "Login";
@@ -383,7 +381,7 @@ export default function App() {
                 <Route path="/new-chat" element={<HomeRoute />} />
                 <Route path="/settings" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
                 <Route path="/settings/*" element={<RequireAdmin><SettingsPage /></RequireAdmin>} />
-                <Route path="/devices" element={<RequireAdmin><DevicesPage /></RequireAdmin>} />
+                <Route path="/devices" element={<Navigate to="/settings/devices" replace />} />
                 <Route path="/models" element={<RequireAdmin><ModelsPage /></RequireAdmin>} />
                 <Route path="/login" element={<AuthPage />} />
                 <Route path="/register" element={<RegisterPage />} />

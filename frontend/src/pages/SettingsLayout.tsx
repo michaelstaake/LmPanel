@@ -12,6 +12,7 @@ const settingsRouteLabels: Record<string, string> = {
   users: "Users",
   packages: "Packages",
   running_tasks: "Running Tasks",
+  devices: "Devices",
   web_search: "Web Search",
   kb_settings: "Knowledge Base",
   ssl: "SSL",
