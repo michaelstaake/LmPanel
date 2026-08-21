@@ -9,6 +9,8 @@ const MINUTE_IN_MS = 60 * 1000;
 const HOUR_IN_MS = 60 * MINUTE_IN_MS;
 const DAY_IN_MS = 24 * HOUR_IN_MS;
 
+type ApiUrlInfoId = "usage" | "models";
+
 function formatLastUsed(value: string | null): string {
   if (!value) {
     return "Never used";
@@ -31,6 +33,41 @@ function formatLastUsed(value: string | null): string {
   return "Last used more than 24 hours ago";
 }
 
+function buildModelsExampleResponse(models: V1ModelEntry[]) {
+  return {
+    object: "list",
+    data: models.map((model) => ({
+      id: model.id,
+      object: "model",
+      created: model.created,
+      owned_by: model.owned_by,
+      ...(model.description ? { description: model.description } : {}),
+    })),
+  };
+}
+
+function ApiUrlInfoButton({
+  label,
+  open,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`inline-flex h-7 w-7 items-center justify-center text-sand/45 transition hover:text-sand ${open ? "text-sand" : ""}`}
+      aria-label={label}
+      aria-expanded={open}
+      onClick={onToggle}
+    >
+      <i className="bi bi-info-circle text-[16px] leading-none" aria-hidden="true" />
+    </button>
+  );
+}
+
 export default function ApiPage() {
   const { token, user, setupStatus } = useAuth();
   const { showError, showSuccess } = useToast();
@@ -43,6 +80,7 @@ export default function ApiPage() {
   const [revokingKeyId, setRevokingKeyId] = useState<number | null>(null);
   const [v1Models, setV1Models] = useState<V1ModelEntry[]>([]);
   const [isLoadingV1Models, setIsLoadingV1Models] = useState(false);
+  const [openInfoId, setOpenInfoId] = useState<ApiUrlInfoId | null>(null);
 
   useEffect(() => {
     if (!token || !user) {
@@ -81,6 +119,10 @@ export default function ApiPage() {
     } finally {
       setIsLoadingV1Models(false);
     }
+  }
+
+  function toggleInfo(id: ApiUrlInfoId) {
+    setOpenInfoId((current) => (current === id ? null : id));
   }
 
   async function handleCreateApiKey(event: FormEvent<HTMLFormElement>) {
@@ -260,35 +302,74 @@ export default function ApiPage() {
             </div>
           </div>
           <div>
-            <h3 className="font-display text-lg text-sand">Token usage</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-lg text-sand">Token usage</h3>
+              <ApiUrlInfoButton
+                label="Token usage endpoint details"
+                open={openInfoId === "usage"}
+                onToggle={() => toggleInfo("usage")}
+              />
+            </div>
             <div className="mt-2 flex items-center gap-3">
               <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{`${API_V1_BASE_URL}/usage/{60m|24h|7d|30d}`}</code>
             </div>
+            {openInfoId === "usage" ? (
+              <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
+                <p>
+                  Returns the total tokens used by the API key in the Authorization header for the selected
+                  timeframe. Replace the path segment with <code className="font-mono text-sand">60m</code>,{" "}
+                  <code className="font-mono text-sand">24h</code>, <code className="font-mono text-sand">7d</code>, or{" "}
+                  <code className="font-mono text-sand">30d</code>.
+                </p>
+                <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/usage/24h \\
+  -H "Authorization: Bearer API_KEY"`}</pre>
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
+                  <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{JSON.stringify(
+                      {
+                        object: "usage",
+                        timeframe: "24h",
+                        total_tokens: 12345,
+                      },
+                      null,
+                      2,
+                    )}</pre>
+                </div>
+              </div>
+            ) : null}
           </div>
           <div>
-            <h3 className="font-display text-lg text-sand">List models</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-lg text-sand">List models</h3>
+              <ApiUrlInfoButton
+                label="List models endpoint details"
+                open={openInfoId === "models"}
+                onToggle={() => toggleInfo("models")}
+              />
+            </div>
             <div className="mt-2 flex items-center gap-3">
               <code className="surface-muted px-3 py-2 text-sm font-mono text-sand">{API_V1_BASE_URL}/models</code>
             </div>
-          </div>
-          <div>
-            <h3 className="font-display text-lg text-sand">Enabled models</h3>
-            {isLoadingV1Models ? (
-              <p className="mt-2 text-sm text-sand/60">Loading models...</p>
-            ) : v1Models.length === 0 ? (
-              <p className="mt-2 text-sm text-sand/60">No models are currently enabled.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {v1Models.map((model) => (
-                  <li key={model.id} className="surface-muted px-3 py-2">
-                    <span className="text-sm font-mono text-sand">{model.id}</span>
-                    {model.description && (
-                      <span className="ml-2 text-xs text-sand/45">- {model.description}</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
+            {openInfoId === "models" ? (
+              <div className="surface-muted mt-3 space-y-3 px-4 py-3 text-sm text-sand/70">
+                <p>
+                  Returns currently enabled models in OpenAI-compatible format. Use a model{" "}
+                  <code className="font-mono text-sand">id</code> from this list as the{" "}
+                  <code className="font-mono text-sand">model</code> field in chat completions.
+                </p>
+                <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">{`curl -k ${API_V1_BASE_URL}/models`}</pre>
+                <div>
+                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-sand/45">Example response</p>
+                  {isLoadingV1Models ? (
+                    <p className="text-sm text-sand/60">Loading models...</p>
+                  ) : (
+                    <pre className="overflow-x-auto bg-black/40 px-3 py-3 font-mono text-xs text-sand">
+                      {JSON.stringify(buildModelsExampleResponse(v1Models), null, 2)}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </article>
