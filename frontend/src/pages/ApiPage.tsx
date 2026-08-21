@@ -1,6 +1,5 @@
 ﻿import { FormEvent, useEffect, useState } from "react";
 import Modal from "../components/ui/Modal";
-import CodeEditor from "../components/ui/CodeEditor";
 import { apiDelete, apiGet, apiPost, fetchV1Models, type V1ModelEntry } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -32,20 +31,6 @@ function formatLastUsed(value: string | null): string {
   return "Last used more than 24 hours ago";
 }
 
-function isDefaultThinkingDisabled(model: V1ModelEntry): boolean {
-  if (model.discourage_thinking) {
-    return true;
-  }
-  const capability = model.thinking_capability ?? "none";
-  if (capability === "always") {
-    return false;
-  }
-  if (capability === "none") {
-    return true;
-  }
-  return model.default_thinking_enabled === false;
-}
-
 export default function ApiPage() {
   const { token, user, setupStatus } = useAuth();
   const { showError, showSuccess } = useToast();
@@ -58,13 +43,11 @@ export default function ApiPage() {
   const [revokingKeyId, setRevokingKeyId] = useState<number | null>(null);
   const [v1Models, setV1Models] = useState<V1ModelEntry[]>([]);
   const [isLoadingV1Models, setIsLoadingV1Models] = useState(false);
-  const [opencodeConfig, setOpencodeConfig] = useState("");
 
   useEffect(() => {
     if (!token || !user) {
       setApiKeys([]);
       setV1Models([]);
-      setOpencodeConfig("");
       return;
     }
     void refreshApiKeys(token);
@@ -99,42 +82,6 @@ export default function ApiPage() {
       setIsLoadingV1Models(false);
     }
   }
-
-  function buildOpencodeConfig(): string {
-    const models: Record<string, unknown> = {};
-    for (const model of v1Models) {
-      const entry: Record<string, unknown> = { name: model.id };
-      if (model.vision_enabled) {
-        entry.capabilities = { vision: true, image_input: true };
-      }
-      if (isDefaultThinkingDisabled(model)) {
-        entry.options = { reasoning: { enabled: false } };
-      }
-      models[model.id] = entry;
-    }
-
-    const config = {
-      $schema: "https://opencode.ai/config.json",
-      provider: {
-        lmpanel: {
-          name: "lmpanel",
-          npm: "@ai-sdk/openai-compatible",
-          options: {
-            baseURL: API_V1_BASE_URL,
-            apiKey: "API_KEY",
-            timeout: 7200000,
-          },
-          models,
-        },
-      },
-    };
-
-    return JSON.stringify(config, null, 2);
-  }
-
-  useEffect(() => {
-    setOpencodeConfig(buildOpencodeConfig());
-  }, [v1Models, API_V1_BASE_URL]);
 
   async function handleCreateApiKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -298,7 +245,7 @@ export default function ApiPage() {
       </Modal>
 
       <article className="surface p-5">
-        <h2 className="font-display text-2xl">API Documentation</h2>
+        <h2 className="font-display text-2xl">API URLs</h2>
         <div className="mt-5 space-y-6">
           <div>
             <h3 className="font-display text-lg text-sand">Base URL</h3>
@@ -337,25 +284,6 @@ export default function ApiPage() {
               </ul>
             )}
           </div>
-        </div>
-      </article>
-
-      <article className="surface p-5">
-        <h2 className="font-display text-2xl">OpenCode config</h2>
-        <p className="mt-2 text-sm text-sand/60">
-          Use this in your OpenCode config file to connect to LmPanel's OpenAI-compatible endpoint. Adjust the models and settings as needed.
-        </p>
-        <div className="mt-4">
-          {isLoadingV1Models ? (
-            <p className="mt-2 text-sm text-sand/60">Loading models...</p>
-          ) : (
-            <CodeEditor
-              value={opencodeConfig}
-              onChange={() => {}}
-              language="json"
-              height="26rem"
-            />
-          )}
         </div>
       </article>
     </section>

@@ -124,32 +124,6 @@ curl -k https://localhost:8444/v1/chat/completions \
   }'
 ```
 
-## OpenCode Config Example
-
-Use this in your OpenCode config file to connect to LmPanel's OpenAI-compatible endpoint. With default auth settings, clients can call `/v1/models` without an API key; `apiKey` is still required for `/v1/chat/completions`. If `OPENAI_API_AUTH_REQUIRED=false`, apiKey is optional for chat as well and can be omitted or set to any placeholder value.
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "lmpanel": {
-      "name": "lmpanel",
-      "npm": "@ai-sdk/openai-compatible",
-      "options": {
-        "baseURL": "https://localhost:8444/v1",
-        "apiKey": "API_KEY",
-        "timeout": 7200000
-      },
-      "models": {
-        "ai-model": {
-          "name": "AI Model"
-        }
-      }
-    }
-  }
-}
-```
-
 ## Custom SSL (Let's Encrypt + Cloudflare)
 
 LmPanel can replace the default self-signed certificate with a trusted Let's Encrypt certificate using **Cloudflare DNS-01** validation. This works on homelab setups that use **custom HTTPS ports** or cannot bind host port 80, because validation happens through Cloudflare DNS—not through HTTP on LmPanel.
