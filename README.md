@@ -173,19 +173,6 @@ Store the backup away from the LmPanel host and test restoration periodically. M
 
 To roll back after a failed upgrade, stop the stack, restore the previous release files and `.env`, remove the upgraded `lmpanel-data` volume only after confirming the backup, recreate the volume through Compose, and copy the backed-up `/app/data` into the backend container. Restore `models` and `certs`, then rebuild the previous release. Never run older application code against a database already migrated by a newer release.
 
-## Release Candidate Validation
-
-Release candidates are pre-release builds. Validate an RC on a non-production host or against a restorable copy of production data:
-
-1. Record the LmPanel revision, llama.cpp `BUILD_COMMIT`, host driver versions, and device inventory.
-2. Run `docker compose config --quiet`, Python tests, and the frontend typecheck/build.
-3. Build the backend and frontend images, then perform one clean inference build so the selected llama.cpp revision is known.
-4. Verify first-run setup or migration from a backup, login protections, API-key authentication, device discovery, model activation/deactivation, chat streaming, and restart recovery.
-5. Exercise CPU plus each supported GPU vendor present, and confirm unsupported devices are ignored without blocking startup.
-6. Confirm backup restoration and rollback before approving the RC for production.
-
-Report RC failures with logs, the LmPanel revision, exact llama.cpp commit, Docker version, host OS/kernel, Vulkan driver details, and relevant hardware.
-
 ## Interacting with the AI Models
 
 ### Web Interface Chat
