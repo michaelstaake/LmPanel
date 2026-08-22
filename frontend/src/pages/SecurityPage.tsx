@@ -21,7 +21,6 @@ export default function SecurityPage() {
     cloudflare_turnstile_enabled: false,
     cloudflare_turnstile_site_key: null,
     cloudflare_turnstile_secret_key_set: false,
-    two_factor_enabled: false,
     usage_limit_tokens_60_minutes: 0,
     usage_limit_tokens_24_hours: 0,
     usage_limit_tokens_7_days: 0,
@@ -35,19 +34,6 @@ export default function SecurityPage() {
     brute_force_max_failures: 10,
     brute_force_window_minutes: 15,
     brute_force_block_minutes: 15,
-    notifications_enabled: false,
-    notification_server_errors_enabled: false,
-    notification_ip_blocked_enabled: false,
-    notification_user_login_enabled: false,
-    notification_user_registers_enabled: false,
-    notification_usage_limit_reached_enabled: false,
-    mail_email_address: null,
-    mail_email_username: null,
-    mail_email_password_set: false,
-    mail_email_server: null,
-    mail_email_port: 587,
-    mail_email_security: "starttls",
-    mail_email_from_name: null,
     request_timeout_seconds: 300,
   });
   const [localSiteKey, setLocalSiteKey] = useState("");
@@ -342,16 +328,6 @@ export default function SecurityPage() {
                   <option value={1440}>24 hours</option>
                 </select>
               </label>
-            </div>
-          </div>
-
-          <div className="surface-muted py-4 px-4">
-            <div className="text-sm font-semibold text-sand">2FA</div>
-            <p className="mt-1 text-sm text-sand/65">
-              Two-factor authentication for user accounts.
-            </p>
-            <div className="mt-4  field px-4 py-3">
-              <p className="text-sm text-sand/65">Coming soon...</p>
             </div>
           </div>
         </div>

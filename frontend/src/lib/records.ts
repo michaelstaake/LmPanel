@@ -341,7 +341,6 @@ export type AppSettingsRecord = {
   cloudflare_turnstile_enabled: boolean;
   cloudflare_turnstile_site_key: string | null;
   cloudflare_turnstile_secret_key_set: boolean;
-  two_factor_enabled: boolean;
   usage_limit_tokens_60_minutes: number;
   usage_limit_tokens_24_hours: number;
   usage_limit_tokens_7_days: number;
@@ -354,19 +353,6 @@ export type AppSettingsRecord = {
   brute_force_max_failures: number;
   brute_force_window_minutes: number;
   brute_force_block_minutes: number;
-  notifications_enabled: boolean;
-  notification_server_errors_enabled: boolean;
-  notification_ip_blocked_enabled: boolean;
-  notification_user_login_enabled: boolean;
-  notification_user_registers_enabled: boolean;
-  notification_usage_limit_reached_enabled: boolean;
-  mail_email_address: string | null;
-  mail_email_username: string | null;
-  mail_email_password_set: boolean;
-  mail_email_server: string | null;
-  mail_email_port: number;
-  mail_email_security: string;
-  mail_email_from_name: string | null;
   request_timeout_seconds: number;
   hide_footer_info: boolean;
 };

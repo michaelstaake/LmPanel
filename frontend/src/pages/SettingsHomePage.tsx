@@ -14,7 +14,7 @@ type SettingsNavItem = {
 
 const settingsNavItems: SettingsNavItem[] = [
   { id: "general", label: "Configuration", iconClassName: "bi bi-gear", description: "Site name, URL, favicon, and registration" },
-  { id: "security", label: "Security", iconClassName: "bi bi-shield-lock", description: "CAPTCHA, 2FA, and authentication" },
+  { id: "security", label: "Security", iconClassName: "bi bi-shield-lock", description: "CAPTCHA and authentication" },
   { id: "users", label: "Users", iconClassName: "bi bi-people", description: "Manage user accounts and permissions" },
   { id: "packages", label: "Packages", iconClassName: "bi bi-box", description: "Token and tool usage limits" },
   { id: "running_tasks", label: "Running Tasks", iconClassName: "bi bi-activity", description: "Monitor active tasks and processes" },

@@ -155,8 +155,6 @@ Complete these steps before exposing LmPanel beyond a trusted local network:
 6. Set random `INFERENCE_SHARED_SECRET` and `DOCKER_CONTROL_SECRET` values for defense in depth between containers.
 7. Protect `.env`, `certs`, backups, and API keys. Only the allowlisted Docker control sidecar receives the Docker socket; it exposes container logs and frontend certificate reload, not the raw Docker API.
 
-Two-factor authentication is visibly marked **Coming soon** and must not be treated as an available control. Mail delivery and notifications are unavailable in 2.0 and are hidden from Settings.
-
 ## Backups and Rollback
 
 The database is stored in the Compose-managed `lmpanel-data` volume. Models, certificates, and logs are bind-mounted from `./models`, `./certs`, and `./logs`; configuration is in `.env`.

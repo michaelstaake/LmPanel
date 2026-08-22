@@ -65,8 +65,6 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
         app_settings.cloudflare_turnstile_site_key = payload.cloudflare_turnstile_site_key
     if payload.cloudflare_turnstile_secret_key is not None:
         app_settings.cloudflare_turnstile_secret_key = payload.cloudflare_turnstile_secret_key
-    if payload.two_factor_enabled is not None:
-        app_settings.two_factor_enabled = payload.two_factor_enabled
     if payload.brute_force_enabled is not None:
         app_settings.brute_force_enabled = payload.brute_force_enabled
     if payload.brute_force_max_failures is not None:
@@ -76,32 +74,6 @@ def update_settings(payload: AppSettingsUpdateRequest, admin_user: User = Depend
     if payload.brute_force_block_minutes is not None:
         app_settings.brute_force_block_minutes = payload.brute_force_block_minutes
 
-    notification_updates = {
-        "notifications_enabled": payload.notifications_enabled,
-        "notification_server_errors_enabled": payload.notification_server_errors_enabled,
-        "notification_ip_blocked_enabled": payload.notification_ip_blocked_enabled,
-        "notification_user_login_enabled": payload.notification_user_login_enabled,
-        "notification_user_registers_enabled": payload.notification_user_registers_enabled,
-        "notification_usage_limit_reached_enabled": payload.notification_usage_limit_reached_enabled,
-    }
-    for field_name, value in notification_updates.items():
-        if value is not None:
-            setattr(app_settings, field_name, value)
-
-    mail_updates = {
-        "mail_email_address": payload.mail_email_address,
-        "mail_email_username": payload.mail_email_username,
-        "mail_email_server": payload.mail_email_server,
-        "mail_email_port": payload.mail_email_port,
-        "mail_email_security": payload.mail_email_security,
-        "mail_email_from_name": payload.mail_email_from_name,
-    }
-    for field_name, value in mail_updates.items():
-        if value is not None:
-            setattr(app_settings, field_name, value)
-
-    if payload.mail_email_password is not None:
-        app_settings.mail_email_password = payload.mail_email_password
     if payload.request_timeout_seconds is not None:
         app_settings.request_timeout_seconds = payload.request_timeout_seconds
     if payload.hide_footer_info is not None:
@@ -643,7 +615,6 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         cloudflare_turnstile_enabled=app_settings.cloudflare_turnstile_enabled,
         cloudflare_turnstile_site_key=app_settings.cloudflare_turnstile_site_key,
         cloudflare_turnstile_secret_key_set=app_settings.cloudflare_turnstile_secret_key is not None,
-        two_factor_enabled=app_settings.two_factor_enabled,
         usage_limit_tokens_60_minutes=app_settings.usage_limit_tokens_60_minutes,
         usage_limit_tokens_24_hours=app_settings.usage_limit_tokens_24_hours,
         usage_limit_tokens_7_days=app_settings.usage_limit_tokens_7_days,
@@ -656,19 +627,6 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
         brute_force_max_failures=app_settings.brute_force_max_failures,
         brute_force_window_minutes=app_settings.brute_force_window_minutes,
         brute_force_block_minutes=app_settings.brute_force_block_minutes,
-        notifications_enabled=app_settings.notifications_enabled,
-        notification_server_errors_enabled=app_settings.notification_server_errors_enabled,
-        notification_ip_blocked_enabled=app_settings.notification_ip_blocked_enabled,
-        notification_user_login_enabled=app_settings.notification_user_login_enabled,
-        notification_user_registers_enabled=app_settings.notification_user_registers_enabled,
-        notification_usage_limit_reached_enabled=app_settings.notification_usage_limit_reached_enabled,
-        mail_email_address=app_settings.mail_email_address,
-        mail_email_username=app_settings.mail_email_username,
-        mail_email_password_set=app_settings.mail_email_password is not None,
-        mail_email_server=app_settings.mail_email_server,
-        mail_email_port=app_settings.mail_email_port,
-        mail_email_security=app_settings.mail_email_security,
-        mail_email_from_name=app_settings.mail_email_from_name,
         request_timeout_seconds=app_settings.request_timeout_seconds,
         hide_footer_info=app_settings.hide_footer_info,
     )

@@ -341,7 +341,6 @@ class AppSettingsResponse(BaseModel):
     cloudflare_turnstile_enabled: bool = False
     cloudflare_turnstile_site_key: str | None = None
     cloudflare_turnstile_secret_key_set: bool = False
-    two_factor_enabled: bool = False
     usage_limit_tokens_60_minutes: int = 0
     usage_limit_tokens_24_hours: int = 0
     usage_limit_tokens_7_days: int = 0
@@ -354,19 +353,6 @@ class AppSettingsResponse(BaseModel):
     brute_force_max_failures: int = 10
     brute_force_window_minutes: int = 15
     brute_force_block_minutes: int = 15
-    notifications_enabled: bool = False
-    notification_server_errors_enabled: bool = False
-    notification_ip_blocked_enabled: bool = False
-    notification_user_login_enabled: bool = False
-    notification_user_registers_enabled: bool = False
-    notification_usage_limit_reached_enabled: bool = False
-    mail_email_address: str | None = None
-    mail_email_username: str | None = None
-    mail_email_password_set: bool = False
-    mail_email_server: str | None = None
-    mail_email_port: int = 587
-    mail_email_security: str = "starttls"
-    mail_email_from_name: str | None = None
     request_timeout_seconds: int = 300
     hide_footer_info: bool = False
 
@@ -385,7 +371,6 @@ class AppSettingsUpdateRequest(BaseModel):
     cloudflare_turnstile_enabled: bool | None = None
     cloudflare_turnstile_site_key: str | None = None
     cloudflare_turnstile_secret_key: str | None = None
-    two_factor_enabled: bool | None = None
     usage_limit_tokens_60_minutes: int | None = None
     usage_limit_tokens_24_hours: int | None = None
     usage_limit_tokens_7_days: int | None = None
@@ -398,19 +383,6 @@ class AppSettingsUpdateRequest(BaseModel):
     brute_force_max_failures: int | None = None
     brute_force_window_minutes: int | None = None
     brute_force_block_minutes: int | None = None
-    notifications_enabled: bool | None = None
-    notification_server_errors_enabled: bool | None = None
-    notification_ip_blocked_enabled: bool | None = None
-    notification_user_login_enabled: bool | None = None
-    notification_user_registers_enabled: bool | None = None
-    notification_usage_limit_reached_enabled: bool | None = None
-    mail_email_address: str | None = None
-    mail_email_username: str | None = None
-    mail_email_password: str | None = None
-    mail_email_server: str | None = None
-    mail_email_port: int | None = None
-    mail_email_security: str | None = None
-    mail_email_from_name: str | None = None
     request_timeout_seconds: int | None = None
     hide_footer_info: bool | None = None
 
