@@ -16,6 +16,8 @@ from app.api.deps import get_current_user
 from app.core.db import Base, get_db
 from app.core.inference_manager import InferenceManager
 from app.models.device import Device
+from app.models.gpu_pool import GpuPool, GpuPoolDevice
+from app.models.token_usage import TokenUsage
 from app.models.user import User
 import app.models  # noqa: F401 — register metadata
 
@@ -71,6 +73,8 @@ class StatusDevicesTests(unittest.TestCase):
         )
         self.db.add_all([available, removed])
         self.db.commit()
+        self.db.refresh(available)
+        self.available_device = available
 
         app = FastAPI()
         status.router.inference_manager = InferenceManager()  # type: ignore[attr-defined]
@@ -100,6 +104,79 @@ class StatusDevicesTests(unittest.TestCase):
         hardware_ids = {row["hardware_id"] for row in payload["devices"]}
         self.assertEqual(hardware_ids, {"vulkan:0"})
         self.assertTrue(all(row["available"] for row in payload["devices"]))
+
+    @patch("app.api.status._fetch_llama_cpp_release", new_callable=AsyncMock, return_value=None)
+    @patch(
+        "app.api.status._fetch_runtime_devices",
+        new_callable=AsyncMock,
+        return_value=({}, {}, [{"vendor": "vulkan", "base_url": "http://inference:8100", "detail": "secret"}]),
+    )
+    def test_regular_user_status_hides_token_stats_and_runtime_errors(self, _runtime_devices, _llama_release) -> None:
+        regular_user = User(
+            username="regular-user",
+            email="regular@example.com",
+            password_hash="x",
+            is_admin=False,
+            is_active=True,
+        )
+        other_user = User(
+            username="other-user",
+            email="other@example.com",
+            password_hash="x",
+            is_admin=False,
+            is_active=True,
+        )
+        self.db.add_all([regular_user, other_user])
+        self.db.flush()
+        self.db.add_all(
+            [
+                TokenUsage(user_id=regular_user.id, total_tokens=10, input_tokens=6, output_tokens=4),
+                TokenUsage(user_id=other_user.id, total_tokens=90, input_tokens=50, output_tokens=40),
+            ]
+        )
+        pool = GpuPool(name="Private Pool", vendor="vulkan")
+        self.db.add(pool)
+        self.db.flush()
+        self.db.add(GpuPoolDevice(pool_id=pool.id, device_id=self.available_device.id))
+        self.db.commit()
+
+        self.client.app.dependency_overrides[get_current_user] = lambda: regular_user
+        response = self.client.get("/api/status")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertIsNone(payload["token_usage"])
+        self.assertEqual(payload["tokens_processed"], 0)
+        self.assertEqual(payload["runtime_errors"], [])
+        self.assertEqual(payload["devices"][0]["pool_name"], "Private Pool")
+
+    @patch("app.api.status._fetch_llama_cpp_release", new_callable=AsyncMock, return_value=None)
+    @patch("app.api.status._fetch_runtime_devices", new_callable=AsyncMock, return_value=({}, {}, []))
+    def test_admin_status_returns_server_wide_token_stats(self, _runtime_devices, _llama_release) -> None:
+        other_user = User(
+            username="other-user",
+            email="other@example.com",
+            password_hash="x",
+            is_admin=False,
+            is_active=True,
+        )
+        self.db.add(other_user)
+        self.db.flush()
+        self.db.add_all(
+            [
+                TokenUsage(user_id=self.user.id, total_tokens=10, input_tokens=6, output_tokens=4),
+                TokenUsage(user_id=other_user.id, total_tokens=90, input_tokens=50, output_tokens=40),
+            ]
+        )
+        self.db.commit()
+
+        response = self.client.get("/api/status")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["token_usage"]["forever"]["total_tokens"], 100)
+        self.assertIsNotNone(payload["token_usage"]["top_user_forever"])
+        self.assertEqual(payload["token_usage"]["top_user_forever"]["username"], "other-user")
 
 
 if __name__ == "__main__":

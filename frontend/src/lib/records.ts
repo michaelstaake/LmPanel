@@ -186,6 +186,7 @@ export type DeviceStatusRecord = {
   priority: number;
   max_slots: number;
   max_threads: number;
+  pool_name: string | null;
   memory_total_mb: number;
   memory_used_mb: number;
   gpu_usage_percent: number | null;
@@ -251,7 +252,7 @@ export type StatusResponse = {
   input_tokens_processed: number;
   output_tokens_processed: number;
   tokens_processed: number;
-  token_usage: TokenUsageSummaryRecord;
+  token_usage: TokenUsageSummaryRecord | null;
   account_usage: AccountUsageStatusRecord | null;
   account_tool_usage: AccountToolUsageStatusRecord | null;
   devices: DeviceStatusRecord[];
@@ -260,6 +261,10 @@ export type StatusResponse = {
     base_url: string;
     detail: string;
   }[];
+  pricing: {
+    input_price_per_1m: number;
+    output_price_per_1m: number;
+  };
   package_name?: string | null;
   llama_cpp_release?: string | null;
 };

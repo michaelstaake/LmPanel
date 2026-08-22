@@ -26,10 +26,10 @@ type AuthContextValue = {
   termsSettings: TermsSettings;
   refreshAuthState: () => Promise<void>;
   refreshPublicSettings: () => Promise<void>;
-  updateProfile: (payload: { email?: string; password?: string }) => Promise<CurrentUser>;
+  updateProfile: (payload: { email?: string; password?: string; current_password?: string }) => Promise<CurrentUser>;
   login: (username: string, password: string, turnstileResponse?: string) => Promise<void>;
   register: (username: string, email: string, password: string, turnstileResponse?: string) => Promise<void>;
-  bootstrapAdmin: (username: string, email: string, password: string) => Promise<void>;
+  bootstrapAdmin: (username: string, email: string, password: string, setupToken?: string) => Promise<void>;
   logout: () => void;
   acceptTerms: () => Promise<void>;
   declineTerms: () => Promise<void>;
@@ -112,7 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const currentUser = await apiGet<CurrentUser>("/api/auth/me", token);
+        const currentTermsSettings = await apiGet<TermsSettings>("/api/terms/content");
         setUser(currentUser);
+        setTermsSettings(currentTermsSettings);
       } catch (error) {
         setUser(null);
         clearStoredToken();
@@ -155,13 +157,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function bootstrapAdmin(username: string, email: string, password: string) {
+  async function bootstrapAdmin(username: string, email: string, password: string, setupToken?: string) {
     setIsAuthenticating(true);
     try {
-      const response = await apiPost<{ username: string; email: string; password: string }, LoginResponse>("/api/auth/bootstrap-admin", {
+      const response = await apiPost<{ username: string; email: string; password: string; setup_token?: string }, LoginResponse>("/api/auth/bootstrap-admin", {
         username,
         email,
         password,
+        setup_token: setupToken,
       });
       storeToken(response.access_token);
       setToken(response.access_token);
@@ -213,12 +216,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function updateProfile(payload: { email?: string; password?: string }) {
+  async function updateProfile(payload: { email?: string; password?: string; current_password?: string }) {
     if (!token) {
       throw new Error("You must be signed in to update your profile");
     }
 
-    const currentUser = await apiPatch<{ email?: string; password?: string }, CurrentUser>("/api/auth/me", payload, token);
+    const currentUser = await apiPatch<{ email?: string; password?: string; current_password?: string }, CurrentUser>("/api/auth/me", payload, token);
+    if (payload.password) {
+      clearStoredToken();
+      setToken("");
+      setUser(null);
+      setTermsSettings({ terms_enabled: false, terms_content: "" });
+      return currentUser;
+    }
     setUser(currentUser);
     return currentUser;
   }
@@ -227,6 +237,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredToken();
     setToken("");
     setUser(null);
+    setTermsSettings({ terms_enabled: false, terms_content: "" });
   }
 
   async function acceptTerms() {

@@ -1,11 +1,13 @@
 import asyncio
+import ipaddress
 import os
 import shutil
+import socket
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
@@ -56,6 +58,7 @@ ALLOWED_ASSIGNMENT_MODES = {"auto", "pinned", "pool"}
 UPLOAD_CHUNK_BYTES = 1024 * 1024
 ALLOWED_MODEL_ASSET_SUFFIXES = {".gguf", ".json", ".txt", ".yaml", ".yml", ".bin", ".safetensors"}
 FETCH_JOB_TTL_SECONDS = 30 * 60  # 30 minutes
+MAX_FETCH_REDIRECTS = 5
 
 # In-memory store for fetch job progress: job_id -> progress dict
 _fetch_jobs: dict[str, dict] = {}
@@ -169,38 +172,62 @@ async def _run_fetch_job(
     written = 0
 
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=3600.0) as client:
-            async with client.stream("GET", url) as response:
-                if response.status_code != 200:
-                    error = f"Server returned status {response.status_code}"
-                    _set_fetch_job_error(job_id, error)
-                    return
-
-                total = int(response.headers.get("content-length", 0))
-                _fetch_jobs[job_id]["total"] = total
-
-                try:
-                    model_dir.mkdir(parents=True, exist_ok=False)
-                except FileExistsError:
-                    _set_fetch_job_error(job_id, "Model directory already exists")
-                    return
-
-                with destination.open("wb") as output_file:
-                    async for chunk in response.aiter_bytes(chunk_size=UPLOAD_CHUNK_BYTES):
-                        if not chunk:
-                            break
-
-                        output_file.write(chunk)
-                        written += len(chunk)
-                        _fetch_jobs[job_id]["downloaded"] = written
-                        _fetch_jobs[job_id]["percent"] = min(100, int((written / total) * 100)) if total > 0 else 0
-                        task_manager.update_task(job_id, progress=min(1.0, written / total) if total > 0 else 0.0)
-
-                        if written > max_bytes:
-                            _remove_model_dir(model_dir)
-                            error = f"Downloaded file exceeds the {settings.max_upload_size_mb} MB limit"
-                            _set_fetch_job_error(job_id, error)
+        async with httpx.AsyncClient(follow_redirects=False, timeout=3600.0) as client:
+            current_url = url
+            for redirect_count in range(MAX_FETCH_REDIRECTS + 1):
+                await _validate_public_fetch_url(current_url)
+                async with client.stream("GET", current_url) as response:
+                    if response.status_code in {301, 302, 303, 307, 308}:
+                        location = response.headers.get("location")
+                        if not location:
+                            _set_fetch_job_error(job_id, "Redirect response did not include a location")
                             return
+                        if redirect_count >= MAX_FETCH_REDIRECTS:
+                            _set_fetch_job_error(job_id, "Too many redirects")
+                            return
+                        current_url = urljoin(current_url, location)
+                        continue
+
+                    if response.status_code != 200:
+                        error = f"Server returned status {response.status_code}"
+                        _set_fetch_job_error(job_id, error)
+                        return
+
+                    total = int(response.headers.get("content-length", 0))
+                    if total > max_bytes:
+                        _set_fetch_job_error(
+                            job_id,
+                            f"Downloaded file exceeds the {settings.max_upload_size_mb} MB limit",
+                        )
+                        return
+                    _fetch_jobs[job_id]["total"] = total
+
+                    try:
+                        model_dir.mkdir(parents=True, exist_ok=False)
+                    except FileExistsError:
+                        _set_fetch_job_error(job_id, "Model directory already exists")
+                        return
+
+                    with destination.open("wb") as output_file:
+                        async for chunk in response.aiter_bytes(chunk_size=UPLOAD_CHUNK_BYTES):
+                            if not chunk:
+                                break
+
+                            output_file.write(chunk)
+                            written += len(chunk)
+                            _fetch_jobs[job_id]["downloaded"] = written
+                            _fetch_jobs[job_id]["percent"] = min(100, int((written / total) * 100)) if total > 0 else 0
+                            task_manager.update_task(job_id, progress=min(1.0, written / total) if total > 0 else 0.0)
+
+                            if written > max_bytes:
+                                _remove_model_dir(model_dir)
+                                error = f"Downloaded file exceeds the {settings.max_upload_size_mb} MB limit"
+                                _set_fetch_job_error(job_id, error)
+                                return
+                    break
+            else:
+                _set_fetch_job_error(job_id, "Too many redirects")
+                return
 
         _fetch_jobs[job_id]["downloaded"] = written
         _fetch_jobs[job_id]["percent"] = min(100, int((written / _fetch_jobs[job_id]["total"]) * 100)) if _fetch_jobs[job_id]["total"] and _fetch_jobs[job_id]["total"] > 0 else 100
@@ -436,7 +463,37 @@ def scan_models(_: User = Depends(get_admin_user), db: Session = Depends(get_db)
 
 
 def _normalize_fetch_url(url: str) -> str:
-    return url.split("?", 1)[0]
+    parsed = urlparse(url)
+    return urlunparse(parsed._replace(fragment=""))
+
+
+async def _validate_public_fetch_url(url: str) -> None:
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            raise ValueError("URL must use http or https")
+        if not parsed.hostname or parsed.username is not None or parsed.password is not None:
+            raise ValueError("Invalid URL")
+        port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    except ValueError as exc:
+        raise ValueError(str(exc) or "Invalid URL") from exc
+
+    try:
+        literal = ipaddress.ip_address(parsed.hostname)
+        addresses = {literal}
+    except ValueError:
+        try:
+            records = await asyncio.get_running_loop().getaddrinfo(
+                parsed.hostname,
+                port,
+                type=socket.SOCK_STREAM,
+            )
+        except socket.gaierror as exc:
+            raise ValueError("URL host could not be resolved") from exc
+        addresses = {ipaddress.ip_address(record[4][0]) for record in records}
+
+    if not addresses or any(not address.is_global for address in addresses):
+        raise ValueError("URL host resolves to a non-public address")
 
 
 @router.post("/fetch")
@@ -447,13 +504,9 @@ async def fetch_model(
 ) -> dict:
     fetch_url = _normalize_fetch_url(payload.url.strip())
 
-    # Validate URL
     try:
+        await _validate_public_fetch_url(fetch_url)
         parsed = urlparse(fetch_url)
-        if parsed.scheme not in ("http", "https"):
-            raise ValueError("URL must use http or https")
-        if not parsed.netloc:
-            raise ValueError("Invalid URL")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

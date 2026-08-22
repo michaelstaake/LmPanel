@@ -1,10 +1,11 @@
-FROM node:20-bookworm AS build
+FROM node:20.19.4-bookworm AS build
 
 WORKDIR /app
 
 COPY frontend/package.json ./package.json
+COPY frontend/package-lock.json ./package-lock.json
 
-RUN npm install
+RUN npm ci
 
 COPY frontend/ ./
 
@@ -19,7 +20,7 @@ ARG APP_VERSION=""
 COPY .git /tmp/.git
 RUN export VITE_APP_GIT_COMMIT="${GIT_COMMIT:-$(git -C /tmp/.git rev-parse --short HEAD 2>/dev/null || true)}" && export VITE_APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" && npm run build && printf 'VITE_APP_GIT_COMMIT="%s"\nVITE_APP_VERSION="%s"\n' "${VITE_APP_GIT_COMMIT}" "${VITE_APP_VERSION}" > /tmp/build-info.env
 
-FROM nginx:1.27-alpine
+FROM nginx:1.28.0-alpine
 
 RUN apk add --no-cache openssl
 

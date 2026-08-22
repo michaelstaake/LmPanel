@@ -2,6 +2,7 @@ export const AUTH_TOKEN_KEY = "lmpanel.authToken";
 
 export type BootstrapStatus = {
   requires_setup: boolean;
+  setup_token_required: boolean;
   has_admin_user: boolean;
   has_enabled_device: boolean;
   has_active_model: boolean;

@@ -407,8 +407,7 @@ export type TaskStatusResponse = {
 };
 
 export async function fetchTaskStatus(taskId: string, token?: string): Promise<TaskStatusResponse> {
-  const tasks = await apiGet<TaskStatusResponse[]>("/api/tasks", token);
-  return tasks.find(t => t.task_id === taskId) || null as unknown as TaskStatusResponse;
+  return apiGet<TaskStatusResponse>(`/api/tasks/${encodeURIComponent(taskId)}`, token);
 }
 
 export type V1ModelEntry = {

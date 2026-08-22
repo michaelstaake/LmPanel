@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch } from "../lib/api";
 import { formatDeviceIdLabel } from "../lib/deviceIds";
-import { AccountUsageStatusRecord, AppSettingsRecord, DeviceStatusRecord, GpuPoolRecord, StatusModelRecord, StatusResponse, TokenUsageMetricRecord, TokenUsageSummaryRecord, TopTokenUserRecord } from "../lib/records";
+import { AppSettingsRecord, DeviceStatusRecord, StatusModelRecord, StatusResponse, TokenUsageMetricRecord, TokenUsageSummaryRecord, TopTokenUserRecord } from "../lib/records";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import Modal from "../components/ui/Modal";
@@ -62,17 +62,6 @@ function formatMemorySummary(memoryUsedMb: number, memoryTotalMb: number) {
   return `${formatMemory(memoryUsedMb)} of ${formatMemory(memoryTotalMb)}`;
 }
 
-function formatCombinedMemorySummary(memoryUsedMb: number, memoryTotalMb: number, hasUnknownCapacity: boolean) {
-  if (hasUnknownCapacity && !hasKnownMemoryCapacity(memoryTotalMb)) {
-    return `${formatMemory(memoryUsedMb)} used across pooled GPUs`;
-  }
-  if (hasUnknownCapacity) {
-    return `${formatMemory(memoryUsedMb)} used of at least ${formatMemory(memoryTotalMb)}`;
-  }
-
-  return formatMemorySummary(memoryUsedMb, memoryTotalMb);
-}
-
 function formatDiskSpace(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
     return `${(bytes / (1024 * 1024 * 1024 * 1024)).toFixed(1)} TB`;
@@ -125,31 +114,6 @@ function formatTokenValue(metric: TokenUsageMetricRecord | TopTokenUserRecord) {
 
 function formatWholePercent(value: number) {
   return `${Math.round(clampPercent(value))}%`;
-}
-
-function formatResetIn(seconds: number | null) {
-  if (seconds === null || seconds < 0) return null;
-  const days = Math.floor(seconds / (60 * 60 * 24));
-  if (days > 0) {
-    const remainingHours = Math.floor((seconds % (60 * 60 * 24)) / (60 * 60));
-    if (remainingHours > 0) {
-      return `${days} day${days !== 1 ? "s" : ""}, ${remainingHours} hour${remainingHours !== 1 ? "s" : ""}`;
-    }
-    return `${days} day${days !== 1 ? "s" : ""}`;
-  }
-  const hours = Math.floor(seconds / (60 * 60));
-  if (hours > 0) {
-    const remainingMinutes = Math.floor((seconds % (60 * 60)) / 60);
-    if (remainingMinutes > 0) {
-      return `${hours} hour${hours !== 1 ? "s" : ""}, ${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""}`;
-    }
-    return `${hours} hour${hours !== 1 ? "s" : ""}`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes > 0) {
-    return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
-  }
-  return null;
 }
 
 function getSystemHealth(activeModels: number, memoryUsagePercent: number | null) {
@@ -258,6 +222,18 @@ function DeviceCard({ device, poolName, modelColors }: { device: DeviceStatusRec
             ))}
           </div>
         )}
+        {memoryBarSegments.length > 0 && (
+          <div className="flex h-3 overflow-hidden bg-black/30" aria-label="Memory allocation">
+            {memoryBarSegments.map((segment) => (
+              <span
+                key={segment.key}
+                className="h-full"
+                style={{ width: `${segment.width}%`, backgroundColor: segment.backgroundColor }}
+                title={segment.title}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -267,12 +243,11 @@ export default function StatusPage() {
   const { token, user } = useAuth();
   const { showError } = useToast();
   const [devices, setDevices] = useState<DeviceStatusRecord[]>([]);
-  const [pools, setPools] = useState<GpuPoolRecord[]>([]);
   const [systemCpuUsagePercent, setSystemCpuUsagePercent] = useState<number | null>(null);
   const [systemDiskFreeBytes, setSystemDiskFreeBytes] = useState<number>(0);
   const [tokenUsage, setTokenUsage] = useState<TokenUsageSummaryRecord | null>(null);
-  const [accountUsage, setAccountUsage] = useState<AccountUsageStatusRecord | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettingsRecord | null>(null);
+  const [pricing, setPricing] = useState({ input_price_per_1m: 0, output_price_per_1m: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const lastErrorMessageRef = useRef<string | null>(null);
   const [isManageCostOpen, setIsManageCostOpen] = useState(false);
@@ -296,8 +271,8 @@ export default function StatusPage() {
         setDevices(response.devices);
         setSystemCpuUsagePercent(response.system_cpu_usage_percent);
         setSystemDiskFreeBytes(response.system_disk_free_bytes);
-        setTokenUsage(response.token_usage);
-        setAccountUsage(response.account_usage ?? null);
+        setTokenUsage(response.token_usage ?? null);
+        setPricing(response.pricing);
         lastErrorMessageRef.current = null;
       } catch (error) {
         if (!isMounted) {
@@ -306,7 +281,6 @@ export default function StatusPage() {
         setSystemCpuUsagePercent(null);
         setSystemDiskFreeBytes(0);
         setTokenUsage(null);
-        setAccountUsage(null);
         const message = error instanceof Error ? error.message : "Failed to load status";
         if (lastErrorMessageRef.current !== message) {
           showError(message, { id: "status-error" });
@@ -332,35 +306,26 @@ export default function StatusPage() {
   }, [token]);
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-    apiGet<GpuPoolRecord[]>("/api/devices/pools", token)
-      .then(setPools)
-      .catch((error: Error) => showError(error.message, { id: "status-pools-error" }));
-  }, [token, showError]);
-
-  useEffect(() => {
-    if (!token) {
+    if (!token || !user?.is_admin) {
       return;
     }
     apiGet<AppSettingsRecord>("/api/admin/settings", token)
       .then(setAppSettings)
       .catch((error: Error) => showError(error.message, { id: "status-settings-error" }));
-  }, [token, showError]);
+  }, [token, user?.is_admin, showError]);
 
   const estimatedSavings = useMemo(() => {
-    if (!tokenUsage || !appSettings) {
+    if (!tokenUsage) {
       return 0;
     }
     const forever = tokenUsage.forever;
     if (!forever) {
       return 0;
     }
-    const inputCost = (forever.input_tokens / 1_000_000) * (appSettings.input_price_per_1m || 0);
-    const outputCost = (forever.output_tokens / 1_000_000) * (appSettings.output_price_per_1m || 0);
+    const inputCost = (forever.input_tokens / 1_000_000) * pricing.input_price_per_1m;
+    const outputCost = (forever.output_tokens / 1_000_000) * pricing.output_price_per_1m;
     return inputCost + outputCost;
-  }, [tokenUsage, appSettings]);
+  }, [tokenUsage, pricing]);
 
   function openManageCostModal() {
     setModalDraft({
@@ -383,6 +348,10 @@ export default function StatusPage() {
         token,
       );
       setAppSettings(response);
+      setPricing({
+        input_price_per_1m: response.input_price_per_1m,
+        output_price_per_1m: response.output_price_per_1m,
+      });
       setIsManageCostOpen(false);
     } catch (error) {
       showError(error instanceof Error ? error.message : "Failed to save cost settings");
@@ -392,54 +361,15 @@ export default function StatusPage() {
   }
 
   const visibleDevices = useMemo(() => [...devices.filter((device) => device.enabled && device.available)].sort((left, right) => left.priority - right.priority || left.id - right.id), [devices]);
-  const poolNamesByDeviceId = useMemo(() => {
-    const entries = new Map<number, string>();
-    for (const pool of pools) {
-      for (const device of pool.devices) {
-        entries.set(device.id, pool.name);
-      }
-    }
-    return entries;
-  }, [pools]);
-  const visiblePoolSummaries = useMemo(() => {
-    const visibleById = new Map(visibleDevices.map((device) => [device.id, device]));
-    return pools
-      .map((pool) => {
-        const members = pool.devices
-          .map((poolDevice) => visibleById.get(poolDevice.id))
-          .filter((device): device is DeviceStatusRecord => Boolean(device));
-        if (members.length === 0) {
-          return null;
-        }
-
-        const memoryTotalMb = members.reduce((sum, device) => sum + Math.max(0, device.memory_total_mb), 0);
-        const memoryUsedMb = members.reduce((sum, device) => sum + Math.max(0, device.memory_used_mb), 0);
-        const hasUnknownCapacity = members.some((device) => device.memory_total_mb <= 0);
-        const memberLabel = members.map((device) => `${device.name} ${device.display_suffix}`).join(", ");
-        const loadedModels = Array.from(new Set(members.flatMap((device) => device.models.map((model) => model.alias)))).sort();
-
-        return {
-          id: pool.id,
-          name: pool.name,
-          vendor: pool.vendor,
-          members,
-          memberLabel,
-          memoryTotalMb,
-          memoryUsedMb,
-          hasUnknownCapacity,
-          memoryPercent: hasUnknownCapacity ? null : getMemoryPercent(memoryUsedMb, memoryTotalMb),
-          loadedModels,
-        };
-      })
-      .filter((pool): pool is NonNullable<typeof pool> => pool !== null);
-  }, [pools, visibleDevices]);
   const modelColors = useMemo(() => {
     const modelIds = Array.from(new Set(visibleDevices.flatMap((device) => device.models.map((model) => model.model_id)))).sort((left, right) => left - right);
     return new Map(modelIds.map((modelId, index) => [modelId, colorForModel(index)]));
   }, [visibleDevices]);
 
   const summary = useMemo(() => {
-    const activeModels = visibleDevices.reduce((sum, device) => sum + device.models.length, 0);
+    const activeModels = new Set(
+      visibleDevices.flatMap((device) => device.models.map((model) => model.model_id)),
+    ).size;
     const totalMemory = visibleDevices.reduce((sum, device) => sum + device.memory_total_mb, 0);
     const usedMemory = visibleDevices.reduce((sum, device) => sum + device.memory_used_mb, 0);
     const hasKnownTotalMemory = totalMemory > 0;
@@ -508,9 +438,9 @@ export default function StatusPage() {
       },
       {
         label: "Top User 24h",
-        value: token ? (topUserLast24Hours?.username ?? "N/A") : "N/A",
-        title: token ? formatTokenTooltip(topUserLast24Hours) : undefined,
-        detail: token ? (topUserLast24Hours ? formatWholePercent(topUserLast24HoursPercent) : "0%") : "Log in to view",
+        value: topUserLast24Hours?.username ?? "N/A",
+        title: formatTokenTooltip(topUserLast24Hours),
+        detail: topUserLast24Hours ? formatWholePercent(topUserLast24HoursPercent) : "0%",
         className: "lg:col-span-3",
       },
     ];
@@ -551,37 +481,35 @@ export default function StatusPage() {
             <p className="mt-1 text-sm text-sand/55">{formatMemorySummary(summary.usedMemory, summary.totalMemory)}</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
-            className="surface-muted flex w-full items-center justify-between p-4 text-left hover:bg-white/10 lg:col-span-12"
-          >
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Token Usage</p>
-            <i className={`bi bi-chevron-down text-lg text-sand/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
-          </button>
+          {user?.is_admin && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsTokenStatsOpen(!isTokenStatsOpen)}
+                className="surface-muted flex w-full items-center justify-between p-4 text-left hover:bg-white/10 lg:col-span-12"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Token Usage</p>
+                <i className={`bi bi-chevron-down text-lg text-sand/40 transition-transform ${isTokenStatsOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+              </button>
 
-          {isTokenStatsOpen && tokenCards.map((card) => (
-            <div key={card.label} className={`surface-muted p-4 ${card.className}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{card.label}</p>
-              <p className="mt-2 font-display text-3xl text-sand" title={card.title}>{card.value}</p>
-              <p className="mt-1 text-sm text-sand/55">{card.detail}</p>
-            </div>
-          ))}
+              {isTokenStatsOpen && tokenCards.map((card) => (
+                <div key={card.label} className={`surface-muted p-4 ${card.className}`}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">{card.label}</p>
+                  <p className="mt-2 font-display text-3xl text-sand" title={card.title}>{card.value}</p>
+                  <p className="mt-1 text-sm text-sand/55">{card.detail}</p>
+                </div>
+              ))}
 
-          {isTokenStatsOpen && (
-            <div className="surface-muted p-4 lg:col-span-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Estimated Savings</p>
-              <p className="mt-2 font-display text-3xl text-sand">{appSettings ? `$${estimatedSavings.toFixed(2)}` : "N/A"}</p>
-              {user?.is_admin ? (
-                <p className="mt-1 text-sm">
-                  <a href="#" className="text-blue-600 hover:underline" onClick={(e) => { e.preventDefault(); openManageCostModal(); }}>Manage Cost</a>
-                </p>
-              ) : appSettings ? (
-                <p className="mt-1 text-sm text-sand/55">Based on cloud API pricing of ${appSettings.input_price_per_1m.toFixed(2)}/1M Input, ${appSettings.output_price_per_1m.toFixed(2)}/1M Output</p>
-              ) : (
-                <p className="mt-1 text-sm text-sand/55">Log in to view</p>
+              {isTokenStatsOpen && (
+                <div className="surface-muted p-4 lg:col-span-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sand/45">Estimated Savings</p>
+                  <p className="mt-2 font-display text-3xl text-sand">${estimatedSavings.toFixed(2)}</p>
+                  <p className="mt-1 text-sm">
+                    <a href="#" className="text-blue-600 hover:underline" onClick={(e) => { e.preventDefault(); openManageCostModal(); }}>Manage Cost</a>
+                  </p>
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 
@@ -643,7 +571,7 @@ export default function StatusPage() {
         <div className="surface-muted px-4 py-8 text-sm text-sand/55">Loading...</div>
       ) : visibleDevices.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
-          {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={poolNamesByDeviceId.get(device.id) ?? null} modelColors={modelColors} />)}
+          {visibleDevices.map((device) => <DeviceCard key={device.id} device={device} poolName={device.pool_name} modelColors={modelColors} />)}
         </div>
       ) : (
         <div className="surface-muted border border-dashed border-white/15 px-4 py-8 text-sm text-sand/55">No ready devices are available.</div>

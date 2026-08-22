@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_admin_user, get_current_user
+from app.api.deps import get_admin_user
 from app.core.activity_logger import log_event
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
@@ -34,11 +34,11 @@ app_config = get_settings()
 FAVICON_MAX_BYTES = 2 * 1024 * 1024
 FAVICON_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 LOGO_MAX_BYTES = 5 * 1024 * 1024
-LOGO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".svg", ".gif"}
+LOGO_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif"}
 
 
 @router.get("/settings", response_model=AppSettingsResponse)
-def get_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> AppSettingsResponse:
+def get_settings(_: User = Depends(get_admin_user), db: Session = Depends(get_db)) -> AppSettingsResponse:
     app_settings = get_or_create_app_settings(db)
     return _serialize_app_settings(app_settings)
 
@@ -214,7 +214,7 @@ async def upload_logo(
 ) -> AppSettingsResponse:
     extension = Path(file.filename or "").suffix.lower()
     if extension not in LOGO_EXTENSIONS:
-        raise HTTPException(status_code=400, detail="Logo must be a JPG, PNG, SVG, or GIF file")
+        raise HTTPException(status_code=400, detail="Logo must be a JPG, PNG, or GIF file")
 
     content = await file.read()
     if not content:
@@ -345,6 +345,7 @@ def update_user(user_id: int, payload: UserUpdateRequest, admin_user: User = Dep
         user.email = payload.email
     if payload.password is not None:
         user.password_hash = hash_password(payload.password)
+        user.token_version += 1
     if payload.is_admin is not None:
         user.is_admin = payload.is_admin
     if payload.is_active is not None:
@@ -388,6 +389,7 @@ def update_user_password(user_id: int, payload: UserUpdateRequest, admin_user: U
 
     if payload.password is not None:
         user.password_hash = hash_password(payload.password)
+        user.token_version += 1
 
     db.add(user)
     db.commit()
@@ -673,7 +675,7 @@ def _serialize_app_settings(app_settings) -> AppSettingsResponse:
 
 
 def _favicons_directory() -> Path:
-    return Path(app_config.data_dir) / "favicons"
+    return Path(app_config.data_dir) / "public" / "favicons"
 
 
 def _delete_favicon_file(favicon_path: str | None) -> None:
@@ -686,7 +688,7 @@ def _delete_favicon_file(favicon_path: str | None) -> None:
 
 
 def _logos_directory() -> Path:
-    return Path(app_config.data_dir) / "logos"
+    return Path(app_config.data_dir) / "public" / "logos"
 
 
 def _delete_logo_file(logo_path: str | None) -> None:

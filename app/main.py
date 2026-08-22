@@ -23,6 +23,7 @@ from app.core.gpu_pool_manager import (
     delete_stale_pool_memberships,
 )
 from app.core.inference_manager import InferenceManager, PoolActivationTarget
+from app.core.installation import ensure_public_storage
 from app.core.model_activation import InsufficientHostRamError
 from app.core.pool_lifecycle import DeactivateReason, FailureKind, LivenessKind, RuntimeStateKind, log_pool_event
 from app.core.logging import configure_logging
@@ -32,7 +33,7 @@ from app.models.model_config import ModelConfig
 from app.api import tasks
 settings = get_settings()
 Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
-Path(settings.data_dir, "backgrounds").mkdir(parents=True, exist_ok=True)
+public_storage_directory = ensure_public_storage(settings.data_dir)
 device_manager = DeviceManager()
 inference_manager = InferenceManager()
 logger = logging.getLogger(__name__)
@@ -286,7 +287,7 @@ async def lifespan(_: FastAPI):
     configure_logging(settings.app_log_level)
     Path(settings.models_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
-    Path(settings.data_dir, "backgrounds").mkdir(parents=True, exist_ok=True)
+    ensure_public_storage(settings.data_dir)
 
     await _wait_for_gpu_ready()
 
@@ -380,7 +381,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory=Path(settings.data_dir)), name="static")
+app.mount("/static", StaticFiles(directory=public_storage_directory), name="static")
 
 models.router.inference_manager = inference_manager  # type: ignore[attr-defined]
 openai_compat.router.inference_manager = inference_manager  # type: ignore[attr-defined]

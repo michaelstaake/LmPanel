@@ -16,6 +16,7 @@ from app.core.db import get_db
 from app.core.inference_manager import InferenceManager
 from app.core.token_usage import build_token_usage_summary
 from app.models.device import Device
+from app.models.gpu_pool import GpuPool, GpuPoolDevice
 from app.models.model_config import ModelConfig
 
 router = APIRouter(prefix="/api/status", tags=["status"])
@@ -28,9 +29,22 @@ async def get_status(
 ) -> dict:
     inference: InferenceManager = router.inference_manager  # type: ignore[attr-defined]
     settings = get_settings()
-    token_usage = build_token_usage_summary(db)
-    since_startup = token_usage["since_startup"]
+    # Server-wide token stats are admin-only; non-admins still get account_usage for Profile.
+    token_usage = build_token_usage_summary(db) if current_user.is_admin else None
+    since_startup = (
+        token_usage["since_startup"]
+        if token_usage is not None
+        else {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+    )
     devices = db.query(Device).order_by(Device.priority.asc(), Device.id.asc()).all()
+    pool_names_by_device_id = {
+        device_id: pool_name
+        for device_id, pool_name in (
+            db.query(GpuPoolDevice.device_id, GpuPool.name)
+            .join(GpuPool, GpuPool.id == GpuPoolDevice.pool_id)
+            .all()
+        )
+    }
     models_by_id = {model.id: model for model in db.query(ModelConfig).all()}
     runtime_devices, runtime_by_stable_id, runtime_errors = await _fetch_runtime_devices(settings)
     system_cpu_usage_percent = _coalesce_float(runtime_devices.get("cpu:0", {}).get("usage_percent"))
@@ -85,7 +99,10 @@ async def get_status(
                     "pid": None,
                 })
 
-        models = [_serialize_status_model(row, models_by_id) for row in raw_models]
+        models = [
+            _serialize_status_model(row, models_by_id, include_sensitive=current_user.is_admin)
+            for row in raw_models
+        ]
         models.sort(key=lambda row: row["model_id"])
 
         memory_used_mb = _coalesce_int(runtime_device.get("memory_used_mb"))
@@ -114,6 +131,7 @@ async def get_status(
                 "priority": device.priority,
                 "max_slots": device.max_slots,
                 "max_threads": device.max_threads,
+                "pool_name": pool_names_by_device_id.get(device.id),
                 "memory_total_mb": _coalesce_int(runtime_device.get("memory_total_mb")) or device.memory_mb,
                 "memory_used_mb": memory_used_mb,
                 "gpu_usage_percent": gpu_usage_percent,
@@ -147,8 +165,12 @@ async def get_status(
         "account_usage": account_usage,
         "account_tool_usage": account_tool_usage,
         "devices": serialized_devices,
-        "runtime_errors": runtime_errors,
+        "runtime_errors": runtime_errors if current_user.is_admin else [],
         "package_name": package_name,
+        "pricing": {
+            "input_price_per_1m": app_settings.input_price_per_1m,
+            "output_price_per_1m": app_settings.output_price_per_1m,
+        },
         "llama_cpp_release": await _fetch_llama_cpp_release(settings),
     }
 
@@ -200,17 +222,22 @@ async def _fetch_runtime_devices(settings) -> tuple[dict[str, dict], dict[str, d
     return devices, by_stable_id, errors
 
 
-def _serialize_status_model(row: dict, models_by_id: dict[int, ModelConfig]) -> dict:
+def _serialize_status_model(
+    row: dict,
+    models_by_id: dict[int, ModelConfig],
+    *,
+    include_sensitive: bool = True,
+) -> dict:
     model_id = _coalesce_int(row.get("model_id")) or 0
     model = models_by_id.get(model_id)
     memory_used_mb = _coalesce_int(row.get("memory_used_mb")) or 0
     return {
         "model_id": model_id,
         "alias": row.get("alias") or (model.alias if model else f"Model {model_id}"),
-        "file_name": model.file_name if model else "",
+        "file_name": model.file_name if model and include_sensitive else "",
         "memory_used_mb": memory_used_mb,
         "display_memory_used_mb": memory_used_mb,
-        "pid": _coalesce_int(row.get("pid")),
+        "pid": _coalesce_int(row.get("pid")) if include_sensitive else None,
     }
 
 

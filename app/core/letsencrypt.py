@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
+import httpx
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -351,15 +352,13 @@ async def schedule_daily_ssl_renewal() -> None:
 
 
 def reload_tls_services(settings: Settings | None = None) -> None:
-    active_settings = settings or get_settings()
-    try:
-        import docker  # type: ignore
-    except ImportError as exc:
-        raise RuntimeError("Docker SDK is not available") from exc
-
-    client = docker.from_env()
-    frontend = client.containers.get(active_settings.docker_frontend_container)
-    frontend.exec_run(["nginx", "-s", "reload"])
-
-    backend = client.containers.get(active_settings.docker_backend_container)
-    backend.restart(timeout=30)
+    _ = settings or get_settings()
+    base_url = os.environ.get("DOCKER_CONTROL_URL", "http://docker-control:2375").rstrip("/")
+    secret = os.environ.get("DOCKER_CONTROL_SECRET", "").strip()
+    headers = {"X-Docker-Control-Secret": secret} if secret else {}
+    response = httpx.post(
+        f"{base_url}/certificates/reload",
+        headers=headers,
+        timeout=30.0,
+    )
+    response.raise_for_status()

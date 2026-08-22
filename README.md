@@ -14,11 +14,13 @@ LmPanel is easy, private, and free. Say goodbye to token costs and usage limitat
 
 **VERSION 2.X DROPS SUPPORT FOR NVIDIA GPUS AS WELL AS INTEGRATED AMD/INTEL GPUS. DO NOT UPDATE PAST 1.X IF YOU ARE USING NVIDIA GPUS OR INTEGRATED GRAPHICS.**
 
-- **CPU**
-- **AMD discrete GPU**
-- **Intel Arc discrete GPU**
+- **Supported:** x86_64 CPU inference.
+- **Supported:** Discrete AMD GPUs through Vulkan.
+- **Supported:** Discrete Intel Arc GPUs through Vulkan.
+- **Not supported in 2.x:** NVIDIA GPUs.
+- **Not supported in 2.x:** Integrated/shared-memory AMD and Intel GPUs, including APUs and laptop iGPUs.
 
-NVIDIA GPUs and integrated GPUs (laptop iGPUs / APUs that share system RAM) are ignored if present.
+Unsupported GPUs are soft-disabled: discovery ignores them rather than preventing LmPanel from starting. They cannot be selected for inference, but CPU and supported discrete GPUs on the same host remain available.
 
 ### Ubuntu 26.04
 
@@ -30,6 +32,34 @@ If it works on other operating systems, cool, but supporting that is outside the
 
 Ensure Docker is installed and running in the system context. AMD and Intel Arc GPUs use `/dev/dri` in the default Compose stack.
 
+### Support Matrix
+
+- **Supported host:** Ubuntu 26.04 on x86_64 with Docker Engine using the system/default context.
+- **Supported deployment:** The repository's Docker Compose stack.
+- **Supported accelerators:** Discrete AMD and Intel Arc GPUs with working host Vulkan drivers and `/dev/dri` access.
+- **CPU fallback:** Available on every installation, but intended mainly for testing and fallback.
+- **Best effort:** Ubuntu under WSL; GPU passthrough depends on the Windows, WSL, and Docker configuration.
+- **Outside project support:** Other Linux distributions, Docker Desktop resource isolation, Kubernetes, ARM, NVIDIA, and integrated/shared-memory GPUs.
+
+## Upgrading to 2.0
+
+LmPanel 2.0 changes the supported device set and may apply database migrations at startup. Before upgrading from 1.x:
+
+1. Confirm that the installation does not depend on NVIDIA or integrated graphics. Stay on 1.x if it does.
+2. Stop the stack and make a complete backup using the procedure in [Backups and rollback](#backups-and-rollback).
+3. Save the current release archive or Git revision and a copy of the current `.env`.
+4. Review `.env.example`, especially the authentication, host port, timeout, and memory-limit settings.
+5. Install the 2.0 release files, retain your `.env`, `models`, `certs`, and data backup, then validate the Compose configuration:
+
+   ```bash
+   docker compose config --quiet
+   docker compose up -d --build
+   docker compose ps
+   ```
+
+6. Check backend and inference logs, sign in, verify device discovery, and activate a small model before returning the server to normal use.
+
+Do not test an upgrade for the first time on the only copy of production data. Database migrations are forward operations; a code-only downgrade is not a complete rollback.
 
 ### Quick Start
 
@@ -60,15 +90,28 @@ docker compose up -d --build
 
 #### Notes
 
-At every startup, LmPanel will auto-detect all applicable devices. If you remove or replace a GPU, any old ones will be removed from the database automatically. Models that were assigned to a specific device will revert to Auto mode.
+At every startup, LmPanel auto-detects applicable devices. Temporarily missing or removed GPUs are retained as unavailable so their pool and pin assignments can recover if they return. Unsupported GPU types are ignored.
 
 The initial build may take a while depending on your environment and host performance, as llama.cpp is compiled with Vulkan support. This is normal. Subsequent builds should be much quicker, although occasionally updates may require a fresh build of llama.cpp.
+
+By default, every clean inference-image build clones the latest llama.cpp master branch available at build time. This intentionally provides current Vulkan fixes, but two builds of the same LmPanel release can therefore contain different llama.cpp revisions. The exact built commit remains recorded in `/opt/llama.cpp/BUILD_COMMIT`, and the detected tag/description is in `/opt/llama.cpp/BUILD_TAG`:
+
+```bash
+docker compose exec inference cat /opt/llama.cpp/BUILD_COMMIT
+docker compose exec inference cat /opt/llama.cpp/BUILD_TAG
+```
+
+The release is also shown in LmPanel's status metadata and as a tooltip on the version shown in Settings. For a controlled build, set `LLAMA_CPP_TAG` in `.env` to a known upstream tag before rebuilding. Leave it unset to retain the latest-master behavior.
 
 **4. Proceed to web interface**
 
 Once Docker reports the containers are healthy and started, open the LmPanel web interface: https://localhost:8443 or replace localhost with your server's local IP. You will receive an SSL error since LmPanel generates a self-signed SSL certificate. It is safe to bypass this error.
 
-On a new install you will be redirected to the setup page where you can create your first admin account.
+On a new install you will be redirected to the setup page where you can create your first admin account. Setup through the frontend requires the one-time token printed in the backend startup logs (or the `SETUP_TOKEN` value from `.env`):
+
+```bash
+docker compose logs backend
+```
 
 **5. Configure devices and pools**
 
@@ -89,6 +132,61 @@ To stop LmPanel:
 ```bash
 docker compose down
 ```
+
+## Network Ports
+
+- `8443/tcp` is the default public web interface and same-origin API proxy (`FRONTEND_PORT`).
+- `8444/tcp` is the default loopback-only direct backend/OpenAI-compatible API port (`BACKEND_PORT`).
+- `443/tcp` is the frontend container's internal HTTPS port.
+- `8000/tcp` is the backend container's internal HTTPS port.
+- `8100/tcp` is the inference service's internal Compose-network port and is not published to the host.
+
+Change host mappings with `FRONTEND_PORT` and `BACKEND_PORT` in `.env`. The default Compose file binds the backend port to `127.0.0.1`; use the frontend's same-origin `/v1/` proxy for remote clients. Do not expose port 8100 or the Docker control service to untrusted networks.
+
+## Security Setup
+
+Complete these steps before exposing LmPanel beyond a trusted local network:
+
+1. LmPanel replaces an empty or `change-me` JWT secret with a random value persisted at `/app/data/.jwt-secret`. To manage it explicitly, set `JWT_SECRET` to at least 32 characters (for example, `openssl rand -hex 32`). Changing it invalidates existing sessions.
+2. Keep `OPENAI_API_AUTH_REQUIRED=true`, issue separate API keys to clients, and set `OPENAI_MODELS_AUTH_REQUIRED=true` if model names must not be public.
+3. Use a trusted certificate as described in [Custom SSL](#custom-ssl-lets-encrypt--cloudflare), or terminate TLS at a maintained reverse proxy. Treat the generated self-signed certificate as local bootstrap only.
+4. Keep brute-force protection enabled. Configure Cloudflare Turnstile in **Settings → Security** when login or registration is internet-accessible.
+5. Keep Docker and host packages patched, limit inbound access to required ports, and avoid running the stack through a resource-restricted Docker Desktop context.
+6. Set random `INFERENCE_SHARED_SECRET` and `DOCKER_CONTROL_SECRET` values for defense in depth between containers.
+7. Protect `.env`, `certs`, backups, and API keys. Only the allowlisted Docker control sidecar receives the Docker socket; it exposes container logs and frontend certificate reload, not the raw Docker API.
+
+Two-factor authentication is visibly marked **Coming soon** and must not be treated as an available control. Mail delivery and notifications are unavailable in 2.0 and are hidden from Settings.
+
+## Backups and Rollback
+
+The database is stored in the Compose-managed `lmpanel-data` volume. Models, certificates, and logs are bind-mounted from `./models`, `./certs`, and `./logs`; configuration is in `.env`.
+
+For a consistent backup, stop writes and copy all state:
+
+```bash
+docker compose stop
+mkdir -p backup
+docker compose cp backend:/app/data ./backup/data
+cp -a .env models certs logs backup/
+docker compose start
+```
+
+Store the backup away from the LmPanel host and test restoration periodically. Model files can be omitted only if they are reproducibly available elsewhere.
+
+To roll back after a failed upgrade, stop the stack, restore the previous release files and `.env`, remove the upgraded `lmpanel-data` volume only after confirming the backup, recreate the volume through Compose, and copy the backed-up `/app/data` into the backend container. Restore `models` and `certs`, then rebuild the previous release. Never run older application code against a database already migrated by a newer release.
+
+## Release Candidate Validation
+
+Release candidates are pre-release builds. Validate an RC on a non-production host or against a restorable copy of production data:
+
+1. Record the LmPanel revision, llama.cpp `BUILD_COMMIT`, host driver versions, and device inventory.
+2. Run `docker compose config --quiet`, Python tests, and the frontend typecheck/build.
+3. Build the backend and frontend images, then perform one clean inference build so the selected llama.cpp revision is known.
+4. Verify first-run setup or migration from a backup, login protections, API-key authentication, device discovery, model activation/deactivation, chat streaming, and restart recovery.
+5. Exercise CPU plus each supported GPU vendor present, and confirm unsupported devices are ignored without blocking startup.
+6. Confirm backup restoration and rollback before approving the RC for production.
+
+Report RC failures with logs, the LmPanel revision, exact llama.cpp commit, Docker version, host OS/kernel, Vulkan driver details, and relevant hardware.
 
 ## Interacting with the AI Models
 
@@ -114,7 +212,7 @@ LmPanel currently supports `/v1/models`, `/v1/chat/completions`, and `/v1/usage/
 ## Example API Call
 
 ```bash
-curl -k https://localhost:8444/v1/chat/completions \
+curl -k https://localhost:8443/v1/chat/completions \
   -H "Authorization: Bearer API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
@@ -129,7 +227,7 @@ curl -k https://localhost:8444/v1/chat/completions \
 Token usage is tracked per API key for requests authenticated with that key. Query totals for a timeframe with:
 
 ```bash
-curl -k https://localhost:8444/v1/usage/24h \
+curl -k https://localhost:8443/v1/usage/24h \
   -H "Authorization: Bearer API_KEY"
 ```
 

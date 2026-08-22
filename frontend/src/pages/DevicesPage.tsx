@@ -51,7 +51,7 @@ function deviceTypeLabel(device: { vendor: string; device_type: string; chip_ven
   return `${vendorLabel(device.vendor).toUpperCase()} ${device.device_type.toUpperCase()}`;
 }
 
-function buildDevicePayload(device: DeviceRecord) {
+function buildDevicePayload(device: DeviceRecord): Record<string, string | number | boolean> {
   if (device.in_pool) {
     return {
       name: device.name,
@@ -399,9 +399,8 @@ export default function DevicesPage({ setupMode = false, onContinue }: DevicesPa
     return POOL_CHIP_VENDORS.filter((chipVendor) => (counts.get(chipVendor) ?? 0) > 1);
   }, [devices]);
   const draftChipVendorOptions = useMemo(() => {
-    const currentChipVendor = editingPoolId === null
-      ? null
-      : poolChipVendor(pools.find((pool) => pool.id === editingPoolId) ?? { devices: [] } as GpuPoolRecord);
+    const currentPool = editingPoolId === null ? null : pools.find((pool) => pool.id === editingPoolId);
+    const currentChipVendor = currentPool ? poolChipVendor(currentPool) : null;
     return Array.from(new Set([...(currentChipVendor ? [currentChipVendor] : []), ...availablePoolChipVendors]));
   }, [availablePoolChipVendors, editingPoolId, pools]);
   const showNewPoolButton = !setupMode && availablePoolChipVendors.length > 0;

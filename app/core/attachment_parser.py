@@ -11,6 +11,12 @@ from pypdf import PdfReader
 
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 MAX_EXTRACTED_CHARACTERS = 120_000
+MAX_ARCHIVE_ENTRIES = 1_000
+MAX_ARCHIVE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 100
+MAX_XML_BYTES = 10 * 1024 * 1024
+MAX_PDF_PAGES = 500
+MAX_REPEATED_CELLS = 1_000
 TRUNCATION_SUFFIX = "\n\n[Attachment text truncated to fit the extraction limit.]"
 
 TEXT_ATTACHMENT_SUFFIXES = {
@@ -145,6 +151,8 @@ def _decode_text_payload(payload: bytes) -> str:
 
 def _extract_pdf_text(payload: bytes) -> str:
     reader = PdfReader(BytesIO(payload))
+    if len(reader.pages) > MAX_PDF_PAGES:
+        raise ValueError(f"PDF exceeds the {MAX_PDF_PAGES} page extraction limit.")
     pages: list[str] = []
     for page in reader.pages:
         pages.append(page.extract_text() or "")
@@ -152,6 +160,7 @@ def _extract_pdf_text(payload: bytes) -> str:
 
 
 def _extract_docx_text(payload: bytes) -> str:
+    _validate_zip_archive(payload)
     document = Document(BytesIO(payload))
     segments = [paragraph.text for paragraph in document.paragraphs if paragraph.text.strip()]
 
@@ -165,6 +174,7 @@ def _extract_docx_text(payload: bytes) -> str:
 
 
 def _extract_xlsx_text(payload: bytes) -> str:
+    _validate_zip_archive(payload)
     workbook = load_workbook(filename=BytesIO(payload), read_only=True, data_only=True)
     sections: list[str] = []
 
@@ -224,9 +234,32 @@ def _extract_ods_text(payload: bytes) -> str:
 
 
 def _load_odf_content_xml(payload: bytes) -> ET.Element:
+    _validate_zip_archive(payload)
     with ZipFile(BytesIO(payload)) as archive:
         content_xml = archive.read("content.xml")
+    if len(content_xml) > MAX_XML_BYTES:
+        raise ValueError("Archive XML exceeds the extraction limit.")
+    if b"<!DOCTYPE" in content_xml.upper() or b"<!ENTITY" in content_xml.upper():
+        raise ValueError("XML document type and entity declarations are not allowed.")
     return ET.fromstring(content_xml)
+
+
+def _validate_zip_archive(payload: bytes) -> None:
+    with ZipFile(BytesIO(payload)) as archive:
+        entries = archive.infolist()
+        if len(entries) > MAX_ARCHIVE_ENTRIES:
+            raise ValueError(f"Archive exceeds the {MAX_ARCHIVE_ENTRIES} entry extraction limit.")
+
+        total_uncompressed = 0
+        for entry in entries:
+            total_uncompressed += entry.file_size
+            if total_uncompressed > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
+                raise ValueError("Archive expands beyond the extraction limit.")
+            if entry.file_size and (
+                entry.compress_size == 0
+                or entry.file_size / entry.compress_size > MAX_COMPRESSION_RATIO
+            ):
+                raise ValueError("Archive contains a suspicious compression ratio.")
 
 
 def _flatten_xml_text(element: ET.Element) -> str:
@@ -243,7 +276,7 @@ def _parse_positive_int(value: str | None) -> int:
     except ValueError:
         return 1
 
-    return parsed if parsed > 0 else 1
+    return min(parsed, MAX_REPEATED_CELLS) if parsed > 0 else 1
 
 
 def _success_result(filename: str, content_type: str | None, size: int, text: str, extractor: str) -> dict:

@@ -67,6 +67,23 @@ export default function ConfigurationPage() {
     usage_limit_tools_24_hours: 0,
     usage_limit_tools_7_days: 0,
     usage_limit_tools_30_days: 0,
+    brute_force_enabled: true,
+    brute_force_max_failures: 10,
+    brute_force_window_minutes: 15,
+    brute_force_block_minutes: 15,
+    notifications_enabled: false,
+    notification_server_errors_enabled: false,
+    notification_ip_blocked_enabled: false,
+    notification_user_login_enabled: false,
+    notification_user_registers_enabled: false,
+    notification_usage_limit_reached_enabled: false,
+    mail_email_address: null,
+    mail_email_username: null,
+    mail_email_password_set: false,
+    mail_email_server: null,
+    mail_email_port: 587,
+    mail_email_security: "starttls",
+    mail_email_from_name: null,
     request_timeout_seconds: 300,
     hide_footer_info: false,
   });
@@ -108,7 +125,7 @@ export default function ConfigurationPage() {
     }
   }
 
-  async function updateSetting(settingName: keyof AppSettingsRecord, nextValue: boolean | string) {
+  async function updateSetting(settingName: keyof AppSettingsRecord, nextValue: boolean | string | number) {
     if (!token) {
       return;
     }

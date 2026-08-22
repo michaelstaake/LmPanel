@@ -48,7 +48,11 @@ def normalize_public_url(value: str | None) -> str:
     return f"https://{parsed.hostname}"
 
 
-def build_api_base_url(public_url: str, app_port: int, app_external_port: int = 0) -> str:
+def build_api_base_url(
+    public_url: str,
+    app_port: int | str,
+    app_external_port: int = 0,
+) -> str:
     if not public_url:
         return ""
 
@@ -56,7 +60,12 @@ def build_api_base_url(public_url: str, app_port: int, app_external_port: int = 
     if parsed.port is not None:
         return public_url.rstrip("/")
 
-    effective_port = app_external_port if app_external_port else app_port
+    if isinstance(app_port, str):
+        origin = urlparse(app_port)
+        inferred_port = origin.port or (443 if origin.scheme == "https" else 80)
+        effective_port = app_external_port or inferred_port
+    else:
+        effective_port = app_external_port if app_external_port else app_port
 
     if not effective_port or effective_port == 443:
         return public_url
@@ -134,7 +143,7 @@ def normalize_message_for_inference(message: dict[str, Any]) -> dict[str, Any] |
     has_tool_calls = bool(message.get("tool_calls"))
     content_empty = message_content_is_empty(message.get("content"))
 
-    if role == "assistant" and content_empty and not has_tool_calls:
+    if role != "tool" and content_empty and not has_tool_calls:
         return None
 
     return {
@@ -260,6 +269,7 @@ class UserResponse(BaseModel):
 class ProfileUpdateRequest(BaseModel):
     email: str | None = Field(default=None, min_length=3, max_length=255)
     password: str | None = Field(default=None, min_length=8, max_length=255)
+    current_password: str | None = Field(default=None, min_length=1, max_length=255)
 
 
 class ApiKeyResponse(BaseModel):
@@ -279,6 +289,7 @@ class ApiKeyCreateResponse(BaseModel):
 
 class BootstrapStatusResponse(BaseModel):
     requires_setup: bool
+    setup_token_required: bool = False
     has_admin_user: bool = False
     has_enabled_device: bool = False
     has_active_model: bool = False
@@ -298,6 +309,7 @@ class BootstrapAdminRequest(BaseModel):
     username: str = Field(min_length=4, max_length=16)
     email: str = Field(min_length=3, max_length=255)
     password: str = Field(min_length=8, max_length=255)
+    setup_token: str | None = None
 
     @field_validator("username", mode="before")
     @classmethod

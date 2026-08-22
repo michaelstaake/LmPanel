@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import shlex
 import subprocess
 import threading
@@ -15,8 +16,8 @@ from typing import IO, Optional
 
 import httpx
 import psutil
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import get_settings
@@ -48,6 +49,7 @@ from app.core.pci_bdf import normalize_pci_bdf
 from app.core.intel_drm_memory import read_intel_vram_metrics
 
 logger = logging.getLogger(__name__)
+INFERENCE_SECRET_HEADER = "X-Inference-Secret"
 
 
 def _log_gpu_passthrough_warning() -> None:
@@ -196,6 +198,26 @@ def _coalesce_int(value: object) -> int | None:
         return None
 
 
+def _confine_model_path(path_value: str, *, require_gguf: bool = False) -> str:
+    models_root = Path(os.environ.get("MODELS_DIR", get_settings().models_dir)).resolve()
+    candidate = Path(path_value).resolve()
+    try:
+        candidate.relative_to(models_root)
+    except ValueError as exc:
+        raise ValueError("Model path must be inside the configured models directory") from exc
+    if not candidate.is_file():
+        raise ValueError("Model path must reference an existing file")
+    if require_gguf and candidate.suffix.lower() != ".gguf":
+        raise ValueError("Model path must reference a GGUF file")
+    return str(candidate)
+
+
+def _validate_activation_paths(payload: "ActivateModelRequest") -> None:
+    payload.file_path = _confine_model_path(payload.file_path, require_gguf=True)
+    if payload.mmproj_path is not None:
+        payload.mmproj_path = _confine_model_path(payload.mmproj_path)
+
+
 class ActivateModelRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
@@ -300,6 +322,10 @@ class InferenceRuntime:
         return "on" if model_wants else "auto"
 
     async def activate_model(self, payload: ActivateModelRequest) -> None:
+        try:
+            _validate_activation_paths(payload)
+        except ValueError as exc:
+            raise RuntimeError(str(exc)) from exc
         effective_vendor = payload.vendor.removesuffix("_pool")
         if not is_supported_vendor(effective_vendor):
             raise RuntimeError(f"Unsupported device vendor for this inference service: {payload.vendor}")
@@ -1189,6 +1215,24 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="LmPanel Inference Service", lifespan=lifespan)
 runtime = InferenceRuntime()
 device_manager = DeviceManager()
+
+
+@app.middleware("http")
+async def authenticate_backend_requests(request: Request, call_next):
+    expected = os.environ.get("INFERENCE_SHARED_SECRET", "").strip()
+    protected = (
+        request.url.path == "/runtime/models/activate"
+        or request.url.path.endswith("/deactivate")
+        or request.url.path.endswith("/chat/completions")
+    )
+    if expected and protected:
+        supplied = request.headers.get(INFERENCE_SECRET_HEADER, "")
+        if not secrets.compare_digest(supplied, expected):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid inference service credentials"},
+            )
+    return await call_next(request)
 
 
 @app.get("/health")

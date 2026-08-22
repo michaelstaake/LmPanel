@@ -183,7 +183,7 @@ function SetupRoute() {
 }
 
 export default function App() {
-  const { bootstrapError, faviconPath, logoPath, hideFooterInfo, isBootstrapping, knowledgeBaseEnabled, requiresSetup, user, sitename } = useAuth();
+  const { bootstrapError, faviconPath, logoPath, hideFooterInfo, isBootstrapping, knowledgeBaseEnabled, requiresSetup, token, user, sitename } = useAuth();
   const { showError } = useToast();
   const location = useLocation();
   const [backendUnavailable, setBackendUnavailable] = useState(() => isBackendUnavailableLocked());
@@ -216,9 +216,6 @@ export default function App() {
         ssl: "SSL",
         terms: "Terms and Policies",
         logs: "Logs",
-        updates: "Updates",
-        notifications: "Notifications",
-        mail: "Mail",
         devices: "Devices",
       };
       return labels[subPath] || "Settings";
@@ -257,7 +254,7 @@ export default function App() {
         }
       } else {
         (async () => {
-          const status = await getSystemStatus();
+          const status = await getSystemStatus(token || "");
           const href = createFaviconSvg(status);
           if (link) {
             link.href = href;
@@ -284,7 +281,7 @@ export default function App() {
         window.clearInterval(intervalId);
       }
     };
-  }, [faviconPath]);
+  }, [faviconPath, token]);
 
   useEffect(() => {
     function handleBackendUnavailable() {

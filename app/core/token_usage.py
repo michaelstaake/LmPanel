@@ -94,27 +94,34 @@ def get_api_key_token_total(db: Session, *, api_key_id: int, timeframe: str) -> 
     return int(total_tokens or 0)
 
 
-def build_token_usage_summary(db: Session) -> dict:
+def build_token_usage_summary(db: Session, *, user_id: int | None = None) -> dict:
     now = datetime.now(timezone.utc)
 
     return {
-        "since_startup": _aggregate_token_usage(db, since=PROCESS_STARTED_AT),
-        "last_1_hour": _aggregate_token_usage(db, since=now - timedelta(hours=1)),
-        "last_24_hours": _aggregate_token_usage(db, since=now - timedelta(hours=24)),
-        "last_7_days": _aggregate_token_usage(db, since=now - timedelta(days=7)),
-        "last_30_days": _aggregate_token_usage(db, since=now - timedelta(days=30)),
-        "forever": _aggregate_token_usage(db),
-        "top_user_last_24_hours": _aggregate_top_user(db, since=now - timedelta(hours=24)),
-        "top_user_forever": _aggregate_top_user(db),
+        "since_startup": _aggregate_token_usage(db, since=PROCESS_STARTED_AT, user_id=user_id),
+        "last_1_hour": _aggregate_token_usage(db, since=now - timedelta(hours=1), user_id=user_id),
+        "last_24_hours": _aggregate_token_usage(db, since=now - timedelta(hours=24), user_id=user_id),
+        "last_7_days": _aggregate_token_usage(db, since=now - timedelta(days=7), user_id=user_id),
+        "last_30_days": _aggregate_token_usage(db, since=now - timedelta(days=30), user_id=user_id),
+        "forever": _aggregate_token_usage(db, user_id=user_id),
+        "top_user_last_24_hours": _aggregate_top_user(db, since=now - timedelta(hours=24)) if user_id is None else None,
+        "top_user_forever": _aggregate_top_user(db) if user_id is None else None,
     }
 
 
-def _aggregate_token_usage(db: Session, *, since: datetime | None = None) -> dict:
+def _aggregate_token_usage(
+    db: Session,
+    *,
+    since: datetime | None = None,
+    user_id: int | None = None,
+) -> dict:
     query = db.query(
         func.coalesce(func.sum(TokenUsage.total_tokens), 0),
         func.coalesce(func.sum(TokenUsage.input_tokens), 0),
         func.coalesce(func.sum(TokenUsage.output_tokens), 0),
     )
+    if user_id is not None:
+        query = query.filter(TokenUsage.user_id == user_id)
     if since is not None:
         query = query.filter(TokenUsage.created_at >= since)
 

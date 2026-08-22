@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import threading
 import time
 from collections.abc import AsyncIterator
@@ -28,6 +29,12 @@ from app.models.device import Device
 from app.models.model_config import ModelConfig
 
 logger = logging.getLogger(__name__)
+INFERENCE_SECRET_HEADER = "X-Inference-Secret"
+
+
+def _inference_auth_headers() -> dict[str, str]:
+    secret = os.environ.get("INFERENCE_SHARED_SECRET", "").strip()
+    return {INFERENCE_SECRET_HEADER: secret} if secret else {}
 
 _pool_lock_registry_guard = threading.Lock()
 _pool_lock_registry: dict[str, threading.Lock] = {}
@@ -302,7 +309,10 @@ class InferenceManager:
             return None
         url = f"{running.base_url}/runtime/models/{model_id}/alive"
         try:
-            async with httpx.AsyncClient(timeout=self.settings.inference_service_timeout_seconds) as client:
+            async with httpx.AsyncClient(
+                timeout=self.settings.inference_service_timeout_seconds,
+                headers=_inference_auth_headers(),
+            ) as client:
                 response = await client.get(url)
                 response.raise_for_status()
                 data = response.json()
@@ -318,7 +328,10 @@ class InferenceManager:
             return None
         url = f"{running.base_url}/runtime/models/{model_id}/alive"
         try:
-            async with httpx.AsyncClient(timeout=self.settings.inference_service_timeout_seconds) as client:
+            async with httpx.AsyncClient(
+                timeout=self.settings.inference_service_timeout_seconds,
+                headers=_inference_auth_headers(),
+            ) as client:
                 response = await client.get(url)
                 response.raise_for_status()
                 raw = response.json().get("failure_kind")
@@ -369,7 +382,7 @@ class InferenceManager:
                 continue
             seen_urls.add(base_url)
             try:
-                async with httpx.AsyncClient(timeout=timeout) as client:
+                async with httpx.AsyncClient(timeout=timeout, headers=_inference_auth_headers()) as client:
                     response = await client.get(f"{base_url}/runtime/status")
                     response.raise_for_status()
                 data = response.json()
@@ -518,7 +531,7 @@ class InferenceManager:
                 started = time.monotonic()
                 self._starting.add(model.id)
                 try:
-                    async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with httpx.AsyncClient(timeout=timeout, headers=_inference_auth_headers()) as client:
                         response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
                         if response.is_error:
                             raise RuntimeError(_runtime_error_detail(response))
@@ -639,7 +652,7 @@ class InferenceManager:
                 )
                 self._starting.add(model.id)
                 try:
-                    async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with httpx.AsyncClient(timeout=timeout, headers=_inference_auth_headers()) as client:
                         response = await client.post(f"{runtime_url}/runtime/models/activate", json=payload)
                         if response.is_error:
                             raise RuntimeError(_runtime_error_detail(response))
@@ -728,12 +741,18 @@ class InferenceManager:
                 self._force_kill_remote_model(running, model_id)
 
     def _deactivate_remote(self, running: RunningModel, model_id: int) -> None:
-        with httpx.Client(timeout=self.settings.inference_service_timeout_seconds) as client:
+        with httpx.Client(
+            timeout=self.settings.inference_service_timeout_seconds,
+            headers=_inference_auth_headers(),
+        ) as client:
             client.post(f"{running.base_url}/runtime/models/{model_id}/deactivate").raise_for_status()
 
     def _force_kill_remote_model(self, running: RunningModel, model_id: int) -> None:
         try:
-            with httpx.Client(timeout=self.settings.inference_service_timeout_seconds) as client:
+            with httpx.Client(
+                timeout=self.settings.inference_service_timeout_seconds,
+                headers=_inference_auth_headers(),
+            ) as client:
                 response = client.get(f"{running.base_url}/runtime/models/{model_id}/alive")
                 response.raise_for_status()
                 pid = response.json().get("pid")
@@ -755,7 +774,7 @@ class InferenceManager:
 
         while time.monotonic() < deadline:
             try:
-                async with httpx.AsyncClient(timeout=timeout) as client:
+                async with httpx.AsyncClient(timeout=timeout, headers=_inference_auth_headers()) as client:
                     response = await client.get(url)
                 if response.status_code == 200:
                     return True
@@ -777,7 +796,10 @@ class InferenceManager:
                 self.settings.pool_startup_timeout_seconds,
             )
         timeout = request_timeout if request_timeout is not None else self.settings.inference_service_timeout_seconds
-        async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=False, request_timeout=timeout)) as client:
+        async with httpx.AsyncClient(
+            timeout=self._llama_http_timeout(for_stream=False, request_timeout=timeout),
+            headers=_inference_auth_headers(),
+        ) as client:
             response = await client.post(url, json=payload)
         response.raise_for_status()
         return response.json()
@@ -795,7 +817,10 @@ class InferenceManager:
             )
         timeout = request_timeout if request_timeout is not None else self.settings.llama_request_timeout_seconds
         try:
-            async with httpx.AsyncClient(timeout=self._llama_http_timeout(for_stream=True, request_timeout=timeout)) as client:
+            async with httpx.AsyncClient(
+                timeout=self._llama_http_timeout(for_stream=True, request_timeout=timeout),
+                headers=_inference_auth_headers(),
+            ) as client:
                 async with client.stream("POST", url, json=payload) as response:
                     if response.is_error:
                         await response.aread()

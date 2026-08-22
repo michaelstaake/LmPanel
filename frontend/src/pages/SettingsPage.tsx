@@ -10,8 +10,6 @@ import SslPage from "./SslPage";
 import TermsAndPoliciesPage from "./TermsAndPoliciesPage";
 import LogsPage from "./LogsPage";
 import SettingsHomePage from "./SettingsHomePage";
-import NotificationSettingsPage from "./NotificationSettingsPage";
-import MailSettingsPage from "./MailSettingsPage";
 import DevicesPage from "./DevicesPage";
 
 export default function SettingsPage() {
@@ -29,8 +27,6 @@ export default function SettingsPage() {
       <Route path="ssl" element={<SslPage />} />
       <Route path="terms" element={<TermsAndPoliciesPage />} />
       <Route path="logs" element={<LogsPage />} />
-      <Route path="notifications" element={<NotificationSettingsPage />} />
-      <Route path="mail" element={<MailSettingsPage />} />
       <Route path="*" element={<SettingsHomePage />} />
     </Routes>
   );

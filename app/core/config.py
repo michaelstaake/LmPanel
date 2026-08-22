@@ -1,6 +1,9 @@
 from functools import lru_cache
 from pathlib import Path
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.core.installation import INSECURE_JWT_SECRETS, load_or_create_secret
 
 
 RUNTIME_VENDOR_KEYS = {"cpu", "vulkan", "default"}
@@ -24,9 +27,10 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite:///./data/lmpanel.db"
 
-    jwt_secret: str = "change-me"
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 1440
+    setup_token: str = ""
     openai_api_auth_required: bool = True
     openai_models_auth_required: bool = False
 
@@ -62,6 +66,7 @@ class Settings(BaseSettings):
     queue_poll_interval_ms: int = 100
 
     frontend_origin: str = "https://localhost:8443"
+    trusted_proxy_cidrs: str = "172.16.0.0/12"
     ssl_certfile: str = "./certs/server.crt"
     ssl_keyfile: str = "./certs/server.key"
     letsencrypt_email: str = ""
@@ -115,6 +120,18 @@ class Settings(BaseSettings):
     model_activation_max_gtt_used_ratio: float = 0.85
     # Consecutive healthy watchdog ticks required after device_lost before re-activation.
     gpu_reset_cooldown_ticks: int = 2
+
+    @model_validator(mode="after")
+    def resolve_installation_secrets(self) -> "Settings":
+        configured_secret = self.jwt_secret.strip()
+        if (
+            configured_secret
+            and configured_secret not in INSECURE_JWT_SECRETS
+            and len(configured_secret) < 32
+        ):
+            raise ValueError("JWT_SECRET must be at least 32 characters")
+        self.jwt_secret = load_or_create_secret(self.data_dir, ".jwt-secret", self.jwt_secret)
+        return self
 
     def supported_device_list(self) -> list[str]:
         return [item.strip().lower() for item in self.supported_devices.split(",") if item.strip()]

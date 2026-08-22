@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError, jwt
+import jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -46,7 +46,11 @@ def _authenticate_bearer(
         username: str | None = payload.get("sub")
         if not username:
             raise credentials_exception
-    except JWTError as exc:
+        raw_token_version = payload.get("ver", 0)
+        if not isinstance(raw_token_version, int):
+            raise credentials_exception
+        token_version = raw_token_version
+    except jwt.InvalidTokenError as exc:
         api_key = db.query(ApiKey).filter(ApiKey.key_hash == hash_api_key(token)).first()
         if not api_key:
             raise credentials_exception from exc
@@ -62,7 +66,7 @@ def _authenticate_bearer(
         return user, api_key.id
 
     user = db.query(User).filter(User.username == username, User.is_active.is_(True)).first()
-    if not user:
+    if not user or user.token_version != token_version:
         raise credentials_exception
     return user, None
 

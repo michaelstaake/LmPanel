@@ -24,11 +24,16 @@ export function createFaviconSvg(status: StatusKey): string {
   return `data:image/svg+xml,${encodeSvgString(svg)}`;
 }
 
-export async function getSystemStatus(): Promise<StatusKey> {
+export async function getSystemStatus(token: string): Promise<StatusKey> {
   try {
-    const data = await apiGet<StatusResponse>("/api/status");
+    if (!token) {
+      return "error";
+    }
+    const data = await apiGet<StatusResponse>("/api/status", token);
     const devices = data.devices || [];
-    const activeModels = devices.reduce((sum, d) => sum + (d.models?.length || 0), 0);
+    const activeModels = new Set(
+      devices.flatMap((device) => (device.models || []).map((model) => model.model_id)),
+    ).size;
 
     if (activeModels === 0) {
       return "error";

@@ -1,4 +1,4 @@
-﻿import { useNavigate } from "react-router-dom";
+﻿import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import MarkdownRenderer from "../components/ui/MarkdownRenderer";
@@ -10,10 +10,11 @@ export default function TermsAcceptancePage() {
 
   const isTermsEnabled = termsSettings.terms_enabled;
   const isAccepted = user?.terms_accepted ?? false;
-  const hasContent = isTermsEnabled && !isAccepted && termsSettings.terms_content.trim().length > 0;
-
-  if (!hasContent) {
-    return null;
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isTermsEnabled || isAccepted) {
+    return <Navigate to="/" replace />;
   }
 
   return (
@@ -25,7 +26,7 @@ export default function TermsAcceptancePage() {
         </p>
 
         <div className="surface-muted mt-4 max-h-[50vh] overflow-y-auto p-5">
-          {isTermsEnabled && termsSettings.terms_content ? (
+          {termsSettings.terms_content.trim() ? (
             <MarkdownRenderer content={termsSettings.terms_content} />
           ) : (
             <p className="text-sm text-sand/65">No terms and policies content has been configured.</p>

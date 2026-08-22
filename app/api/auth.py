@@ -1,3 +1,5 @@
+import hmac
+import ipaddress
 import logging
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from app.core.activity_logger import log_event
 from app.core.app_settings import get_or_create_app_settings
 from app.core.config import get_settings
 from app.core.db import get_db
+from app.core.installation import acquire_setup_claim, get_setup_token, remove_setup_token
 from app.core.security import create_access_token, generate_api_key, hash_api_key, hash_password, verify_cloudflare_turnstile, verify_password
 from app.models.api_key import ApiKey
 from app.models.device import Device
@@ -25,13 +28,37 @@ logger = logging.getLogger(__name__)
 
 
 def get_client_ip(request: Request) -> str | None:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip
-    return request.client.host if request.client else None
+    direct_ip = request.client.host if request.client else None
+    if not direct_ip or not _is_trusted_proxy(direct_ip):
+        return direct_ip
+
+    candidate = request.headers.get("x-real-ip")
+    if not candidate:
+        forwarded = request.headers.get("x-forwarded-for")
+        candidate = forwarded.split(",")[-1].strip() if forwarded else None
+    if not candidate:
+        return direct_ip
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return direct_ip
+
+
+def _is_trusted_proxy(host: str) -> bool:
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if address.is_loopback:
+        return False
+    for raw_network in get_settings().trusted_proxy_cidrs.split(","):
+        try:
+            network = ipaddress.ip_network(raw_network.strip(), strict=False)
+        except ValueError:
+            continue
+        if address in network:
+            return True
+    return False
 
 
 def _check_brute_force(ip: str | None, username: str | None, app_settings) -> None:
@@ -74,7 +101,7 @@ def _record_brute_force_success(ip: str | None, username: str | None) -> None:
 
 
 @router.get("/bootstrap-status", response_model=BootstrapStatusResponse)
-def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
+def bootstrap_status(request: Request, db: Session = Depends(get_db)) -> BootstrapStatusResponse:
     has_admin_user = db.query(User.id).filter(User.is_admin.is_(True), User.is_active.is_(True)).first() is not None
     has_enabled_device = db.query(Device.id).filter(Device.enabled.is_(True)).first() is not None
     has_active_model = db.query(ModelConfig.id).filter(ModelConfig.activated.is_(True)).first() is not None
@@ -86,9 +113,12 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
     if not setup_complete and has_admin_user:
         _mark_setup_complete()
         setup_complete = True
+    if not setup_complete:
+        get_setup_token(settings.data_dir, settings.setup_token)
 
     return BootstrapStatusResponse(
         requires_setup=not setup_complete,
+        setup_token_required=not _is_local_request(request),
         has_admin_user=has_admin_user,
         has_enabled_device=has_enabled_device,
         has_active_model=has_active_model,
@@ -107,11 +137,21 @@ def bootstrap_status(db: Session = Depends(get_db)) -> BootstrapStatusResponse:
 
 @router.post("/bootstrap-admin", response_model=LoginResponse)
 def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Session = Depends(get_db)) -> LoginResponse:
+    settings = get_settings()
     ip = get_client_ip(request)
-    app_settings = get_or_create_app_settings(db)
-    _check_brute_force(ip, None, app_settings)
+    if not _is_local_request(request):
+        expected_token = get_setup_token(settings.data_dir, settings.setup_token)
+        if not payload.setup_token or not hmac.compare_digest(payload.setup_token, expected_token):
+            raise HTTPException(status_code=403, detail="A valid initial setup token is required")
 
     try:
+        setup_claim = acquire_setup_claim(settings.data_dir)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    try:
+        app_settings = get_or_create_app_settings(db)
+        _check_brute_force(ip, None, app_settings)
         if db.query(User.id).first() is not None:
             _record_brute_force_failure(ip, None, app_settings)
             raise HTTPException(status_code=409, detail="Initial admin has already been created")
@@ -127,9 +167,11 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
         db.add(admin_user)
         db.commit()
         db.refresh(admin_user)
+        _mark_setup_complete()
+        remove_setup_token(settings.data_dir)
         scan_models_dir(db)
         log_event(db, "auth.bootstrap_admin", user_id=admin_user.id, username=admin_user.username, ip_address=get_client_ip(request))
-        token = create_access_token(admin_user.username)
+        token = create_access_token(admin_user.username, admin_user.token_version)
         _record_brute_force_success(ip, None)
         return LoginResponse(access_token=token)
     except HTTPException as exc:
@@ -159,6 +201,11 @@ def bootstrap_admin(payload: BootstrapAdminRequest, request: Request, db: Sessio
         db.rollback()
         logger.exception("Unexpected error while bootstrapping admin user")
         raise HTTPException(status_code=500, detail="Unexpected server error while creating initial admin") from exc
+    finally:
+        try:
+            setup_claim.unlink()
+        except FileNotFoundError:
+            pass
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -189,7 +236,7 @@ async def login(payload: LoginRequest, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=401, detail="Invalid username or password")
     log_event(db, "auth.login", user_id=user.id, username=user.username, ip_address=ip)
     _record_brute_force_success(ip, payload.username)
-    token = create_access_token(user.username)
+    token = create_access_token(user.username, user.token_version)
     return LoginResponse(
         access_token=token,
         terms_accepted=user.terms_accepted_at is not None,
@@ -240,7 +287,7 @@ async def register(payload: UserRegistrationRequest, request: Request, db: Sessi
     db.refresh(user)
     log_event(db, "auth.register", user_id=user.id, username=user.username, ip_address=ip)
     _record_brute_force_success(ip, payload.username)
-    token = create_access_token(user.username)
+    token = create_access_token(user.username, user.token_version)
     return LoginResponse(
         access_token=token,
         terms_accepted=False,
@@ -291,7 +338,13 @@ def update_current_user(
         current_user.email = payload.email
 
     if payload.password is not None:
+        if not payload.current_password or not verify_password(
+            payload.current_password,
+            current_user.password_hash,
+        ):
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
         current_user.password_hash = hash_password(payload.password)
+        current_user.token_version += 1
 
     db.add(current_user)
     db.commit()
@@ -315,6 +368,7 @@ def update_current_user(
         email=current_user.email,
         is_admin=current_user.is_admin,
         is_active=current_user.is_active,
+        terms_accepted=current_user.terms_accepted_at is not None,
         package_id=current_user.package_id,
         package_name=package_name,
     )
@@ -371,3 +425,12 @@ def _mark_setup_complete() -> None:
     flag_path = _setup_complete_path()
     flag_path.parent.mkdir(parents=True, exist_ok=True)
     flag_path.write_text("complete\n", encoding="utf-8")
+
+
+def _is_local_request(request: Request) -> bool:
+    if request.client is None:
+        return False
+    try:
+        return ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        return request.client.host.lower() == "localhost"

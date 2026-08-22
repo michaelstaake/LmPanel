@@ -14,6 +14,7 @@ export default function SecurityPage() {
     users_can_register: false,
     sitename: DEFAULT_SITENAME,
     favicon_path: null,
+    logo_path: null,
     input_price_per_1m: 0,
     output_price_per_1m: 0,
     public_url: "",
@@ -34,6 +35,20 @@ export default function SecurityPage() {
     brute_force_max_failures: 10,
     brute_force_window_minutes: 15,
     brute_force_block_minutes: 15,
+    notifications_enabled: false,
+    notification_server_errors_enabled: false,
+    notification_ip_blocked_enabled: false,
+    notification_user_login_enabled: false,
+    notification_user_registers_enabled: false,
+    notification_usage_limit_reached_enabled: false,
+    mail_email_address: null,
+    mail_email_username: null,
+    mail_email_password_set: false,
+    mail_email_server: null,
+    mail_email_port: 587,
+    mail_email_security: "starttls",
+    mail_email_from_name: null,
+    request_timeout_seconds: 300,
   });
   const [localSiteKey, setLocalSiteKey] = useState("");
   const [localSecretKey, setLocalSecretKey] = useState("");

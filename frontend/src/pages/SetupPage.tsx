@@ -6,12 +6,13 @@ import { isValidUsername, sanitizeUsernameInput, USERNAME_VALIDATION_MESSAGE } f
 
 export default function SetupPage() {
   const navigate = useNavigate();
-  const { bootstrapAdmin, isAuthenticating } = useAuth();
+  const { bootstrapAdmin, isAuthenticating, setupStatus } = useAuth();
   const { showError, showSuccess } = useToast();
   const [username, setUsername] = useState("admin");
   const [email, setEmail] = useState("admin@localhost");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [setupToken, setSetupToken] = useState("");
 
   async function handleBootstrap(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,7 +28,7 @@ export default function SetupPage() {
     }
 
     try {
-      await bootstrapAdmin(username, email, password);
+      await bootstrapAdmin(username, email, password, setupToken || undefined);
       setPassword("");
       setConfirmPassword("");
       showSuccess("Admin account created.");
@@ -63,6 +64,13 @@ export default function SetupPage() {
             Confirm Password
             <input className=" field px-3 py-2 text-sm" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" />
           </label>
+          {setupStatus?.setup_token_required ? (
+            <label className="grid gap-1 text-sm text-sand/70">
+              Setup token
+              <input className="field px-3 py-2 text-sm" type="password" value={setupToken} onChange={(event) => setSetupToken(event.target.value)} autoComplete="one-time-code" required />
+              <span className="text-xs text-sand/50">Find this one-time token in the backend startup logs.</span>
+            </label>
+          ) : null}
           <div className="mt-2">
             <button className=" bg-sand px-4 py-2 text-sm font-semibold text-canvas disabled:cursor-not-allowed disabled:opacity-60" type="submit" disabled={isAuthenticating}>
               {isAuthenticating ? "Creating..." : "Get Started"}

@@ -9,6 +9,7 @@ export default function ProfilePage() {
   const { token, logout, updateProfile, user } = useAuth();
   const { showError, showSuccess } = useToast();
   const [email, setEmail] = useState(user?.email ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSavingEmail, setIsSavingEmail] = useState(false);
@@ -83,7 +84,12 @@ export default function ProfilePage() {
 
     setIsSavingPassword(true);
     try {
-      await updateProfile({ password: nextPassword });
+      if (!currentPassword) {
+        showError("Current password is required.");
+        return;
+      }
+      await updateProfile({ password: nextPassword, current_password: currentPassword });
+      setCurrentPassword("");
       setPassword("");
       setConfirmPassword("");
       showSuccess("Password updated.");
@@ -314,6 +320,17 @@ export default function ProfilePage() {
           </div>
 
           <form className="mt-5 space-y-4" onSubmit={handlePasswordSubmit}>
+            <label className="block text-sm text-sand/70">
+              <span className="mb-2 block font-semibold text-sand">Current password</span>
+              <input
+                className="w-full field px-4 py-3 outline-none transition focus:border-white/25"
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoComplete="current-password"
+                placeholder="Confirm your current password"
+              />
+            </label>
             <label className="block text-sm text-sand/70">
               <span className="mb-2 block font-semibold text-sand">New password</span>
               <input
