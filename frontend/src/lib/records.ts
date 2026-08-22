@@ -182,6 +182,7 @@ export type DeviceStatusRecord = {
   vendor: string;
   device_type: string;
   enabled: boolean;
+  available: boolean;
   priority: number;
   max_slots: number;
   max_threads: number;

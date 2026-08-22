@@ -391,7 +391,7 @@ export default function StatusPage() {
     }
   }
 
-  const visibleDevices = useMemo(() => [...devices.filter((device) => device.enabled)].sort((left, right) => left.priority - right.priority || left.id - right.id), [devices]);
+  const visibleDevices = useMemo(() => [...devices.filter((device) => device.enabled && device.available)].sort((left, right) => left.priority - right.priority || left.id - right.id), [devices]);
   const poolNamesByDeviceId = useMemo(() => {
     const entries = new Map<number, string>();
     for (const pool of pools) {

@@ -55,6 +55,11 @@ async def get_status(
 
     serialized_devices: list[dict] = []
     for device in devices:
+        # Soft-disabled devices (physically removed / undetected) stay in the DB for
+        # pool/pin recovery but must not appear as live GPUs on the status page.
+        if not device.available:
+            continue
+
         # Match runtime stats by the stable PCI address first. The runtime keys its
         # payload by the *live* Vulkan index, which can diverge from this DB row's
         # stored index after an enumeration change — matching by stable id prevents
