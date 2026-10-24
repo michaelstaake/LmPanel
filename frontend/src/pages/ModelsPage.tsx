@@ -273,7 +273,7 @@ function formatModelActivationSuccessMessage(modelAlias: string, elapsedSeconds?
 
 export default function ModelsPage({ setupMode = false, onComplete }: ModelsPageProps) {
   const { token } = useAuth();
-  const { invalidateModelsCatalog } = useModelsCatalog();
+  const { invalidateModelsCatalog, refreshModels } = useModelsCatalog();
   const { showError, showSuccess } = useToast();
   const [models, setModels] = useState<ModelRecord[]>([]);
   const [hasLoadedModels, setHasLoadedModels] = useState(false);
@@ -350,6 +350,13 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
       try {
         const modelsResponse = await apiGet<ModelRecord[]>("/api/models", token);
         const polledById = new Map(modelsResponse.map((model) => [model.id, model]));
+        const activationChanged = latestModelsRef.current.some((item) => {
+          const polled = polledById.get(item.id);
+          if (!polled || loadingActivationIdsRef.current.includes(item.id)) {
+            return false;
+          }
+          return polled.activated !== item.activated;
+        });
         setModels((current) =>
           current.map((item) => {
             const polled = polledById.get(item.id);
@@ -366,6 +373,9 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
             };
           })
         );
+        if (activationChanged) {
+          void refreshModels();
+        }
       } catch {
         // Ignore transient poll failures; the next tick will retry.
       }
@@ -376,7 +386,7 @@ export default function ModelsPage({ setupMode = false, onComplete }: ModelsPage
     }, MODEL_RUNTIME_POLL_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [token]);
+  }, [refreshModels, token]);
 
   async function refreshData(activeToken: string) {
     setIsLoading(true);

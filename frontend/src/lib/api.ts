@@ -86,14 +86,15 @@ async function parseError(response: Response): Promise<Error> {
   return buildApiError(response.status, response.statusText, bodyText);
 }
 
-export async function apiGet<T>(path: string, token?: string): Promise<T> {
+export async function apiGet<T>(path: string, token?: string, signal?: AbortSignal): Promise<T> {
   ensureBackendAvailable();
 
   let response: Response;
 
   try {
     response = await fetch(resolveApiUrl(path), {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      signal,
     });
   } catch (error) {
     handleBackendUnavailableError(error);
@@ -436,8 +437,8 @@ export type V1ModelsResponse = {
   data: V1ModelEntry[];
 };
 
-export async function fetchV1Models(token?: string): Promise<V1ModelsResponse> {
-  return apiGet<V1ModelsResponse>("/v1/models", token);
+export async function fetchV1Models(token?: string, signal?: AbortSignal): Promise<V1ModelsResponse> {
+  return apiGet<V1ModelsResponse>("/v1/models", token, signal);
 }
 
 export async function updateUserEmail(userId: number, email: string, token?: string): Promise<UserUpdateResponse> {

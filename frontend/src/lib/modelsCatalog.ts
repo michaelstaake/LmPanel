@@ -1,4 +1,4 @@
-import { type V1ModelEntry, type V1ModelsResponse } from "./api";
+import type { V1ModelEntry, V1ModelsResponse } from "./api";
 
 export type ModelCardDetails = {
   description: string;
@@ -32,7 +32,43 @@ function cacheStorageKey(): string {
   return `${CACHE_KEY_PREFIX}${window.location.origin}`;
 }
 
+export const emptyModelsCatalog: ModelsCatalogData = {
+  models: [],
+  modelCardDetails: {},
+  modelVisionDefaults: {},
+  modelSearchAvailability: {},
+  modelThinkingDisabledDefaults: {},
+  modelThinkingDefaults: {},
+  modelThinkingControllable: {},
+  modelThinkingCapabilities: {},
+  modelThinkingLevels: {},
+  modelThinkingCanDisable: {},
+  modelThinkingLevelDefaults: {},
+};
+
+export type ModelsCatalogLoadState = {
+  catalog: ModelsCatalogData;
+  isLoadingModels: boolean;
+  isRefreshingModels: boolean;
+};
+
+export type ModelsCatalogRequestResult =
+  | { ok: true; catalog: ModelsCatalogData }
+  | { ok: false };
+
+function isCatalogModelEntry(entry: unknown): entry is V1ModelEntry {
+  if (!entry || typeof entry !== "object") {
+    return false;
+  }
+  const id = (entry as { id?: unknown }).id;
+  return typeof id === "string" && id.trim() !== "";
+}
+
 export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCatalogData {
+  if (!response || !Array.isArray(response.data)) {
+    throw new Error("Failed to load models");
+  }
+
   const models: string[] = [];
   const modelCardDetails: Record<string, ModelCardDetails> = {};
   const modelVisionDefaults: Record<string, boolean> = {};
@@ -46,6 +82,9 @@ export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCa
   const modelThinkingLevelDefaults: Record<string, string> = {};
 
   for (const entry of response.data) {
+    if (!isCatalogModelEntry(entry) || modelCardDetails[entry.id]) {
+      continue;
+    }
     models.push(entry.id);
     modelCardDetails[entry.id] = {
       description: entry.description?.trim() ?? "",
@@ -80,6 +119,67 @@ export function buildCatalogFromV1Response(response: V1ModelsResponse): ModelsCa
     modelThinkingLevels,
     modelThinkingCanDisable,
     modelThinkingLevelDefaults,
+  };
+}
+
+export function createInitialCatalogLoadState(cached: ModelsCatalogData | null): ModelsCatalogLoadState {
+  if (cached && Array.isArray(cached.models)) {
+    return {
+      catalog: cached,
+      isLoadingModels: false,
+      isRefreshingModels: false,
+    };
+  }
+  return {
+    catalog: emptyModelsCatalog,
+    isLoadingModels: true,
+    isRefreshingModels: false,
+  };
+}
+
+export function beginModelsCatalogRefresh(state: ModelsCatalogLoadState): ModelsCatalogLoadState {
+  if (state.catalog.models.length > 0) {
+    return {
+      ...state,
+      isLoadingModels: false,
+      isRefreshingModels: true,
+    };
+  }
+  return {
+    ...state,
+    isLoadingModels: true,
+    isRefreshingModels: false,
+  };
+}
+
+export function invalidateModelsCatalogState(): ModelsCatalogLoadState {
+  return {
+    catalog: emptyModelsCatalog,
+    isLoadingModels: true,
+    isRefreshingModels: false,
+  };
+}
+
+export function settleModelsCatalogRequest(
+  state: ModelsCatalogLoadState,
+  requestId: number,
+  latestRequestId: number,
+  result: ModelsCatalogRequestResult,
+): ModelsCatalogLoadState {
+  if (requestId !== latestRequestId) {
+    return state;
+  }
+  if (result.ok) {
+    return {
+      catalog: result.catalog,
+      isLoadingModels: false,
+      isRefreshingModels: false,
+    };
+  }
+  return {
+    ...state,
+    isLoadingModels: false,
+    isRefreshingModels: false,
   };
 }
 
